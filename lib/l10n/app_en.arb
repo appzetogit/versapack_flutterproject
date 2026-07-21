@@ -1,0 +1,4 @@
+{
+    "appName": "Food User App",
+    "exitMessage":  "Hello {user}"
+}
