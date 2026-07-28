@@ -1,0 +1,102 @@
+import 'dart:async';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../core/services/fcm_service.dart';
+import '../../../core/services/socket_service.dart';
+import '../data/models/delivery_order.dart';
+import 'orders_controller.dart';
+
+/// Single source of truth for the full-screen incoming-order alert.
+/// `null` means no active alert; non-null means "show it now" — regardless
+/// of whether the order arrived via Socket.IO (app open) or FCM (app
+/// backgrounded/foregrounded), both transports funnel into this state.
+class IncomingOrderController extends Notifier<DeliveryOrder?> {
+  StreamSubscription<Map<String, dynamic>>? _socketSub;
+  StreamSubscription<Map<String, dynamic>>? _fcmReceivedSub;
+  StreamSubscription<Map<String, dynamic>>? _fcmTapSub;
+  StreamSubscription<Map<String, dynamic>>? _orderClaimedSub;
+  StreamSubscription<Map<String, dynamic>>? _orderDeassignedSub;
+
+  // Backend keeps re-offering an order to this partner across re-offer
+  // rounds even after it's been declined/expired here — track what's
+  // already been resolved this session so it isn't shown again.
+  final Set<String> _dismissedOrderIds = {};
+
+  @override
+  DeliveryOrder? build() {
+    final socket = ref.read(socketServiceProvider);
+    _socketSub = socket.onNewOrderAvailable.listen(_onRealtimePayload);
+    _orderClaimedSub = socket.onOrderClaimed.listen(_autoDismissIfMatch);
+    _orderDeassignedSub = socket.onOrderDeassigned.listen(_autoDismissIfMatch);
+
+    final fcm = ref.read(fcmServiceProvider);
+    _fcmReceivedSub = fcm.onNotificationReceived.listen(_onRealtimePayload);
+    _fcmTapSub = fcm.onNotificationTap.listen(_onRealtimePayload);
+
+    ref.onDispose(() {
+      _socketSub?.cancel();
+      _fcmReceivedSub?.cancel();
+      _fcmTapSub?.cancel();
+      _orderClaimedSub?.cancel();
+      _orderDeassignedSub?.cancel();
+    });
+
+    return null;
+  }
+
+  void _onRealtimePayload(Map<String, dynamic> data) {
+    // FCM data always tags {type: 'new_order'}; non-order push types (e.g.
+    // referral_bonus) must be ignored here. Socket order events carry no
+    // 'type' field, so absence of the key means "treat as an order".
+    if (data['type'] != null && data['type'] != 'new_order') return;
+    final orderId =
+        (data['orderMongoId'] ?? data['_id'] ?? data['orderId'])?.toString();
+    if (orderId == null || orderId.isEmpty) return;
+    if (_dismissedOrderIds.contains(orderId)) return;
+    if (state != null && state!.id == orderId) return;
+    show(DeliveryOrder.fromRealtimePayload(data));
+  }
+
+  void _autoDismissIfMatch(Map<String, dynamic> data) {
+    final order = state;
+    if (order == null) return;
+    final orderId = (data['orderId'] ?? data['_id'] ?? data['id'])?.toString();
+    if (orderId != null && orderId == order.id) {
+      state = null;
+    }
+  }
+
+  void show(DeliveryOrder order) {
+    state = order;
+  }
+
+  Future<void> accept() async {
+    final order = state;
+    if (order == null) return;
+    state = null;
+    await ref.read(ordersControllerProvider.notifier).acceptOrder(order.id);
+  }
+
+  Future<void> decline() async {
+    final order = state;
+    if (order == null) return;
+    _dismissedOrderIds.add(order.id);
+    state = null;
+    await ref.read(ordersControllerProvider.notifier).rejectOrder(order.id);
+  }
+
+  /// Countdown ran out client-side — best-effort notify the backend so it
+  /// can reassign sooner. The BullMQ `processDispatchTimeout` job remains
+  /// the authoritative fallback if this call never arrives.
+  Future<void> expire() => decline();
+
+  void dismiss() {
+    state = null;
+  }
+}
+
+final incomingOrderControllerProvider =
+    NotifierProvider<IncomingOrderController, DeliveryOrder?>(
+  IncomingOrderController.new,
+);

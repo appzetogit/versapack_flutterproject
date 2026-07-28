@@ -1,6 +1,6 @@
 {
-    "name": "food_user_application",
-    "short_name": "food_user_application",
+    "name": "Food Delivery",
+    "short_name": "Food Delivery",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
