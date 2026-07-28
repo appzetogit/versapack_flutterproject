@@ -98,14 +98,36 @@ class AvailabilityController extends Notifier<bool> {
     // The position stream only emits on movement (distanceFilter), so a
     // stationary rider would otherwise never refresh lastLocationAt and
     // silently drop out of dispatch once the backend's GPS staleness
-    // window (10 min) elapses. Ping on a timer too, independent of movement.
+    // window elapses. Ping on a timer too, independent of movement.
     _keepAliveTimer?.cancel();
-    _keepAliveTimer = Timer.periodic(const Duration(minutes: 3), (_) {
-      final pos = ref.read(locationServiceProvider).lastPosition;
-      if (pos == null) return;
-      _lastPing = DateTime.now();
-      _repository.updateAvailability(true, lat: pos.latitude, lng: pos.longitude);
-    });
+    _keepAliveTimer = Timer.periodic(const Duration(minutes: 3), (_) => _pingLocation());
+    // Ping immediately as well. build() starts tracking for a rider who was
+    // already online without ever taking a fix (unlike goOnline, which calls
+    // getCurrentPosition), so without this their first ping is 3 minutes away
+    // at best — and never, if they don't move.
+    unawaited(_pingLocation());
+  }
+
+  /// Refreshes lastLocationAt server-side so dispatch keeps considering this rider.
+  ///
+  /// Resolving a position here rather than bailing on null is the whole point:
+  /// LocationService.lastPosition stays null until the movement-gated stream first
+  /// emits, which never happens for a rider who resumed the app already-online and
+  /// hasn't moved 15m. Those riders were being dropped from every order offer, so
+  /// they never even received the new-order push.
+  Future<void> _pingLocation() async {
+    final service = ref.read(locationServiceProvider);
+    var pos = service.lastPosition ?? await Geolocator.getLastKnownPosition();
+    if (pos == null) {
+      try {
+        pos = await Geolocator.getCurrentPosition();
+      } catch (_) {
+        return; // No fix available at all — nothing useful to report.
+      }
+    }
+    service.lastPosition = pos;
+    _lastPing = DateTime.now();
+    await _repository.updateAvailability(true, lat: pos.latitude, lng: pos.longitude);
   }
 
   void _stopTracking() {
