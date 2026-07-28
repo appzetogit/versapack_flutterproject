@@ -4,6 +4,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/error/result.dart';
+import '../../../../core/services/sound_service.dart';
 import '../../data/notifications_repository.dart';
 
 const _monthAbbr = [
@@ -175,7 +176,10 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: _load,
+        onRefresh: () async {
+          SoundService.playRefresh();
+          await _load();
+        },
         child: _loading
             ? const Center(child: CircularProgressIndicator())
             : _error != null

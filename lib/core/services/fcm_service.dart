@@ -11,15 +11,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../network/api_endpoints.dart';
 import '../network/dio_client.dart';
 import '../storage/token_storage.dart';
+import 'order_overlay_service.dart';
 
 /// Dedicated channel for incoming-order alerts — separate from
 /// [FcmService._channel] because it needs call-category / full-screen-intent
 /// semantics that a plain order-status-update notification shouldn't have.
 const _incomingOrdersChannel = AndroidNotificationChannel(
-  'incoming_orders_channel',
+  'incoming_orders_channel_v3',
   'Incoming Orders',
   description: 'Full-screen incoming order alerts that require immediate action',
   importance: Importance.max,
+  sound: RawResourceAndroidNotificationSound('tujh_bin1'),
+  playSound: true,
 );
 
 /// Must stay top-level / static so the Dart VM can invoke it in the
@@ -29,38 +32,64 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
   if (message.data['type'] != 'new_order') return;
 
-  // A fresh isolate — the channel/plugin registered by FcmService.initialize()
-  // in the main isolate doesn't exist here, so set both up again.
-  final localNotifications = FlutterLocalNotificationsPlugin();
-  await localNotifications.initialize(
-    const InitializationSettings(
-      android: AndroidInitializationSettings('@mipmap/launcher_icon'),
-    ),
-  );
-  await localNotifications
-      .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-      ?.createNotificationChannel(_incomingOrdersChannel);
-
-  await localNotifications.show(
-    message.hashCode,
-    message.data['restaurantName'] as String? ?? 'New order',
-    'Tap to view — 45 seconds to accept!',
-    NotificationDetails(
-      android: AndroidNotificationDetails(
-        _incomingOrdersChannel.id,
-        _incomingOrdersChannel.name,
-        channelDescription: _incomingOrdersChannel.description,
-        importance: Importance.max,
-        priority: Priority.high,
-        category: AndroidNotificationCategory.call,
-        fullScreenIntent: true,
-        ongoing: true,
-        autoCancel: false,
-        icon: '@mipmap/launcher_icon',
+  if (await OrderOverlayService.hasPermission()) {
+    await OrderOverlayService.showForOrder(message.data);
+  } else {
+    // A fresh isolate — the channel/plugin registered by FcmService.initialize()
+    // in the main isolate doesn't exist here, so set both up again.
+    final localNotifications = FlutterLocalNotificationsPlugin();
+    await localNotifications.initialize(
+      const InitializationSettings(
+        android: AndroidInitializationSettings('@mipmap/launcher_icon'),
       ),
-    ),
-    payload: jsonEncode(message.data),
-  );
+    );
+    await localNotifications
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(_incomingOrdersChannel);
+
+    final pickup = message.data['pickupAddress'] as String? ?? 'Restaurant';
+    final drop = message.data['dropAddress'] as String? ?? 'Customer';
+    final price = message.data['price'] as String? ?? '';
+    final distance = message.data['distance'] as String? ?? '';
+    final body = 'From: $pickup\nTo: $drop\nEarnings: ₹$price | Dist: ${distance}km';
+
+    await localNotifications.show(
+      message.hashCode,
+      message.data['restaurantName'] as String? ?? 'New order',
+      body,
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          _incomingOrdersChannel.id,
+          _incomingOrdersChannel.name,
+          channelDescription: _incomingOrdersChannel.description,
+          importance: Importance.max,
+          priority: Priority.high,
+          category: AndroidNotificationCategory.call,
+          fullScreenIntent: true,
+          ongoing: true,
+          sound: const RawResourceAndroidNotificationSound('tujh_bin1'),
+          playSound: true,
+          styleInformation: BigTextStyleInformation(body),
+          actions: <AndroidNotificationAction>[
+            const AndroidNotificationAction(
+              'accept',
+              'Accept',
+              showsUserInterface: true,
+              cancelNotification: true,
+            ),
+            const AndroidNotificationAction(
+              'reject',
+              'Reject',
+              showsUserInterface: true,
+              cancelNotification: true,
+            ),
+          ],
+        ),
+      ),
+      payload: jsonEncode(message.data),
+    );
+  }
+
 }
 
 class FcmService {
@@ -107,16 +136,27 @@ class FcmService {
     );
 
     if (Platform.isAndroid) {
-      await _localNotifications
+      final androidPlugin = _localNotifications
           .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin
-          >()
-          ?.createNotificationChannel(_channel);
-      await _localNotifications
-          .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin
-          >()
-          ?.createNotificationChannel(_incomingOrdersChannel);
+          >();
+      await androidPlugin?.createNotificationChannel(_channel);
+      await androidPlugin?.createNotificationChannel(_incomingOrdersChannel);
+
+      // Android 14+ revokes USE_FULL_SCREEN_INTENT by default for apps
+      // without calling/alarm functionality, even though it's declared in
+      // the manifest — without this explicit grant, fullScreenIntent
+      // notifications silently downgrade to a normal heads-up banner on
+      // both the lock screen and home screen. No-ops (returns true) if
+      // already granted or on pre-Android 14 devices.
+      await androidPlugin?.requestFullScreenIntentPermission();
+
+      // Overlay bubble permission ("display over other apps") — powers the
+      // floating home-screen bubble for new orders that arrive while the
+      // app is backgrounded (see OrderOverlayService). Separate from the
+      // full-screen-intent permission above, which only covers the locked-
+      // device case.
+      await OrderOverlayService.requestPermission();
     }
 
     // Cold start via the full-screen-intent notification (lock screen /
@@ -180,6 +220,10 @@ class FcmService {
 
   void _showForegroundNotification(RemoteMessage message) {
     _notificationReceivedController.add(message.data);
+    // 'new_order' pushes are already handled by the full-screen incoming-
+    // order overlay (driven by the line above) — showing the plain tray
+    // notification too would duplicate/compete with it.
+    if (message.data['type'] == 'new_order') return;
     final notification = message.notification;
     if (notification == null) return;
     _localNotifications.show(

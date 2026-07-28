@@ -11,6 +11,7 @@ import '../../../auth/data/models/delivery_partner.dart';
 import '../../../main/presentation/screens/main_screen.dart';
 import '../../../profile/data/profile_repository.dart';
 import '../../../wallet/data/wallet_repository.dart';
+import '../../../../core/theme/theme_mode_provider.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -119,6 +120,88 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
+  void _showAppearanceSheet(BuildContext context) {
+    final theme = Theme.of(context);
+    final currentMode = ref.watch(themeModeProvider);
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: theme.colorScheme.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 20.h, horizontal: 16.w),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Appearance',
+                style: TextStyle(
+                  fontSize: 18.sp,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              SizedBox(height: 16.h),
+              _buildAppearanceOption(
+                sheetContext: sheetContext,
+                title: 'System Default',
+                icon: Icons.brightness_auto,
+                value: ThemeMode.system,
+                groupValue: currentMode,
+              ),
+              _buildAppearanceOption(
+                sheetContext: sheetContext,
+                title: 'Light',
+                icon: Icons.light_mode,
+                value: ThemeMode.light,
+                groupValue: currentMode,
+              ),
+              _buildAppearanceOption(
+                sheetContext: sheetContext,
+                title: 'Dark',
+                icon: Icons.dark_mode,
+                value: ThemeMode.dark,
+                groupValue: currentMode,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAppearanceOption({
+    required BuildContext sheetContext,
+    required String title,
+    required IconData icon,
+    required ThemeMode value,
+    required ThemeMode groupValue,
+  }) {
+    final isSelected = value == groupValue;
+    final theme = Theme.of(sheetContext);
+    
+    return ListTile(
+      leading: Icon(icon, color: isSelected ? theme.primaryColor : Colors.grey),
+      title: Text(
+        title,
+        style: TextStyle(
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+          color: isSelected ? theme.primaryColor : null,
+        ),
+      ),
+      trailing: isSelected 
+          ? Icon(Icons.check_circle, color: theme.primaryColor)
+          : const Icon(Icons.circle_outlined, color: Colors.grey),
+      onTap: () {
+        ref.read(themeModeProvider.notifier).setThemeMode(value);
+        Navigator.pop(sheetContext);
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -135,7 +218,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             Icons.arrow_back,
             color: theme.appBarTheme.iconTheme?.color,
           ),
-          onPressed: () => context.go('/main'),
+          onPressed: () => ref.read(mainTabIndexProvider.notifier).setIndex(0),
         ),
         actions: [
           IconButton(
@@ -258,7 +341,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       ),
                       SizedBox(width: 2.w),
                       Text(
-                        rating != null ? rating.toStringAsFixed(2) : 'New',
+                        rating != null 
+                            ? '${rating.toStringAsFixed(1)}${user?.totalRatings != null && user!.totalRatings! > 0 ? ' (${user.totalRatings})' : ''}' 
+                            : 'New',
                         style: TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.w700,
@@ -384,6 +469,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         'Refer & Earn',
         'Invite friends and earn more',
         () => context.push('/refer-earn'),
+      ),
+      (
+        Icons.palette_outlined,
+        'Appearance',
+        'Light, dark, or system default',
+        () => _showAppearanceSheet(context),
       ),
       (
         Icons.settings_outlined,

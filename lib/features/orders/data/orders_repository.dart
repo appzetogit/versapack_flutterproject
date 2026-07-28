@@ -159,6 +159,25 @@ class OrdersRepository {
     }
   }
 
+  Future<Result<bool, AppError>> rateCustomer(
+    String orderId, {
+    required int rating,
+    String? comment,
+  }) async {
+    try {
+      final res = await _dio.patch(
+        ApiEndpoints.orderRateCustomer(orderId),
+        data: {
+          'rating': rating,
+          if (comment != null && comment.isNotEmpty) 'comment': comment,
+        },
+      );
+      return Result.success(res.data['success'] as bool? ?? true);
+    } on DioException catch (e) {
+      return Result.failure(_mapError(e));
+    }
+  }
+
   Future<Result<DeliveryOrder, AppError>> _patchOrder(
     String path, {
     Object? data,

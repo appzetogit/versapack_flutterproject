@@ -639,60 +639,167 @@ class _BankEditDialogState extends State<_BankEditDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Bank Details'),
-      content: SingleChildScrollView(
-        child: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextFormField(
-                controller: _holderController,
-                decoration: const InputDecoration(labelText: 'Account Holder Name'),
-                validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : Colors.black87;
+
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24.r)),
+      backgroundColor: theme.colorScheme.surface,
+      insetPadding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 24.h),
+      child: Container(
+        padding: EdgeInsets.all(24.w),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(24.r),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Bank Details',
+                  style: TextStyle(
+                    fontSize: 20.sp,
+                    fontWeight: FontWeight.bold,
+                    color: textColor,
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  icon: Icon(Icons.close, color: Colors.grey, size: 24.sp),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  splashRadius: 24.r,
+                ),
+              ],
+            ),
+            SizedBox(height: 20.h),
+            Flexible(
+              child: SingleChildScrollView(
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    children: [
+                      _buildTextField(
+                        controller: _holderController,
+                        label: 'Account Holder Name',
+                        icon: Icons.person_outline,
+                      ),
+                      SizedBox(height: 16.h),
+                      _buildTextField(
+                        controller: _accountController,
+                        label: 'Account Number',
+                        icon: Icons.numbers_outlined,
+                        keyboardType: TextInputType.number,
+                      ),
+                      SizedBox(height: 16.h),
+                      _buildTextField(
+                        controller: _ifscController,
+                        label: 'IFSC Code',
+                        icon: Icons.account_balance_outlined,
+                        textCapitalization: TextCapitalization.characters,
+                      ),
+                      SizedBox(height: 16.h),
+                      _buildTextField(
+                        controller: _bankNameController,
+                        label: 'Bank Name',
+                        icon: Icons.corporate_fare_outlined,
+                      ),
+                      SizedBox(height: 16.h),
+                      _buildTextField(
+                        controller: _upiController,
+                        label: 'UPI ID (optional)',
+                        icon: Icons.qr_code_scanner_outlined,
+                        isRequired: false,
+                      ),
+                    ],
+                  ),
+                ),
               ),
-              TextFormField(
-                controller: _accountController,
-                decoration: const InputDecoration(labelText: 'Account Number'),
-                keyboardType: TextInputType.number,
-                validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
+            ),
+            SizedBox(height: 24.h),
+            ElevatedButton(
+              onPressed: _saving ? null : _submit,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: theme.primaryColor,
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.symmetric(vertical: 16.h),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16.r),
+                ),
+                elevation: 0,
               ),
-              TextFormField(
-                controller: _ifscController,
-                decoration: const InputDecoration(labelText: 'IFSC Code'),
-                textCapitalization: TextCapitalization.characters,
-                validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
-              ),
-              TextFormField(
-                controller: _bankNameController,
-                decoration: const InputDecoration(labelText: 'Bank Name'),
-                validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
-              ),
-              TextFormField(
-                controller: _upiController,
-                decoration: const InputDecoration(labelText: 'UPI ID (optional)'),
-              ),
-            ],
-          ),
+              child: _saving
+                  ? SizedBox(
+                      width: 20.w,
+                      height: 20.w,
+                      child: const CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : Text(
+                      'Save Details',
+                      style: TextStyle(
+                        fontSize: 16.sp,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+            ),
+          ],
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: _saving ? null : () => Navigator.of(context).pop(false),
-          child: const Text('Cancel'),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    TextInputType keyboardType = TextInputType.text,
+    TextCapitalization textCapitalization = TextCapitalization.none,
+    bool isRequired = true,
+  }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final fillColor = isDark ? Colors.grey[800] : Colors.grey[100];
+    
+    return TextFormField(
+      controller: controller,
+      keyboardType: keyboardType,
+      textCapitalization: textCapitalization,
+      style: TextStyle(fontSize: 14.sp),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: TextStyle(fontSize: 14.sp, color: Colors.grey[600]),
+        prefixIcon: Icon(icon, color: Colors.grey[500], size: 20.sp),
+        filled: true,
+        fillColor: fillColor,
+        contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16.r),
+          borderSide: BorderSide.none,
         ),
-        TextButton(
-          onPressed: _saving ? null : _submit,
-          child: _saving
-              ? SizedBox(
-                  width: 16.w,
-                  height: 16.w,
-                  child: const CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Text('Save'),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16.r),
+          borderSide: BorderSide.none,
         ),
-      ],
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16.r),
+          borderSide: BorderSide(color: theme.primaryColor, width: 1.5),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16.r),
+          borderSide: const BorderSide(color: Colors.redAccent, width: 1),
+        ),
+      ),
+      validator: isRequired
+          ? (v) => v == null || v.trim().isEmpty ? 'Required' : null
+          : null,
     );
   }
 }

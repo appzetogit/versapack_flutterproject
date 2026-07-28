@@ -1,11 +1,15 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:food_user_application/core/error/result.dart';
+import 'package:food_user_application/features/notifications/data/notifications_repository.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:food_user_application/core/utils/map_launcher.dart';
@@ -26,6 +30,7 @@ import 'package:food_user_application/features/support/data/support_repository.d
 import 'package:food_user_application/features/wallet/data/wallet_repository.dart';
 import 'package:food_user_application/core/services/fcm_service.dart';
 import 'package:food_user_application/features/refer_earn/application/referral_controller.dart';
+import 'package:food_user_application/features/chat/presentation/screens/chat_screen.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -54,6 +59,9 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
   LatLng? _routeDestination;
   String? _routeKey;
   Timer? _routeRefreshTimer;
+  Timer? _pulseTimer;
+  double _pulsePhase = 0.0;
+  int _unreadNotificationCount = 0;
 
   @override
   void initState() {
@@ -62,15 +70,41 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
     _loadEarnings();
     _loadMarkerIcon();
     _initMapPosition();
+    _loadUnreadCount();
     _listenForFcmNotifications();
     _positionSub = ref.read(locationServiceProvider).positionStream.listen((pos) {
       if (mounted) setState(() => _currentPosition = pos);
     });
+    _pulseTimer = Timer.periodic(const Duration(milliseconds: 100), (_) {
+      if (!mounted) return;
+      setState(() => _pulsePhase = (_pulsePhase + 0.05) % 1.0);
+    });
+  }
+
+  Future<void> _requestOverlayPermission() async {
+    if (Platform.isAndroid) {
+      final status = await Permission.systemAlertWindow.status;
+      if (status.isDenied) {
+        await Permission.systemAlertWindow.request();
+      }
+    }
+  }
+
+  Future<void> _loadUnreadCount() async {
+    final result = await ref.read(notificationsRepositoryProvider).getInbox(limit: 1);
+    if (!mounted) return;
+    result.when(
+      success: (data) => setState(() {
+        _unreadNotificationCount = (data['unreadCount'] as num?)?.toInt() ?? 0;
+      }),
+      failure: (_) {},
+    );
   }
 
   void _listenForFcmNotifications() {
     final fcmService = ref.read(fcmServiceProvider);
     fcmService.onNotificationReceived.listen((data) {
+      _loadUnreadCount();
       if (data['type'] == 'referral_bonus') {
         _showReferralBonusCelebration(data['amount']?.toString() ?? '');
         ref.read(referralControllerProvider.notifier).refreshStats();
@@ -163,6 +197,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
   void dispose() {
     _routeRefreshTimer?.cancel();
     _positionSub?.cancel();
+    _pulseTimer?.cancel();
     super.dispose();
   }
 
@@ -351,7 +386,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
       builder: (_) => CollectPaymentSheet(order: order),
     );
     if (collected == true) {
-      ref.read(ordersControllerProvider.notifier).refreshCurrent();
+      await _runAction(() => ref.read(ordersControllerProvider.notifier).completeOrder(order.id));
     }
   }
 
@@ -551,16 +586,20 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
         ),
         _buildHeaderIcon(Icons.report_problem_outlined, _showEmergencyHelpBottomSheet),
         _buildHeaderIcon(Icons.assignment_ind_outlined, () => context.push('/driver-id-card')),
-        _buildHeaderIcon(Icons.notifications_none_rounded, () => context.push('/notifications'), true),
+        _buildHeaderIcon(
+          Icons.notifications_none_rounded,
+          () => context.push('/notifications').then((_) => _loadUnreadCount()),
+          _unreadNotificationCount,
+        ),
         // _buildHeaderIcon(Icons.headset_mic_outlined, () {
         //    // Do nothing for now or dial support if known
         // }
-       // ),
+        // ),
       ],
     );
   }
 
-  Widget _buildHeaderIcon(IconData icon, VoidCallback onTap, [bool showDot = false]) {
+  Widget _buildHeaderIcon(IconData icon, VoidCallback onTap, [int unreadCount = 0]) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -582,17 +621,27 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
           alignment: Alignment.center,
           children: [
             Icon(icon, color: Colors.black, size: 22.sp),
-            if (showDot)
+            if (unreadCount > 0)
               Positioned(
-                top: 10.h,
-                right: 12.w,
+                top: 8.h,
+                right: 8.w,
                 child: Container(
-                  width: 8.r,
-                  height: 8.r,
+                  padding: EdgeInsets.all(4.r),
                   decoration: BoxDecoration(
                     color: Colors.redAccent,
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white, width: 1.5),
+                  ),
+                  child: Center(
+                    child: Text(
+                      unreadCount > 9 ? '9+' : '$unreadCount',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 8.sp,
+                        fontWeight: FontWeight.bold,
+                        height: 1,
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -607,7 +656,14 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
       onTap: () async {
         HapticService.light();
         final result = await ref.read(availabilityControllerProvider.notifier).toggle();
-        result.when(success: (_) {}, failure: (error) => _showSnack(error.message));
+        result.when(
+          success: (_) {
+            if (ref.read(availabilityControllerProvider)) {
+              _requestOverlayPermission();
+            }
+          },
+          failure: (error) => _showSnack(error.message),
+        );
       },
       child: Row(
         children: [
@@ -906,13 +962,23 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                         order.restaurant.name,
                         style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15.sp, color: textColor),
                       ),
-                      Text(order.restaurant.address, style: TextStyle(fontSize: 12.sp, color: subTextColor)),
+                      Text(
+                        order.restaurant.address,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 12.sp, color: subTextColor),
+                      ),
                       SizedBox(height: 16.h),
                       Text(
                         order.customerName,
                         style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15.sp, color: textColor),
                       ),
-                      Text(order.deliveryAddress.fullAddress, style: TextStyle(fontSize: 12.sp, color: subTextColor)),
+                      Text(
+                        order.deliveryAddress.fullAddress,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 12.sp, color: subTextColor),
+                      ),
                     ],
                   ),
                 ),
@@ -944,23 +1010,27 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                     disabledBackgroundColor: theme.primaryColor.withOpacity(0.4),
                     elevation: 0,
                     minimumSize: Size(double.infinity, 48.h),
+                    padding: EdgeInsets.symmetric(horizontal: 4.w),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(action?.icon ?? Icons.hourglass_empty_rounded, size: 18.sp),
-                      SizedBox(width: 8.w),
-                      Text(
-                        action?.label ?? 'Processing…',
-                        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14.sp),
+                      SizedBox(width: 4.w),
+                      Flexible(
+                        child: Text(
+                          action?.label ?? 'Processing…',
+                          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13.sp),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                     ],
                   ),
                 ),
               ),
               if (showNavigate) ...[
-                SizedBox(width: 10.w),
+                SizedBox(width: 8.w),
                 GestureDetector(
                   onTap: () {
                     if (navigateToRestaurant && order.restaurant.location != null) {
@@ -982,7 +1052,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                   ),
                 ),
               ],
-              SizedBox(width: 10.w),
+              SizedBox(width: 8.w),
               GestureDetector(
                 onTap: () => _callCustomer(order),
                 child: Container(
@@ -993,6 +1063,22 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                     borderRadius: BorderRadius.circular(16.r),
                   ),
                   child: Icon(Icons.call_rounded, color: Colors.white, size: 18.sp),
+                ),
+              ),
+              SizedBox(width: 8.w),
+              GestureDetector(
+                onTap: () {
+                  HapticService.light();
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => ChatScreen(order: order)));
+                },
+                child: Container(
+                  height: 48.h,
+                  width: 48.h,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1C1C1E),
+                    borderRadius: BorderRadius.circular(16.r),
+                  ),
+                  child: Icon(Icons.chat_bubble_rounded, color: Colors.white, size: 18.sp),
                 ),
               ),
             ],
@@ -1110,6 +1196,17 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                         ),
                       ),
                   },
+                  circles: {
+                    if (pos != null)
+                      Circle(
+                        circleId: const CircleId('live_location_pulse'),
+                        center: LatLng(pos.latitude, pos.longitude),
+                        radius: 50 + (_pulsePhase * 55),
+                        fillColor: const ui.Color.fromARGB(255, 250, 131, 57).withOpacity((1 - _pulsePhase)*0.11 ),
+                        strokeColor: const ui.Color.fromARGB(255, 41, 190, 30).withOpacity((1 - _pulsePhase) * 0.55),
+                        strokeWidth: 3,
+                      ),
+                  }, 
                   polylines: {
                     if (_routePoints.length > 1)
                       Polyline(

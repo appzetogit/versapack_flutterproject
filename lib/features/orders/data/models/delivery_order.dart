@@ -55,6 +55,8 @@ class RestaurantInfo {
     this.area,
     this.city,
     this.profileImage,
+    this.coverImages = const [],
+    this.menuImages = const [],
     this.location,
   });
 
@@ -64,19 +66,54 @@ class RestaurantInfo {
   final String? area;
   final String? city;
   final String? profileImage;
+  final List<String> coverImages;
+  final List<String> menuImages;
   final GeoPoint? location;
 
   String get address =>
       [addressLine1, area, city].where((e) => e != null && e.isNotEmpty).join(', ');
 
+  /// All restaurant-uploaded photos (cover + menu media first, profile logo
+  /// last as a fallback), deduped and with empty/null entries removed, for
+  /// use in a gallery viewer.
+  List<String> get allImages {
+    final seen = <String>{};
+    final result = <String>[];
+    for (final url in [
+      ...coverImages,
+      ...menuImages,
+      if (profileImage != null) profileImage!,
+    ]) {
+      if (url.isNotEmpty && seen.add(url)) result.add(url);
+    }
+    return result;
+  }
+
+  /// The photo shown on the map marker and pickup card — prefers the
+  /// restaurant's uploaded "Media" (cover/gallery) photos over the plain
+  /// profile logo, since that's what the delivery partner should recognize
+  /// the storefront by.
+  String? get displayImage {
+    if (coverImages.isNotEmpty) return coverImages.first;
+    if (menuImages.isNotEmpty) return menuImages.first;
+    return profileImage;
+  }
+
+  static List<String> _stringList(dynamic value) {
+    if (value is! List) return const [];
+    return value.whereType<String>().where((e) => e.isNotEmpty).toList();
+  }
+
   factory RestaurantInfo.fromJson(Map<String, dynamic> json) {
     return RestaurantInfo(
       name: json['restaurantName'] as String? ?? json['name'] as String? ?? '',
       phone: json['phone'] as String? ?? json['ownerPhone'] as String?,
-      addressLine1: json['addressLine1'] as String?,
+      addressLine1: json['addressLine1'] as String? ?? json['address'] as String?,
       area: json['area'] as String?,
       city: json['city'] as String?,
       profileImage: json['profileImage'] as String?,
+      coverImages: _stringList(json['coverImages']),
+      menuImages: _stringList(json['menuImages']),
       location: GeoPoint.fromCoordinates(
         (json['location'] as Map<String, dynamic>?)?['coordinates'],
       ),
@@ -109,7 +146,7 @@ class DeliveryAddress {
 
   factory DeliveryAddress.fromJson(Map<String, dynamic> json) {
     return DeliveryAddress(
-      street: json['street'] as String? ?? '',
+      street: json['street'] as String? ?? json['address'] as String? ?? '',
       additionalDetails: json['additionalDetails'] as String?,
       city: json['city'] as String?,
       state: json['state'] as String?,

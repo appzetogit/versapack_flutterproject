@@ -59,4 +59,14 @@ class SoundService {
   static void tapClick() {
     SystemSound.play(SystemSoundType.click);
   }
+
+  /// Refresh sound effect
+  static Future<void> playRefresh() async {
+    try {
+      await _tapPlayer.stop();
+      await _tapPlayer.play(AssetSource('sounds/refersh.mp4'));
+    } catch (_) {
+      // Sound asset not available yet — fail silently.
+    }
+  }
 }

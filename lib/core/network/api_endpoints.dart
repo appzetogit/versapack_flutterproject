@@ -48,6 +48,8 @@ class ApiEndpoints {
       '/food/delivery/orders/$orderId/status';
   static String orderRoute(String orderId) =>
       '/food/delivery/orders/$orderId/route';
+  static String orderRateCustomer(String orderId) =>
+      '/food/delivery/orders/$orderId/rate-customer';
 
   // Payment collection
   static String collectQr(String orderId) =>

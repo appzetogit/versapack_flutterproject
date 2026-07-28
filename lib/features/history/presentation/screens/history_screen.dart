@@ -4,6 +4,8 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/error/result.dart';
+import '../../../../core/services/sound_service.dart';
+import '../../../main/presentation/screens/main_screen.dart';
 import '../../../wallet/data/wallet_repository.dart';
 
 const _monthAbbr = [
@@ -164,7 +166,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             Icons.arrow_back,
             color: theme.appBarTheme.iconTheme?.color,
           ),
-          onPressed: () => context.pop(),
+          onPressed: () => ref.read(mainTabIndexProvider.notifier).setIndex(0),
         ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -246,7 +248,10 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 
           Expanded(
             child: RefreshIndicator(
-              onRefresh: _loadTrips,
+              onRefresh: () async {
+                SoundService.playRefresh();
+                await _loadTrips();
+              },
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: EdgeInsets.only(left: 20.w, right: 20.w, bottom: 120.h),

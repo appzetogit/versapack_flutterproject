@@ -3,19 +3,33 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:food_user_application/core/router/app_router.dart';
 import 'package:food_user_application/core/services/fcm_service.dart';
+import 'package:food_user_application/core/services/order_overlay_service.dart';
 import 'package:food_user_application/core/services/referral_tracking_service.dart';
 import 'package:food_user_application/core/theme/app_theme.dart';
+import 'package:food_user_application/core/theme/theme_mode_provider.dart';
 import 'package:food_user_application/features/orders/application/active_trip_visibility_controller.dart';
 import 'package:food_user_application/features/orders/application/incoming_order_controller.dart';
 import 'package:food_user_application/features/orders/application/orders_controller.dart';
 import 'package:food_user_application/features/orders/application/orders_state.dart';
+import 'package:food_user_application/features/orders/application/pending_customer_rating_controller.dart';
+import 'package:food_user_application/features/orders/data/models/delivery_order.dart';
 import 'package:food_user_application/features/orders/presentation/screens/active_trip_screen.dart';
 import 'package:food_user_application/features/orders/presentation/screens/incoming_order_screen.dart';
+import 'package:food_user_application/features/orders/presentation/screens/rate_customer_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   runApp(const ProviderScope(child: FoodDeliveryApp()));
+}
+
+/// Entry point for the overlay bubble's separate Flutter engine — must stay
+/// top-level in this file with this exact name/pragma, since the native
+/// `OverlayService` resolves "overlayMain" from the app's default
+/// entrypoint library (main.dart), not by scanning every file.
+@pragma('vm:entry-point')
+void overlayMain() {
+  runApp(const OrderBubbleApp());
 }
 
 class FoodDeliveryApp extends ConsumerStatefulWidget {
@@ -25,19 +39,48 @@ class FoodDeliveryApp extends ConsumerStatefulWidget {
   ConsumerState<FoodDeliveryApp> createState() => _FoodDeliveryAppState();
 }
 
-class _FoodDeliveryAppState extends ConsumerState<FoodDeliveryApp> {
+class _FoodDeliveryAppState extends ConsumerState<FoodDeliveryApp>
+    with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     Future.microtask(() {
       ref.read(fcmServiceProvider).initialize();
       ReferralTrackingService.initialize();
+      _consumePendingOverlayOrder();
     });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _consumePendingOverlayOrder();
+  }
+
+  /// Surfaces an order that arrived as a home-screen bubble (app was
+  /// backgrounded) into the same in-app IncomingOrderScreen shown for the
+  /// foreground/socket path, and dismisses the bubble now that the app is
+  /// in front.
+  Future<void> _consumePendingOverlayOrder() async {
+    await OrderOverlayService.close();
+    final data = await OrderOverlayService.consumePendingOrder();
+    if (data == null || !mounted) return;
+    ref
+        .read(incomingOrderControllerProvider.notifier)
+        .show(DeliveryOrder.fromRealtimePayload(data));
   }
 
   @override
   Widget build(BuildContext context) {
     final goRouter = ref.watch(goRouterProvider);
+
+    final themeMode = ref.watch(themeModeProvider);
 
     return ScreenUtilInit(
       designSize: const Size(375, 812), // Standard design size
@@ -49,7 +92,7 @@ class _FoodDeliveryAppState extends ConsumerState<FoodDeliveryApp> {
           debugShowCheckedModeBanner: false,
           theme: AppTheme.lightTheme,
           darkTheme: AppTheme.darkTheme,
-          themeMode: ThemeMode.system,
+          themeMode: themeMode,
           routerConfig: goRouter,
           builder: (context, routedChild) {
             return Stack(
@@ -71,6 +114,16 @@ class _FoodDeliveryAppState extends ConsumerState<FoodDeliveryApp> {
                     return IncomingOrderScreen(
                       key: ValueKey(incomingOrder.id),
                       order: incomingOrder,
+                    );
+                  },
+                ),
+                Consumer(
+                  builder: (context, ref, _) {
+                    final pendingRating = ref.watch(pendingCustomerRatingControllerProvider);
+                    if (pendingRating == null) return const SizedBox.shrink();
+                    return RateCustomerScreen(
+                      key: ValueKey(pendingRating.id),
+                      order: pendingRating,
                     );
                   },
                 ),

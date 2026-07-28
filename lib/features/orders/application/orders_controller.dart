@@ -7,6 +7,7 @@ import '../../../core/services/socket_service.dart';
 import '../data/models/delivery_order.dart';
 import '../data/orders_repository.dart';
 import 'orders_state.dart';
+import 'pending_customer_rating_controller.dart';
 
 class OrdersController extends Notifier<OrdersState> {
   late final OrdersRepository _repository;
@@ -217,6 +218,8 @@ class OrdersController extends Notifier<OrdersState> {
   ) => _mutateCurrent(() => _repository.verifyDropOtp(orderId, otp));
 
   Future<Result<DeliveryOrder, AppError>> completeOrder(String orderId) async {
+    final previousOrder =
+        state is OrdersLoaded ? (state as OrdersLoaded).currentOrder : null;
     final result = await _repository.complete(orderId);
     result.when(
       success: (_) {
@@ -224,6 +227,11 @@ class OrdersController extends Notifier<OrdersState> {
         ref.read(socketServiceProvider).leaveTracking(orderId);
         state = const OrdersLoaded(availableOrders: [], currentOrder: null);
         refreshAvailable();
+        if (previousOrder != null && previousOrder.id == orderId) {
+          ref
+              .read(pendingCustomerRatingControllerProvider.notifier)
+              .show(previousOrder);
+        }
       },
       failure: (_) {},
     );

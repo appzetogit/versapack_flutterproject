@@ -8,6 +8,7 @@ import 'package:food_user_application/features/main/presentation/screens/main_sc
 import 'package:food_user_application/features/wallet/data/wallet_repository.dart';
 import 'package:go_router/go_router.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
+import '../../../../core/services/sound_service.dart';
 
 class PocketScreen extends ConsumerStatefulWidget {
   const PocketScreen({super.key});
@@ -320,7 +321,7 @@ class _PocketScreenState extends ConsumerState<PocketScreen> {
             Icons.arrow_back,
             color: theme.appBarTheme.iconTheme?.color,
           ),
-          onPressed: () => context.pop(),
+          onPressed: () => ref.read(mainTabIndexProvider.notifier).setIndex(0),
         ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -347,7 +348,10 @@ class _PocketScreenState extends ConsumerState<PocketScreen> {
           : _error != null
               ? _buildErrorState(theme, textColor, subTextColor)
               : RefreshIndicator(
-                  onRefresh: _loadAll,
+                  onRefresh: () async {
+                    SoundService.playRefresh();
+                    await _loadAll();
+                  },
                   child: SingleChildScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: EdgeInsets.only(
