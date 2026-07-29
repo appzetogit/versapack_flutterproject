@@ -92,6 +92,20 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 }
 
+/// The backend's FCM_DEFAULT_CHANNEL_ID, used for every push that is NOT a
+/// new-order alert (order status updates and the like).
+///
+/// Those arrive WITH a notification block, so the OS renders them against this id
+/// directly. Android silently ignores an unknown channel id and drops back to a
+/// low-importance default, so never creating this one left every status update
+/// without a heads-up — indistinguishable from the push not arriving at all.
+const _highImportanceChannel = AndroidNotificationChannel(
+  'high_importance_channel',
+  'Order updates',
+  description: 'Order status updates and alerts',
+  importance: Importance.max,
+);
+
 class FcmService {
   FcmService(this._dio, this._tokenStorage);
 
@@ -129,10 +143,7 @@ class FcmService {
     const iosInit = DarwinInitializationSettings();
     await _localNotifications.initialize(
       const InitializationSettings(android: androidInit, iOS: iosInit),
-      onDidReceiveNotificationResponse: (response) {
-        final payload = response.payload;
-        if (payload != null) _handleLocalNotificationPayload(payload);
-      },
+      onDidReceiveNotificationResponse: _handleNotificationResponse,
     );
 
     if (Platform.isAndroid) {
@@ -141,6 +152,7 @@ class FcmService {
             AndroidFlutterLocalNotificationsPlugin
           >();
       await androidPlugin?.createNotificationChannel(_channel);
+      await androidPlugin?.createNotificationChannel(_highImportanceChannel);
       await androidPlugin?.createNotificationChannel(_incomingOrdersChannel);
 
       // Android 14+ revokes USE_FULL_SCREEN_INTENT by default for apps
@@ -163,9 +175,11 @@ class FcmService {
     // killed app) — onDidReceiveNotificationResponse above isn't guaranteed
     // to fire for the launching notification itself, so check explicitly.
     final launchDetails = await _localNotifications.getNotificationAppLaunchDetails();
-    final launchPayload = launchDetails?.notificationResponse?.payload;
-    if ((launchDetails?.didNotificationLaunchApp ?? false) && launchPayload != null) {
-      _handleLocalNotificationPayload(launchPayload);
+    final launchResponse = launchDetails?.notificationResponse;
+    if ((launchDetails?.didNotificationLaunchApp ?? false) && launchResponse != null) {
+      // Goes through the same path as a live tap so an Accept/Reject pressed on a
+      // terminated app still performs the action rather than only opening the order.
+      _handleNotificationResponse(launchResponse);
     }
 
     FirebaseMessaging.onMessage.listen(_showForegroundNotification);
@@ -175,6 +189,64 @@ class FcmService {
     if (initialMessage != null) _handleNotificationOpen(initialMessage);
 
     FirebaseMessaging.instance.onTokenRefresh.listen(_saveToken);
+  }
+
+  /// Routes a notification interaction: an Accept/Reject action button, or a
+  /// plain tap on the notification body.
+  ///
+  /// The action id was previously discarded, so both buttons did exactly the same
+  /// thing as tapping the notification — open the order screen. They looked like
+  /// Accept and Reject but neither accepted nor rejected anything.
+  ///
+  /// Both actions are declared `showsUserInterface: true`, so the OS launches or
+  /// resumes the app before dispatching here. That means the main isolate is alive
+  /// and the injected Dio client (with its auth interceptor) is usable — no
+  /// separate isolate-safe path is needed.
+  void _handleNotificationResponse(NotificationResponse response) {
+    final payload = response.payload;
+    final actionId = response.actionId;
+
+    if (actionId == 'accept' || actionId == 'reject') {
+      final orderId = _orderIdFromPayload(payload);
+      if (orderId != null) {
+        unawaited(_respondToOrder(orderId: orderId, accept: actionId == 'accept'));
+      }
+      // Still surface it so the UI can navigate to the order it just acted on.
+      if (payload != null) _handleLocalNotificationPayload(payload);
+      return;
+    }
+
+    if (payload != null) _handleLocalNotificationPayload(payload);
+  }
+
+  String? _orderIdFromPayload(String? payload) {
+    if (payload == null || payload.isEmpty) return null;
+    try {
+      final decoded = jsonDecode(payload);
+      if (decoded is Map) {
+        final id = (decoded['orderMongoId'] ?? decoded['orderId'])?.toString();
+        return (id == null || id.isEmpty) ? null : id;
+      }
+    } catch (_) {
+      // Legacy bare-orderId payload.
+    }
+    return payload;
+  }
+
+  Future<void> _respondToOrder({
+    required String orderId,
+    required bool accept,
+  }) async {
+    try {
+      await _dio.patch(
+        accept
+            ? ApiEndpoints.orderAccept(orderId)
+            : ApiEndpoints.orderReject(orderId),
+      );
+    } catch (_) {
+      // Best-effort: the offer may already have expired or gone to another rider.
+      // The order screen we open alongside this shows the real current state.
+    }
   }
 
   /// Payload from a locally-shown notification — the full-screen incoming-
