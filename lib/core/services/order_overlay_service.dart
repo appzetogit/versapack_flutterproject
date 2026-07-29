@@ -83,6 +83,7 @@ class OrderOverlayService {
       action: 'android.intent.action.MAIN',
       category: 'android.intent.category.LAUNCHER',
       package: _applicationId,
+      componentName: '$_applicationId.MainActivity',
       flags: [Flag.FLAG_ACTIVITY_NEW_TASK, Flag.FLAG_ACTIVITY_REORDER_TO_FRONT],
     );
     await intent.launch();
