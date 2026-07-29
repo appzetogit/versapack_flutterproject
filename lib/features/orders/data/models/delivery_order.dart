@@ -55,7 +55,9 @@ class RestaurantInfo {
     this.area,
     this.city,
     this.profileImage,
+    this.coverImage,
     this.coverImages = const [],
+    this.galleryImages = const [],
     this.menuImages = const [],
     this.location,
   });
@@ -66,7 +68,18 @@ class RestaurantInfo {
   final String? area;
   final String? city;
   final String? profileImage;
+
+  /// Single hero image for the restaurant page.
+  final String? coverImage;
   final List<String> coverImages;
+
+  /// Photos of the PREMISES, uploaded specifically so the rider can recognise
+  /// the storefront at pickup — the admin panel labels this
+  /// "Premises Gallery — shown to the delivery partner at pickup".
+  ///
+  /// The backend has always sent it; this model simply never read it, so the
+  /// one field meant for this screen was the one the rider never saw.
+  final List<String> galleryImages;
   final List<String> menuImages;
   final GeoPoint? location;
 
@@ -80,6 +93,9 @@ class RestaurantInfo {
     final seen = <String>{};
     final result = <String>[];
     for (final url in [
+      // Premises photos first: they are the ones taken for this exact purpose.
+      ...galleryImages,
+      if (coverImage != null) coverImage!,
       ...coverImages,
       ...menuImages,
       if (profileImage != null) profileImage!,
@@ -94,6 +110,10 @@ class RestaurantInfo {
   /// profile logo, since that's what the delivery partner should recognize
   /// the storefront by.
   String? get displayImage {
+    // Same order as allImages: a premises photo beats a marketing cover, which
+    // beats a photo of a paper menu, which beats the logo.
+    if (galleryImages.isNotEmpty) return galleryImages.first;
+    if (coverImage != null && coverImage!.isNotEmpty) return coverImage;
     if (coverImages.isNotEmpty) return coverImages.first;
     if (menuImages.isNotEmpty) return menuImages.first;
     return profileImage;
@@ -112,7 +132,9 @@ class RestaurantInfo {
       area: json['area'] as String?,
       city: json['city'] as String?,
       profileImage: json['profileImage'] as String?,
+      coverImage: json['coverImage'] as String?,
       coverImages: _stringList(json['coverImages']),
+      galleryImages: _stringList(json['galleryImages']),
       menuImages: _stringList(json['menuImages']),
       location: GeoPoint.fromCoordinates(
         (json['location'] as Map<String, dynamic>?)?['coordinates'],
