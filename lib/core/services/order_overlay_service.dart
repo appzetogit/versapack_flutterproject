@@ -115,6 +115,17 @@ class _OrderOverlayUI extends StatefulWidget {
 
 class _OrderOverlayUIState extends State<_OrderOverlayUI> {
   Map<String, dynamic>? _orderData;
+
+  /// FCM data values are always Strings, so parse rather than cast.
+  static double _num(Object? v) {
+    if (v is num) return v.toDouble();
+    return double.tryParse(v?.toString().trim() ?? '') ?? 0.0;
+  }
+
+  static String? _str(Object? v) {
+    final text = v?.toString().trim();
+    return (text == null || text.isEmpty) ? null : text;
+  }
   late int _secondsLeft;
   // ignore: unused_field
   Timer? _timer;
@@ -168,18 +179,33 @@ class _OrderOverlayUIState extends State<_OrderOverlayUI> {
   @override
   Widget build(BuildContext context) {
     if (_orderData == null) return const SizedBox.shrink();
-    
-    final total = (_orderData?['total'] as num?)?.toDouble() ?? 0.0;
-    
-    // Extract distances if available (mocked if not in payload)
-    final pickupDistance = (_orderData?['pickupDistanceKm'] as num?)?.toDouble() ?? 0.0;
-    final dropDistance = (_orderData?['dropDistanceKm'] as num?)?.toDouble() ?? 0.0;
-    
-    final restaurant = _orderData?['restaurant'] as Map<String, dynamic>?;
-    final deliveryAddress = _orderData?['deliveryAddress'] as Map<String, dynamic>?;
-    
-    final pickupAddr = restaurant?['address'] as String? ?? 'Pickup Location';
-    final dropAddr = deliveryAddress?['fullAddress'] as String? ?? 'Drop Location';
+
+    // This map came from an FCM push, where EVERY value is a String — FCM rejects
+    // any other type in `data`. Casting them with `as num?` threw
+    // "type 'String' is not a subtype of type 'num?' in type cast", so the overlay
+    // rendered a red error box over the launcher instead of the order card. The
+    // Accept/Reject buttons only looked broken because they were never drawn.
+    final total = _num(_orderData?['total']);
+
+    // The push carries ONE road distance for the whole trip, as `tripDistanceKm`
+    // (with `distance` as an alias). There are no separate pickup/drop distances,
+    // so the previous keys were always absent and both values were silently 0.
+    final tripDistance = _num(_orderData?['tripDistanceKm'] ?? _orderData?['distance']);
+
+    // Rider-to-restaurant distance is per-rider, so it only rides on the socket
+    // payload — one FCM message is built for the whole broadcast and cannot carry
+    // it. Render the line without a distance rather than a confident "0.0 Km".
+    final pickupDistance = _num(_orderData?['pickupDistanceKm']);
+
+    // The payload is flat: there is no nested `restaurant` or `deliveryAddress`
+    // object to read an address out of, only these string fields.
+    final pickupAddr = _str(_orderData?['pickupAddress']) ??
+        _str(_orderData?['restaurantAddress']) ??
+        _str(_orderData?['restaurantName']) ??
+        'Pickup Location';
+    final dropAddr = _str(_orderData?['dropAddress']) ??
+        _str(_orderData?['customerAddress']) ??
+        'Drop Location';
 
     return Stack(
       children: [
@@ -246,10 +272,12 @@ class _OrderOverlayUIState extends State<_OrderOverlayUI> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('${pickupDistance.toStringAsFixed(1)} Km', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                          if (pickupDistance > 0)
+                            Text('${pickupDistance.toStringAsFixed(1)} Km', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
                           Text(pickupAddr, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: Colors.grey[600])),
                           const SizedBox(height: 16),
-                          Text('${dropDistance.toStringAsFixed(1)} Km', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                          if (tripDistance > 0)
+                            Text('${tripDistance.toStringAsFixed(1)} Km', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
                           Text(dropAddr, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: Colors.grey[600])),
                         ],
                       ),
