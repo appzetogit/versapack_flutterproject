@@ -71,7 +71,25 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   String _tripOrderId(Map<String, dynamic> t) =>
       (t['orderId'] ?? t['id'] ?? t['_id'] ?? '').toString();
 
-  String _tripTime(Map<String, dynamic> t) => (t['time'] ?? '').toString();
+  /// Trip time, formatted in the DEVICE's timezone.
+  ///
+  /// Prefers the raw `date` timestamp over the server's pre-formatted `time`
+  /// string. The server formatted that string with no timezone, so running in UTC
+  /// it rendered every trip 5h30m early; and even once fixed, a time formatted
+  /// server-side can only ever be right for one timezone. Formatting the ISO value
+  /// here is correct wherever the rider is, and stops this screen depending on a
+  /// backend build.
+  String _tripTime(Map<String, dynamic> t) {
+    final iso = (t['date'] ?? t['deliveredAt'] ?? t['createdAt'])?.toString();
+    final dt = iso == null ? null : DateTime.tryParse(iso)?.toLocal();
+    if (dt != null) {
+      final hour = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
+      final minute = dt.minute.toString().padLeft(2, '0');
+      return '${hour.toString().padLeft(2, '0')}:$minute ${dt.hour >= 12 ? 'PM' : 'AM'}';
+    }
+    // Older payloads with no usable timestamp still have the server's string.
+    return (t['time'] ?? '').toString();
+  }
 
   Future<void> _loadTrips() async {
     setState(() {
