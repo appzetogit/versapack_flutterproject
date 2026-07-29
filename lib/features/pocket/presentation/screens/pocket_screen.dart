@@ -446,7 +446,9 @@ class _PocketScreenState extends ConsumerState<PocketScreen> {
     final perDay = <int, double>{};
     for (final trip in trips.whereType<Map<String, dynamic>>()) {
       final dateStr = trip['date'] as String? ?? trip['createdAt'] as String?;
-      final dt = dateStr != null ? DateTime.tryParse(dateStr) : null;
+      // Convert before bucketing: the API sends UTC, so a trip completed at
+      // 00:30 IST would otherwise be counted against the previous weekday.
+      final dt = dateStr != null ? DateTime.tryParse(dateStr)?.toLocal() : null;
       if (dt == null) continue;
       final amt = (trip['earningAmount'] as num?)?.toDouble() ??
           (trip['deliveryEarning'] as num?)?.toDouble() ??
