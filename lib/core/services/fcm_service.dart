@@ -229,13 +229,13 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
             const AndroidNotificationAction(
               'accept',
               'Accept',
-              showsUserInterface: false,
+              showsUserInterface: true,
               cancelNotification: true,
             ),
             const AndroidNotificationAction(
               'reject',
               'Reject',
-              showsUserInterface: false,
+              showsUserInterface: true,
               cancelNotification: true,
             ),
           ],
@@ -401,16 +401,26 @@ class FcmService {
   /// resumes the app before dispatching here. That means the main isolate is alive
   /// and the injected Dio client (with its auth interceptor) is usable — no
   /// separate isolate-safe path is needed.
-  void _handleNotificationResponse(NotificationResponse response) {
+  void _handleNotificationResponse(NotificationResponse response) async {
     final payload = response.payload;
     final actionId = response.actionId;
 
-    if (actionId == 'accept' || actionId == 'reject') {
+    if (actionId == 'accept') {
       final orderId = _orderIdFromPayload(payload);
       if (orderId != null) {
-        unawaited(_respondToOrder(orderId: orderId, accept: actionId == 'accept'));
+        await _respondToOrder(orderId: orderId, accept: true);
+        await dismissIncomingOrderAlert(orderId);
       }
-      // Action performed in background — do NOT open the app
+      if (payload != null) _handleLocalNotificationPayload(payload);
+      return;
+    }
+
+    if (actionId == 'reject') {
+      final orderId = _orderIdFromPayload(payload);
+      if (orderId != null) {
+        await _respondToOrder(orderId: orderId, accept: false);
+        await dismissIncomingOrderAlert(orderId);
+      }
       return;
     }
 
