@@ -248,10 +248,9 @@ class _OverlayShell extends StatelessWidget {
                 // content is bigger, and scrolls the remainder.
                 constraints: BoxConstraints(maxHeight: constraints.maxHeight * 0.92),
                 child: SingleChildScrollView(
-                  // 12 below the real inset, so the card clears the status bar
-                  // and any camera cutout on every device rather than only on
-                  // the ones we happened to test.
-                  padding: EdgeInsets.fromLTRB(16, topInset + 12, 16, 0),
+                  // 48 below the real inset, so the card clears the status bar
+                  // and any camera cutout on every device with comfortable spacing.
+                  padding: EdgeInsets.fromLTRB(16, topInset + 48, 16, 0),
                   child: child,
                 ),
               ),
