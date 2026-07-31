@@ -8,6 +8,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:food_user_application/core/error/result.dart';
+import 'package:food_user_application/core/constants/map_styles.dart';
 import 'package:food_user_application/core/services/haptic_service.dart';
 import 'package:food_user_application/core/services/location_service.dart';
 import 'package:food_user_application/core/services/sound_service.dart';
@@ -246,6 +247,7 @@ class _IncomingOrderScreenState extends ConsumerState<IncomingOrderScreen> {
           zoomControlsEnabled: false,
           compassEnabled: false,
           mapToolbarEnabled: false,
+          style: MapStyles.mutedGrey,
         );
       },
     );

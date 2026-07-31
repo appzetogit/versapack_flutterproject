@@ -12,6 +12,8 @@ import 'package:food_user_application/core/error/result.dart';
 import 'package:food_user_application/features/notifications/data/notifications_repository.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:food_user_application/core/constants/map_styles.dart';
+import 'package:food_user_application/core/constants/app_constants.dart';
 import 'package:food_user_application/core/utils/map_launcher.dart';
 import 'package:food_user_application/core/utils/polyline_decoder.dart';
 import 'package:food_user_application/core/services/device_readiness_service.dart';
@@ -473,9 +475,8 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
       backgroundColor: theme.scaffoldBackgroundColor,
       body: Stack(
         children: [
-          // Background Map Full Screen
           Positioned.fill(
-            child: _buildMapPreview(isDarkMode),
+            child: _buildMapPreview(isDarkMode, isOnline),
           ),
           Align(
             alignment: Alignment.topCenter,
@@ -1189,7 +1190,64 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
     );
   }
 
-  Widget _buildMapPreview(bool isDarkMode) {
+  /// Builds the background map.
+  /// 
+  /// When OFFLINE — shows a cheap Static Maps API PNG so we don't burn
+  /// a Dynamic Map load just to display a grey backdrop.
+  /// When ONLINE — shows the live, interactive GoogleMap for GPS tracking.
+  Widget _buildMapPreview(bool isDarkMode, bool isOnline) {
+    final pos = _currentPosition;
+
+    // --- OFFLINE: Static image (costs ~$2/1000 vs $7/1000 for Dynamic map) ---
+    if (!isOnline) {
+      if (pos == null) {
+        // No GPS yet — just show the muted grey placeholder
+        return Container(
+          color: isDarkMode ? const Color(0xFF242f3e) : const Color(0xFFE8F2ED),
+          child: Center(
+            child: Icon(
+              Icons.two_wheeler_rounded,
+              size: 36,
+              color: isDarkMode ? Colors.white38 : Colors.black38,
+            ),
+          ),
+        );
+      }
+      // Use the Static Maps API — a simple image, no SDK map load
+      final staticUrl = Uri(
+        scheme: 'https',
+        host: 'maps.googleapis.com',
+        path: '/maps/api/staticmap',
+        queryParameters: {
+          'center': '${pos.latitude},${pos.longitude}',
+          'zoom': '15',
+          'size': '640x480',
+          'scale': '2', // Retina quality
+          'style': [
+            'element:geometry|color:0xf5f5f5',
+            'element:labels.icon|visibility:off',
+            'feature:poi|visibility:off',
+            'feature:transit|visibility:off',
+            'feature:road|element:geometry|color:0xffffff',
+            'feature:water|element:geometry|color:0xc9c9c9',
+          ],
+          'markers': 'color:blue|${pos.latitude},${pos.longitude}',
+          'key': AppConstants.mapKey,
+        },
+      ).toString();
+
+      return Image.network(
+        staticUrl,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
+        errorBuilder: (_, __, ___) => Container(
+          color: isDarkMode ? const Color(0xFF242f3e) : const Color(0xFFE8F2ED),
+        ),
+      );
+    }
+
+    // --- ONLINE: Full interactive GoogleMap for live GPS tracking ---
     return SizedBox.expand(
       child: Stack(
         children: [
@@ -1263,6 +1321,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                   zoomControlsEnabled: false,
                   compassEnabled: false,
                   mapToolbarEnabled: false,
+                  style: MapStyles.mutedGrey,
                 );
               },
             ),

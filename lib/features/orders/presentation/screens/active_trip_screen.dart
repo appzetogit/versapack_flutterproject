@@ -18,6 +18,7 @@ import 'package:food_user_application/core/error/result.dart';
 import 'package:food_user_application/core/services/haptic_service.dart';
 import 'package:food_user_application/core/services/location_service.dart';
 import 'package:food_user_application/core/utils/map_launcher.dart';
+import 'package:food_user_application/core/constants/map_styles.dart';
 import 'package:food_user_application/core/utils/polyline_decoder.dart';
 import 'package:food_user_application/features/auth/application/auth_controller.dart';
 import 'package:food_user_application/features/auth/application/auth_state.dart';
@@ -729,6 +730,7 @@ class _ActiveTripScaffoldState extends ConsumerState<_ActiveTripScaffold> {
           zoomControlsEnabled: true,
           compassEnabled: false,
           mapToolbarEnabled: false,
+          style: MapStyles.mutedGrey,
         );
       },
     );
