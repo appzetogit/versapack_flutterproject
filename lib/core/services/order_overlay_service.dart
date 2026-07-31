@@ -644,7 +644,7 @@ class _OrderOverlayUIState extends State<_OrderOverlayUI> {
                             children: [
                               Expanded(
                                 child: GestureDetector(
-                                  onTap: _accept,
+                                  onTap: _submitting ? null : _accept,
                                   child: Container(
                                     height: 62,
                                     width: double.infinity,
@@ -653,15 +653,24 @@ class _OrderOverlayUIState extends State<_OrderOverlayUI> {
                                       borderRadius: BorderRadius.circular(31),
                                     ),
                                     alignment: Alignment.center,
-                                    child: Text(
-                                      'ACCEPT   ·   ${_secondsLeft}s',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w900,
-                                        fontSize: 15,
-                                        letterSpacing: 1.2,
-                                      ),
-                                    ),
+                                    child: _submitting
+                                        ? const SizedBox(
+                                            width: 24,
+                                            height: 24,
+                                            child: CircularProgressIndicator(
+                                              color: Colors.white,
+                                              strokeWidth: 2.5,
+                                            ),
+                                          )
+                                        : Text(
+                                            'ACCEPT   ·   ${_secondsLeft}s',
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.w900,
+                                              fontSize: 15,
+                                              letterSpacing: 1.2,
+                                            ),
+                                          ),
                                   ),
                                 ),
                               ),

@@ -80,6 +80,7 @@ class _ActiveTripScaffoldState extends ConsumerState<_ActiveTripScaffold> {
   Position? _previousPos;
   final ConfettiController _confettiController = ConfettiController(duration: const Duration(seconds: 2));
   bool _isCompleting = false;
+  bool _isActionLoading = false;
 
   // --- Debug-only route simulator (kDebugMode) -----------------------------
   // Walks a synthetic position along the last fetched polyline so testers can
@@ -409,7 +410,10 @@ class _ActiveTripScaffoldState extends ConsumerState<_ActiveTripScaffold> {
 
   Future<void> _runAction(Future<Result<DeliveryOrder, AppError>> Function() call) async {
     _stopSimulation();
+    if (_isActionLoading) return;
+    setState(() => _isActionLoading = true);
     final result = await call();
+    if (mounted) setState(() => _isActionLoading = false);
     result.when(success: (_) {}, failure: (error) => _showSnack(error.message));
   }
 
@@ -1132,48 +1136,39 @@ class _ActiveTripScaffoldState extends ConsumerState<_ActiveTripScaffold> {
             SizedBox(height: 16.h),
             SizedBox(
               width: double.infinity,
+              height: 54.h,
               child: ElevatedButton(
-                onPressed: action?.action,
+                onPressed: _isActionLoading
+                    ? null
+                    : () {
+                        HapticService.light();
+                        action?.action();
+                      },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _tripOnlineGreen,
                   foregroundColor: Colors.white,
-                  disabledBackgroundColor: _tripOnlineGreen.withOpacity(0.4),
+                  disabledBackgroundColor: _tripOnlineGreen.withOpacity(0.6),
                   elevation: 0,
-                  padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
+                  padding: EdgeInsets.symmetric(vertical: 14.h),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.r)),
                 ),
-                child: Row(
-                  children: [
-                    Container(
-                       padding: EdgeInsets.all(8.r),
-                       child: Icon(action?.icon ?? Icons.shield_outlined, size: 28.sp),
-                    ),
-                    SizedBox(width: 8.w),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            action?.label ?? 'Processing…',
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16.sp),
-                          ),
-                          Text(
-                            'Secure your delivery',
-                            style: TextStyle(fontSize: 12.sp, color: Colors.white.withOpacity(0.9), fontWeight: FontWeight.w500),
-                          ),
-                        ],
+                child: _isActionLoading
+                    ? SizedBox(
+                        width: 24.r,
+                        height: 24.r,
+                        child: const CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2.5,
+                        ),
+                      )
+                    : Text(
+                        action?.label ?? 'Processing…',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 16.sp,
+                          color: Colors.white,
+                        ),
                       ),
-                    ),
-                    Container(
-                      padding: EdgeInsets.all(8.r),
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(Icons.arrow_forward_rounded, color: _tripOnlineGreen, size: 20.sp),
-                    ),
-                  ],
-                ),
               ),
             ),
             SizedBox(height: 16.h),

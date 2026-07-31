@@ -48,6 +48,7 @@ class FeedScreen extends ConsumerStatefulWidget {
 class _FeedScreenState extends ConsumerState<FeedScreen> {
   bool _isCurrentOrderVisible = true;
   bool _showReferEarn = true;
+  bool _isActionLoading = false;
 
   Map<String, dynamic>? _earningsSummary;
   bool _earningsLoading = true;
@@ -338,7 +339,10 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
   }
 
   Future<void> _runAction(Future<Result<DeliveryOrder, AppError>> Function() call) async {
+    if (_isActionLoading) return;
+    setState(() => _isActionLoading = true);
     final result = await call();
+    if (mounted) setState(() => _isActionLoading = false);
     result.when(success: (_) {}, failure: (error) => _showSnack(error.message));
   }
 
@@ -1046,30 +1050,32 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
             children: [
               Expanded(
                 child: ElevatedButton(
-                  onPressed: action?.action,
+                  onPressed: _isActionLoading
+                      ? null
+                      : () {
+                          HapticService.light();
+                          action?.action();
+                        },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: theme.primaryColor,
                     foregroundColor: Colors.white,
-                    disabledBackgroundColor: theme.primaryColor.withOpacity(0.4),
+                    disabledBackgroundColor: theme.primaryColor.withOpacity(0.5),
                     elevation: 0,
                     minimumSize: Size(double.infinity, 48.h),
                     padding: EdgeInsets.symmetric(horizontal: 4.w),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(action?.icon ?? Icons.hourglass_empty_rounded, size: 18.sp),
-                      SizedBox(width: 4.w),
-                      Flexible(
-                        child: Text(
+                  child: _isActionLoading
+                      ? SizedBox(
+                          width: 20.r,
+                          height: 20.r,
+                          child: const CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                        )
+                      : Text(
                           action?.label ?? 'Processing…',
-                          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13.sp),
+                          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14.sp, color: Colors.white),
                           overflow: TextOverflow.ellipsis,
                         ),
-                      ),
-                    ],
-                  ),
                 ),
               ),
               if (showNavigate) ...[
