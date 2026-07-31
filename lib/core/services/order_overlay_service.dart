@@ -103,7 +103,27 @@ class OrderOverlayService {
       // Give the platform channel a moment to actually add the window
       // before trusting it succeeded.
       await Future.delayed(const Duration(milliseconds: 400));
-      return await FlutterOverlayWindow.isActive();
+      final active = await FlutterOverlayWindow.isActive();
+
+      // Push the payload over the in-memory channel as well, not only via
+      // SharedPreferences. The overlay's disk read has proven fragile on some
+      // ROMs (Vivo sat on the loading card even after the reload() fix), and
+      // shareData needs no disk at all — the overlay's listener receives it
+      // directly. Retried because the overlay engine registers that listener
+      // asynchronously and an early send is simply dropped. The prefs copy
+      // stays: it is what the main isolate consumes on resume, and the
+      // overlay still falls back to it when every send loses the race.
+      if (active) {
+        for (var attempt = 0; attempt < 4; attempt++) {
+          await Future.delayed(Duration(milliseconds: 250 * (attempt + 1)));
+          try {
+            await FlutterOverlayWindow.shareData(encoded);
+          } catch (_) {
+            // Engine not ready yet — next attempt.
+          }
+        }
+      }
+      return active;
     } catch (_) {
       return false;
     }
@@ -296,9 +316,22 @@ class _OrderOverlayUIState extends State<_OrderOverlayUI> {
       try {
         final decoded = jsonDecode(event.toString());
         if (decoded is Map && mounted) {
+          final map = Map<String, dynamic>.from(decoded);
+          // showForOrder retries shareData several times to beat the race with
+          // this listener registering — so the same order arrives more than
+          // once. Re-applying it would reset the countdown and replay the
+          // alert sound on each retry; only a genuinely different order does.
+          final incomingId =
+              (map['orderMongoId'] ?? map['orderId'] ?? map['_id'])?.toString();
+          final currentId = (_orderData?['orderMongoId'] ??
+                  _orderData?['orderId'] ??
+                  _orderData?['_id'])
+              ?.toString();
+          if (incomingId != null && incomingId == currentId) return;
+
           setState(() {
-            _orderData = Map<String, dynamic>.from(decoded);
-            _secondsLeft = 45; 
+            _orderData = map;
+            _secondsLeft = 45;
           });
           _startCountdown();
         }
