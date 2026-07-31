@@ -23,6 +23,7 @@ import 'package:food_user_application/core/constants/map_styles.dart';
 import 'package:food_user_application/core/utils/polyline_decoder.dart';
 import 'package:food_user_application/features/auth/application/auth_controller.dart';
 import 'package:food_user_application/features/auth/application/auth_state.dart';
+import '../widgets/otp_bottom_sheet.dart';
 import 'package:food_user_application/features/orders/application/active_trip_visibility_controller.dart';
 import 'package:food_user_application/features/orders/application/orders_controller.dart';
 import 'package:food_user_application/features/orders/application/orders_state.dart';
@@ -489,12 +490,7 @@ class _ActiveTripScaffoldState extends ConsumerState<_ActiveTripScaffold> {
 
   Future<void> _promptDropOtp(DeliveryOrder order) async {
     final controller = ref.read(ordersControllerProvider.notifier);
-    final otp = await showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => _OtpBottomSheetContent(customerName: order.customerName),
-    );
+    final otp = await showOtpBottomSheet(context, customerName: order.customerName);
     if (otp == null || otp.length != 4) return;
     final result = await controller.verifyDropOtp(order.id, otp);
     result.when(
@@ -1201,179 +1197,4 @@ class _RestaurantGalleryViewerState extends State<_RestaurantGalleryViewer> {
   }
 }
 
-class _OtpBottomSheetContent extends StatefulWidget {
-  final String customerName;
-  const _OtpBottomSheetContent({required this.customerName});
 
-  @override
-  State<_OtpBottomSheetContent> createState() => _OtpBottomSheetContentState();
-}
-
-class _OtpBottomSheetContentState extends State<_OtpBottomSheetContent> {
-  final TextEditingController _controller = TextEditingController();
-  final FocusNode _focusNode = FocusNode();
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _focusNode.requestFocus();
-    });
-    _controller.addListener(_onTextChanged);
-  }
-
-  void _onTextChanged() {
-    final text = _controller.text;
-    if (text.length == 4) {
-      HapticService.medium();
-      Navigator.of(context).pop(text);
-    } else {
-      setState(() {});
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.removeListener(_onTextChanged);
-    _controller.dispose();
-    _focusNode.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
-    final text = _controller.text;
-
-    return Container(
-      margin: EdgeInsets.fromLTRB(12.w, 0, 12.w, 12.h + bottomInset),
-      padding: EdgeInsets.fromLTRB(20.w, 16.h, 20.w, 20.h),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24.r),
-        boxShadow: const [
-          BoxShadow(color: Colors.black26, blurRadius: 20, offset: Offset(0, 4)),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 36.w,
-            height: 4.h,
-            decoration: BoxDecoration(
-              color: Colors.grey[300],
-              borderRadius: BorderRadius.circular(2.r),
-            ),
-          ),
-          SizedBox(height: 12.h),
-
-          Row(
-            children: [
-              Container(
-                padding: EdgeInsets.all(8.r),
-                decoration: const BoxDecoration(
-                  color: Color(0xFFE8F5E9),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(Icons.lock_outline_rounded, color: const Color(0xFF1EBE5D), size: 20.sp),
-              ),
-              SizedBox(width: 10.w),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Enter Delivery OTP',
-                      style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16.sp, color: Colors.black87),
-                    ),
-                    Text(
-                      'Ask ${widget.customerName.isNotEmpty ? widget.customerName : "customer"} for 4-digit code',
-                      style: TextStyle(fontSize: 12.sp, color: Colors.grey[600]),
-                    ),
-                  ],
-                ),
-              ),
-              GestureDetector(
-                onTap: () => Navigator.of(context).pop(),
-                child: Container(
-                  padding: EdgeInsets.all(6.r),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[100],
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(Icons.close_rounded, size: 18.sp, color: Colors.grey[600]),
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: 20.h),
-
-          Stack(
-            alignment: Alignment.center,
-            children: [
-              Opacity(
-                opacity: 0.0,
-                child: TextField(
-                  controller: _controller,
-                  focusNode: _focusNode,
-                  keyboardType: TextInputType.number,
-                  maxLength: 4,
-                  autofocus: true,
-                  decoration: const InputDecoration(counterText: ''),
-                ),
-              ),
-
-              GestureDetector(
-                onTap: () => _focusNode.requestFocus(),
-                behavior: HitTestBehavior.opaque,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: List.generate(4, (index) {
-                    final char = index < text.length ? text[index] : '';
-                    final isFocused = index == text.length || (index == 3 && text.length == 4);
-
-                    return AnimatedContainer(
-                      duration: const Duration(milliseconds: 150),
-                      width: 54.w,
-                      height: 58.h,
-                      decoration: BoxDecoration(
-                        color: char.isNotEmpty ? const Color(0xFFF0FDF4) : Colors.grey[50],
-                        borderRadius: BorderRadius.circular(16.r),
-                        border: Border.all(
-                          color: isFocused
-                              ? const Color(0xFF1EBE5D)
-                              : (char.isNotEmpty ? const Color(0xFF86EFAC) : Colors.grey[300]!),
-                          width: isFocused ? 2.0 : 1.0,
-                        ),
-                        boxShadow: isFocused
-                            ? [
-                                BoxShadow(
-                                  color: const Color(0xFF1EBE5D).withOpacity(0.2),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 2),
-                                )
-                              ]
-                            : [],
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        char,
-                        style: TextStyle(
-                          fontSize: 24.sp,
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFF1E1E1E),
-                        ),
-                      ),
-                    );
-                  }),
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: 12.h),
-        ],
-      ),
-    );
-  }
-}
