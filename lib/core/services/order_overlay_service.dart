@@ -56,10 +56,25 @@ class OrderOverlayService {
       }
 
       await FlutterOverlayWindow.showOverlay(
-        height: -2, // WRAP_CONTENT
+        // matchParent, NOT WRAP_CONTENT (-2).
+        //
+        // This is why the card was cut off on some phones and not others. A
+        // Flutter platform view never reports its content height to Android:
+        // FlutterView.onMeasure returns the space it is offered, not the space
+        // the widget tree wants, and there is no round trip where Dart can say
+        // "I need N pixels". Under WRAP_CONTENT the window height was therefore
+        // decided by the OEM's window manager rather than by the content, and it
+        // landed differently per ROM, per density, and per status bar / notch
+        // geometry. Where it landed short, the card was clipped -- exactly the
+        // reported "cut off on some devices".
+        //
+        // A full-height window is deterministic and can never clip. The widget
+        // tree keeps the card at the top and lets taps below it fall through to
+        // dismiss, so this does not go back to being a screen-blocker.
+        height: WindowSize.matchParent,
         width: WindowSize.matchParent,
         alignment: OverlayAlignment.topCenter,
-        flag: OverlayFlag.focusPointer, // Allows touches outside this wrapped content to pass to the background
+        flag: OverlayFlag.focusPointer,
         enableDrag: false,
         positionGravity: PositionGravity.auto,
         overlayTitle: 'New order',
@@ -152,6 +167,65 @@ class OrderBubbleApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       color: Colors.transparent,
       home: _OrderOverlayUI(),
+    );
+  }
+}
+
+/// Chrome shared by the loading and loaded states of the overlay.
+///
+/// The window is now full height (see showForOrder), so this is what keeps the
+/// alert anchored to the top and stops it becoming a screen-blocker again:
+///
+///  - Real status bar / notch insets instead of the hardcoded 64px that used to
+///    sit here. Cutout heights differ by device, which is why the card looked
+///    correctly placed on some phones and jammed under the status bar on others.
+///  - The card scrolls if it is ever taller than the screen. On a short or
+///    heavily-scaled display the content can exceed the viewport, and a clipped
+///    card with the Accept button below the fold is unusable — scrolling
+///    degrades instead of truncating.
+///  - Everything below the card is transparent and dismisses on tap, so the rest
+///    of the screen still behaves as if the overlay were not there.
+class _OverlayShell extends StatelessWidget {
+  const _OverlayShell({required this.child, required this.onDismiss});
+
+  final Widget child;
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    final topInset = MediaQuery.paddingOf(context).top;
+
+    return Material(
+      color: Colors.transparent,
+      type: MaterialType.transparency,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return Column(
+            children: [
+              ConstrainedBox(
+                // Capped so the scroll view has a bounded height to shrink-wrap
+                // into: it then takes the content's height, or this cap if the
+                // content is bigger, and scrolls the remainder.
+                constraints: BoxConstraints(maxHeight: constraints.maxHeight * 0.92),
+                child: SingleChildScrollView(
+                  // 12 below the real inset, so the card clears the status bar
+                  // and any camera cutout on every device rather than only on
+                  // the ones we happened to test.
+                  padding: EdgeInsets.fromLTRB(16, topInset + 12, 16, 0),
+                  child: child,
+                ),
+              ),
+              Expanded(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: onDismiss,
+                  child: const SizedBox.expand(),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 }
@@ -313,31 +387,48 @@ class _OrderOverlayUIState extends State<_OrderOverlayUI> {
   Widget build(BuildContext context) {
     // NEVER return an empty widget here.
     //
-    // The window is already attached and already consuming touches by the time
-    // build runs. Returning SizedBox.shrink() over a transparent Scaffold is
-    // precisely the reported bug: a full-screen invisible layer that eats every tap
-    // on the home screen with no way for the user to dismiss it. While the order is
-    // still loading we paint a visible, tappable scrim instead — so the window is
-    // always either useful or obviously dismissible, never invisible.
+    // The window is already attached by the time build runs. Returning
+    // SizedBox.shrink() leaves a full-height window with nothing drawn in it and
+    // no way for the rider to get rid of it — the original home-screen freeze.
+    // Both states below go through _OverlayShell, which always paints something
+    // and always leaves the area below it tappable to dismiss.
     if (_orderData == null) {
-      return GestureDetector(
-        onTap: () => FlutterOverlayWindow.closeOverlay(),
+      // A small card in the same place the order card appears, NOT a full-screen
+      // black scrim. The scrim was what read as "the app glitching" on the home
+      // screen: it blacked out the whole display for the few hundred ms between
+      // the window attaching and the payload being read, which on a slow cold
+      // start of the overlay engine is long enough to photograph.
+      return _OverlayShell(
+        onDismiss: _forceClose,
         child: Container(
-          color: Colors.black.withValues(alpha: 0.55),
-          alignment: Alignment.center,
-          child: const Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CircularProgressIndicator(color: Colors.white),
-              SizedBox(height: 14),
-              Text(
-                'Loading new order...',
-                style: TextStyle(color: Colors.white, fontSize: 15),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.15),
+                blurRadius: 18,
               ),
-              SizedBox(height: 6),
-              Text(
-                'Tap anywhere to dismiss',
-                style: TextStyle(color: Colors.white70, fontSize: 12),
+            ],
+          ),
+          child: const Row(
+            children: [
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2.4),
+              ),
+              SizedBox(width: 14),
+              Expanded(
+                child: Text(
+                  'New order incoming…',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                ),
               ),
             ],
           ),
@@ -378,12 +469,9 @@ class _OrderOverlayUIState extends State<_OrderOverlayUI> {
     final tripTimeMins = tripDurationMinsRaw > 0 ? tripDurationMinsRaw : (tripDistance * 3.0);
     final displayTripTime = tripTimeMins > 0 ? tripTimeMins.toStringAsFixed(0) : '--';
 
-    return Material(
-      color: Colors.transparent, // Background transparent
-      type: MaterialType.transparency,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 64, 16, 12), // 64 top padding to avoid status bar
-        child: Stack(
+    return _OverlayShell(
+      onDismiss: _forceClose,
+      child: Stack(
                 clipBehavior: Clip.none,
                 alignment: Alignment.topCenter,
                 children: [
@@ -523,7 +611,6 @@ class _OrderOverlayUIState extends State<_OrderOverlayUI> {
                   ),
                 ],
               ),
-      ),
     );
   }
 
