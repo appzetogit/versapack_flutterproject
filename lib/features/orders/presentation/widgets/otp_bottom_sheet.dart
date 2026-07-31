@@ -3,11 +3,14 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../../core/services/haptic_service.dart';
 
 Future<String?> showOtpBottomSheet(BuildContext context, {required String customerName}) {
-  return showModalBottomSheet<String>(
+  return showDialog<String>(
     context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    builder: (ctx) => OtpBottomSheetContent(customerName: customerName),
+    barrierDismissible: true,
+    builder: (ctx) => Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: EdgeInsets.symmetric(horizontal: 20.w),
+      child: OtpBottomSheetContent(customerName: customerName),
+    ),
   );
 }
 
@@ -52,31 +55,20 @@ class _OtpBottomSheetContentState extends State<OtpBottomSheetContent> {
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     final text = _controller.text;
 
     return Container(
-      margin: EdgeInsets.fromLTRB(12.w, 0, 12.w, 12.h + bottomInset),
-      padding: EdgeInsets.fromLTRB(20.w, 16.h, 20.w, 20.h),
+      padding: EdgeInsets.fromLTRB(20.w, 20.h, 20.w, 24.h),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(24.r),
+        borderRadius: BorderRadius.circular(28.r),
         boxShadow: const [
-          BoxShadow(color: Colors.black26, blurRadius: 20, offset: Offset(0, 4)),
+          BoxShadow(color: Colors.black26, blurRadius: 24, offset: Offset(0, 8)),
         ],
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 36.w,
-            height: 4.h,
-            decoration: BoxDecoration(
-              color: Colors.grey[300],
-              borderRadius: BorderRadius.circular(2.r),
-            ),
-          ),
-          SizedBox(height: 12.h),
 
           Row(
             children: [
