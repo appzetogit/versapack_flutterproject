@@ -47,4 +47,10 @@ flutter {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+
+    // RiderOnlineService uses NotificationCompat. androidx.core is already on the
+    // runtime classpath via the Flutter embedding and plugins, but it is not
+    // guaranteed to be on THIS module's compile classpath — declaring it means the
+    // app does not silently stop compiling when a plugin changes its dependencies.
+    implementation("androidx.core:core-ktx:1.13.1")
 }

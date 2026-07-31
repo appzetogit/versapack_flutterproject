@@ -10,6 +10,7 @@ import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
     private val CHANNEL = "app.fooddelivery/unlock"
+    private val ONLINE_CHANNEL = "app.fooddelivery/rider_online"
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -21,6 +22,32 @@ class MainActivity : FlutterActivity() {
                 result.notImplemented()
             }
         }
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, ONLINE_CHANNEL)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    // Failures are reported rather than thrown: going online must
+                    // not be blocked by the service. A rider whose OEM refuses the
+                    // foreground service still needs to take orders — they just
+                    // lose the keep-alive guarantee.
+                    "start" -> {
+                        try {
+                            RiderOnlineService.start(applicationContext)
+                            result.success(true)
+                        } catch (e: Exception) {
+                            result.success(false)
+                        }
+                    }
+                    "stop" -> {
+                        try {
+                            RiderOnlineService.stop(applicationContext)
+                        } catch (_: Exception) {
+                        }
+                        result.success(true)
+                    }
+                    else -> result.notImplemented()
+                }
+            }
     }
 
     private fun unlockScreen() {

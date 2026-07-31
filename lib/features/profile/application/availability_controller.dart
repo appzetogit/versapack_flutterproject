@@ -5,6 +5,7 @@ import 'package:geolocator/geolocator.dart';
 
 import '../../../core/error/result.dart';
 import '../../../core/services/location_service.dart';
+import '../../../core/services/rider_online_service.dart';
 import '../../../core/services/socket_service.dart';
 import '../../auth/application/auth_state.dart';
 import '../../auth/application/auth_controller.dart';
@@ -27,6 +28,10 @@ class AvailabilityController extends Notifier<bool> {
     ref.onDispose(() {
       _positionSub?.cancel();
       _keepAliveTimer?.cancel();
+      // Covers logout, which tears this controller down without going through
+      // goOffline — otherwise the service and its notification outlive the
+      // session, claiming a signed-out rider is online.
+      unawaited(RiderOnlineService.stop());
     });
 
     if (startedOnline) {
@@ -90,6 +95,12 @@ class AvailabilityController extends Notifier<bool> {
   }
 
   void _startTracking() {
+    // Ask Android to stop freezing us first. Everything below — the position
+    // stream and the keep-alive ping — silently stops running once the process
+    // is backgrounded without this, which is what let riders go stale and drop
+    // out of dispatch while believing they were online.
+    unawaited(RiderOnlineService.start());
+
     final locationService = ref.read(locationServiceProvider);
     locationService.startTracking();
     _positionSub?.cancel();
@@ -136,6 +147,11 @@ class AvailabilityController extends Notifier<bool> {
     _keepAliveTimer?.cancel();
     _keepAliveTimer = null;
     ref.read(locationServiceProvider).stopTracking();
+
+    // The notification must go the moment the rider goes offline. A lingering
+    // "You're online" is both a lie and a battery drain, and it is the single
+    // fastest way to get uninstalled.
+    unawaited(RiderOnlineService.stop());
   }
 
   void _onPosition(Position position) {
