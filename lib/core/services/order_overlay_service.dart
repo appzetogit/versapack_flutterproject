@@ -14,6 +14,26 @@ import 'sound_service.dart';
 const _applicationId = 'com.fooddelivery.app';
 const _pendingOrderPrefsKey = 'pending_overlay_order';
 
+/// SharedPreferences that reflect what is actually on disk right now.
+///
+/// The pending-order key is written by one isolate (the FCM background handler)
+/// and read by two others (the overlay engine, the main app on resume).
+/// getInstance() hands back a per-isolate cached singleton holding a snapshot
+/// taken the first time it was called in that isolate, and it never re-reads on
+/// its own — so a reader whose isolate was already warm sees a value from before
+/// the write and concludes there is no pending order.
+///
+/// Every cross-isolate read of that key goes through here.
+Future<SharedPreferences> _freshPrefs() async {
+  final prefs = await SharedPreferences.getInstance();
+  try {
+    await prefs.reload();
+  } catch (_) {
+    // Best effort — fall back to whatever the cache holds.
+  }
+  return prefs;
+}
+
 /// Floating "bubble" over the home screen for a new-order alert that arrives
 /// while the app is backgrounded — the Rapido/Uber-style overlay, distinct
 /// from the lock-screen full-screen-intent notification which already
@@ -116,7 +136,7 @@ class OrderOverlayService {
   static Future<void> closeForOrder(String orderId) async {
     if (!Platform.isAndroid) return;
 
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _freshPrefs();
     final raw = prefs.getString(_pendingOrderPrefsKey);
     if (raw != null) {
       try {
@@ -135,7 +155,7 @@ class OrderOverlayService {
   }
 
   static Future<Map<String, dynamic>?> consumePendingOrder() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _freshPrefs();
     final raw = prefs.getString(_pendingOrderPrefsKey);
     if (raw == null) return null;
     await prefs.remove(_pendingOrderPrefsKey);
@@ -291,7 +311,20 @@ class _OrderOverlayUIState extends State<_OrderOverlayUI> {
   }
 
   Future<void> _loadOrder({int attempt = 0}) async {
-    final prefs = await SharedPreferences.getInstance();
+    // _freshPrefs (not getInstance) is what makes the retry below able to
+    // succeed, and its absence is why the loading state stuck on some devices.
+    //
+    // getInstance() hands back a per-isolate cached snapshot and never re-reads
+    // the disk. When the overlay engine is reused for a second order — which the
+    // plugin does on some ROMs and never on others — that snapshot predates the
+    // write the FCM isolate just made, so the key looks absent. The retry loop
+    // re-called getInstance() and was handed the SAME stale object every time,
+    // so it could not possibly recover: it burned a second and then force-closed.
+    // A cold engine worked, a reused one did not, which is exactly the "some
+    // devices, sometimes" shape of the report.
+    //
+    // The write is cross-isolate durable; only the reader's cache was stale.
+    final prefs = await _freshPrefs();
     final raw = prefs.getString(_pendingOrderPrefsKey);
     if (raw == null) {
       if (attempt < 5) {
