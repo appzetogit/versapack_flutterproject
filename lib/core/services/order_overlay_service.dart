@@ -76,6 +76,35 @@ class OrderOverlayService {
     }
   }
 
+  /// Closes the bubble if it is showing [orderId] — used when another rider
+  /// accepted first.
+  ///
+  /// If the stored payload is for a DIFFERENT order the window is left alone: a
+  /// newer offer has already replaced this one in place via [shareData], and
+  /// closing would throw away a live offer. If nothing is stored the window is
+  /// closed anyway, since the only thing it can be showing is the payload the main
+  /// isolate already consumed — which is this one.
+  static Future<void> closeForOrder(String orderId) async {
+    if (!Platform.isAndroid) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_pendingOrderPrefsKey);
+    if (raw != null) {
+      try {
+        final pending = Map<String, dynamic>.from(jsonDecode(raw) as Map);
+        final pendingId =
+            (pending['orderMongoId'] ?? pending['orderId'] ?? pending['_id'])
+                ?.toString();
+        if (pendingId != null && pendingId != orderId) return;
+      } catch (_) {
+        // Unreadable payload — treat as ours and clear it.
+      }
+      await prefs.remove(_pendingOrderPrefsKey);
+    }
+
+    await close();
+  }
+
   static Future<Map<String, dynamic>?> consumePendingOrder() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_pendingOrderPrefsKey);

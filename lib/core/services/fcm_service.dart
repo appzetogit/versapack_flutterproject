@@ -25,11 +25,50 @@ const _incomingOrdersChannel = AndroidNotificationChannel(
   playSound: true,
 );
 
+/// Stable notification id for an order's incoming alert.
+///
+/// The alert used to be posted under `message.hashCode`, which is derived from the
+/// push itself and is therefore unknowable to anything that later wants to take the
+/// alert down. Keying on the order id means the withdrawal push can cancel exactly
+/// the alert its order raised. Masked positive because Android ids are ints and a
+/// negative one is not portable across the plugin.
+int incomingOrderNotificationId(String orderId) => orderId.hashCode & 0x7fffffff;
+
+String? _orderIdOf(Map<String, dynamic> data) {
+  final id = (data['orderMongoId'] ?? data['orderId'] ?? data['_id'])?.toString();
+  return (id == null || id.isEmpty) ? null : id;
+}
+
+/// Takes down the incoming-order alert for [orderId] wherever it is showing.
+///
+/// Safe to call from the background isolate, which is the case that matters: the
+/// rider whose app is closed is the one the socket `order_claimed` event cannot
+/// reach, so this is the only path that clears their screen.
+Future<void> dismissIncomingOrderAlert(String orderId) async {
+  await OrderOverlayService.closeForOrder(orderId);
+  final localNotifications = FlutterLocalNotificationsPlugin();
+  await localNotifications.initialize(
+    const InitializationSettings(
+      android: AndroidInitializationSettings('@mipmap/launcher_icon'),
+    ),
+  );
+  await localNotifications.cancel(incomingOrderNotificationId(orderId));
+}
+
 /// Must stay top-level / static so the Dart VM can invoke it in the
 /// background isolate when a push arrives while the app is killed.
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
+
+  // Another rider accepted first — pull the alert down instead of leaving it
+  // ringing until its own countdown expires.
+  if (message.data['type'] == 'order_taken') {
+    final orderId = _orderIdOf(message.data);
+    if (orderId != null) await dismissIncomingOrderAlert(orderId);
+    return;
+  }
+
   if (message.data['type'] != 'new_order') return;
 
   if (await OrderOverlayService.hasPermission()) {
@@ -54,7 +93,7 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     final body = 'From: $pickup\nTo: $drop\nEarnings: ₹$price | Dist: ${distance}km';
 
     await localNotifications.show(
-      message.hashCode,
+      incomingOrderNotificationId(_orderIdOf(message.data) ?? ''),
       message.data['restaurantName'] as String? ?? 'New order',
       body,
       NotificationDetails(
@@ -292,6 +331,19 @@ class FcmService {
 
   void _showForegroundNotification(RemoteMessage message) {
     _notificationReceivedController.add(message.data);
+
+    // Foreground gets the same withdrawal. The in-app alert is cleared by the
+    // controller listening to the stream above; the overlay and any tray alert
+    // raised earlier while backgrounded are cleared here.
+    if (message.data['type'] == 'order_taken') {
+      final orderId = _orderIdOf(message.data);
+      if (orderId != null) {
+        OrderOverlayService.closeForOrder(orderId);
+        _localNotifications.cancel(incomingOrderNotificationId(orderId));
+      }
+      return;
+    }
+
     // 'new_order' pushes are already handled by the full-screen incoming-
     // order overlay (driven by the line above) — showing the plain tray
     // notification too would duplicate/compete with it.

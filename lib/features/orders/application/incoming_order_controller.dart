@@ -49,6 +49,12 @@ class IncomingOrderController extends Notifier<DeliveryOrder?> {
     // FCM data always tags {type: 'new_order'}; non-order push types (e.g.
     // referral_bonus) must be ignored here. Socket order events carry no
     // 'type' field, so absence of the key means "treat as an order".
+    // Another rider got there first. Arrives here rather than on the socket
+    // stream when the app was backgrounded at the moment of the claim.
+    if (data['type'] == 'order_taken') {
+      _withdraw(data);
+      return;
+    }
     if (data['type'] != null && data['type'] != 'new_order') return;
     final orderId =
         (data['orderMongoId'] ?? data['_id'] ?? data['orderId'])?.toString();
@@ -58,14 +64,21 @@ class IncomingOrderController extends Notifier<DeliveryOrder?> {
     show(DeliveryOrder.fromRealtimePayload(data));
   }
 
-  void _autoDismissIfMatch(Map<String, dynamic> data) {
-    final order = state;
-    if (order == null) return;
-    final orderId = (data['orderId'] ?? data['_id'] ?? data['id'])?.toString();
-    if (orderId != null && orderId == order.id) {
-      state = null;
-    }
+  void _withdraw(Map<String, dynamic> data) {
+    final orderId =
+        (data['orderMongoId'] ?? data['orderId'] ?? data['_id'] ?? data['id'])
+            ?.toString();
+    if (orderId == null || orderId.isEmpty) return;
+
+    // Recorded even when the alert is not currently up. The withdrawal can beat
+    // the offer here — FCM makes no ordering guarantee and a queued push is
+    // delivered on reconnect — and without this the alert would be raised for an
+    // order that is already gone.
+    _dismissedOrderIds.add(orderId);
+    if (state?.id == orderId) state = null;
   }
+
+  void _autoDismissIfMatch(Map<String, dynamic> data) => _withdraw(data);
 
   void show(DeliveryOrder order) {
     state = order;
