@@ -53,6 +53,22 @@ Future<void> dismissIncomingOrderAlert(String orderId) async {
     ),
   );
   await localNotifications.cancel(incomingOrderNotificationId(orderId));
+  await cancelFcmTrayCopy(orderId);
+}
+
+/// Removes the OS-rendered copy of the new-order push.
+///
+/// The push is hybrid: FCM posts a tray notification itself (tag `order_<id>`,
+/// set by the backend — the two must stay in sync) so ROMs that refuse to start
+/// the app in the background still ring. Wherever OUR alert does manage to show,
+/// this takes the tray copy down so the rider sees one alert, not two. FCM posts
+/// tagged notifications under id 0.
+Future<void> cancelFcmTrayCopy(String orderId) async {
+  try {
+    await FlutterLocalNotificationsPlugin().cancel(0, tag: 'order_$orderId');
+  } catch (_) {
+    // Worst case the tray copy stays — a duplicate, not a lost order.
+  }
 }
 
 /// Must stay top-level / static so the Dart VM can invoke it in the
@@ -70,6 +86,13 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   }
 
   if (message.data['type'] != 'new_order') return;
+
+  // If this handler is running at all, this device CAN show our own richer
+  // alert — so take down the tray copy FCM just posted (the hybrid push exists
+  // for ROMs where this handler never runs). Done first, so a throw later
+  // can't leave both on screen.
+  final incomingOrderId = _orderIdOf(message.data);
+  if (incomingOrderId != null) await cancelFcmTrayCopy(incomingOrderId);
 
   // Try the overlay bubble first, but never trust it blindly — if the
   // permission check races with it being revoked, the plugin throws, or the
