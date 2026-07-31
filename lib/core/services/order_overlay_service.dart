@@ -34,13 +34,23 @@ class OrderOverlayService {
     if (!Platform.isAndroid) return;
     if (!await FlutterOverlayWindow.isPermissionGranted()) return;
 
+    final encoded = jsonEncode(data);
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_pendingOrderPrefsKey, jsonEncode(data));
+    await prefs.setString(_pendingOrderPrefsKey, encoded);
 
+    // A second order UPDATES the open window instead of replacing it.
+    //
+    // Closing and immediately reopening tears down one Flutter engine while
+    // starting another; the two overlap, and the new window can attach before the
+    // old engine has released — leaving a window on screen with nothing rendering
+    // in it. That window is match-parent and consumes touches, so the home screen
+    // becomes unusable. shareData pushes the new order into the engine already
+    // running, so there is only ever one.
     if (await FlutterOverlayWindow.isActive()) {
-      await FlutterOverlayWindow.closeOverlay();
+      await FlutterOverlayWindow.shareData(encoded);
+      return;
     }
-    
+
     await FlutterOverlayWindow.showOverlay(
       height: WindowSize.matchParent,
       width: WindowSize.matchParent,
@@ -130,37 +140,103 @@ class _OrderOverlayUIState extends State<_OrderOverlayUI> {
   // ignore: unused_field
   Timer? _timer;
 
+  /// Closes the window if nothing has rendered shortly after it attached.
+  ///
+  /// This is the safety net for the whole feature. The window is match-parent and
+  /// starts consuming touches the instant it attaches, but its content is only
+  /// known after an async read — so ANY failure in between (missing payload, a
+  /// decode error, a build exception) used to leave a full-screen invisible window
+  /// swallowing every tap on the home screen, with nothing left running to remove
+  /// it. In release that is worse than debug, because a build failure paints
+  /// Flutter's blank release error widget rather than the red debug one.
+  Timer? _watchdog;
+
+  StreamSubscription<dynamic>? _dataSub;
+
   @override
   void initState() {
     super.initState();
     _secondsLeft = 45;
+
+    _watchdog = Timer(const Duration(seconds: 5), () {
+      if (_orderData == null) {
+        debugPrint('[Overlay] Nothing rendered within 5s — closing to free the screen.');
+        FlutterOverlayWindow.closeOverlay();
+      }
+    });
+
+    // A second order arriving while this one is open updates it in place, rather
+    // than a new window being stacked on top.
+    _dataSub = FlutterOverlayWindow.overlayListener.listen((event) {
+      try {
+        final decoded = jsonDecode(event.toString());
+        if (decoded is Map && mounted) {
+          setState(() {
+            _orderData = Map<String, dynamic>.from(decoded);
+            _secondsLeft = 45; // the countdown belongs to the new order
+          });
+          _startCountdown();
+        }
+      } catch (e) {
+        debugPrint('[Overlay] Ignoring unreadable shared data: $e');
+      }
+    });
+
     _loadOrder();
   }
 
   Future<void> _loadOrder() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_pendingOrderPrefsKey);
-    if (raw != null) {
-      if (mounted) {
-        setState(() {
-          _orderData = jsonDecode(raw);
-        });
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_pendingOrderPrefsKey);
+
+      // No payload means there is nothing to show — most often because the main
+      // isolate consumed it on resume. Leaving the window attached in that state is
+      // exactly what froze the home screen, so close rather than sit invisible.
+      if (raw == null) {
+        debugPrint('[Overlay] No pending order found — closing.');
+        await FlutterOverlayWindow.closeOverlay();
+        return;
       }
-      _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-        if (!mounted) return;
-        if (_secondsLeft <= 1) {
-          timer.cancel();
-          FlutterOverlayWindow.closeOverlay();
-        } else {
-          setState(() => _secondsLeft--);
-        }
-      });
+
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) {
+        await FlutterOverlayWindow.closeOverlay();
+        return;
+      }
+
+      if (!mounted) return;
+      setState(() => _orderData = Map<String, dynamic>.from(decoded));
+      _startCountdown();
+    } catch (e) {
+      // Never swallowed: an exception here previously left the window attached
+      // forever with nothing drawn.
+      debugPrint('[Overlay] Failed to load order, closing: $e');
+      await FlutterOverlayWindow.closeOverlay();
     }
   }
-  
+
+  void _startCountdown() {
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (_secondsLeft <= 1) {
+        timer.cancel();
+        FlutterOverlayWindow.closeOverlay();
+      } else {
+        setState(() => _secondsLeft--);
+      }
+    });
+  }
+
   @override
   void dispose() {
     _timer?.cancel();
+    _watchdog?.cancel();
+    _dataSub?.cancel();
     super.dispose();
   }
 
@@ -178,7 +254,39 @@ class _OrderOverlayUIState extends State<_OrderOverlayUI> {
 
   @override
   Widget build(BuildContext context) {
-    if (_orderData == null) return const SizedBox.shrink();
+    // NEVER return an empty widget here.
+    //
+    // The window is already attached and already consuming touches by the time
+    // build runs. Returning SizedBox.shrink() over a transparent Scaffold is
+    // precisely the reported bug: a full-screen invisible layer that eats every tap
+    // on the home screen with no way for the user to dismiss it. While the order is
+    // still loading we paint a visible, tappable scrim instead — so the window is
+    // always either useful or obviously dismissible, never invisible.
+    if (_orderData == null) {
+      return GestureDetector(
+        onTap: () => FlutterOverlayWindow.closeOverlay(),
+        child: Container(
+          color: Colors.black.withValues(alpha: 0.55),
+          alignment: Alignment.center,
+          child: const Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(color: Colors.white),
+              SizedBox(height: 14),
+              Text(
+                'Loading new order...',
+                style: TextStyle(color: Colors.white, fontSize: 15),
+              ),
+              SizedBox(height: 6),
+              Text(
+                'Tap anywhere to dismiss',
+                style: TextStyle(color: Colors.white70, fontSize: 12),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     // This map came from an FCM push, where EVERY value is a String — FCM rejects
     // any other type in `data`. Casting them with `as num?` threw
