@@ -70,12 +70,34 @@ class RiderOnlineService : Service() {
             return START_NOT_STICKY
         }
 
-        startForegroundCompat()
+        // Never let this crash the app.
+        //
+        // startForeground() with type `location` throws when location permission is
+        // not granted, and Android 12+ throws ForegroundServiceStartNotAllowedException
+        // when a service is started from the background. Neither is caught by the
+        // try/catch on the Dart side: that only wraps startForegroundService(), which
+        // merely SCHEDULES this callback — the throw happens here, later, on the main
+        // thread, and takes the whole process down.
+        //
+        // That is what crashed the app right after registration: the rider was
+        // restored as online before they had ever granted location permission.
+        //
+        // Losing the keep-alive is a degradation. Crashing is not survivable, so on
+        // any failure we stop cleanly and let the app carry on without it.
+        return try {
+            startForegroundCompat()
 
-        // START_STICKY: if Android reclaims the process under memory pressure it is
-        // recreated and onStartCommand runs again with a null intent — which lands
-        // here and re-enters the foreground, restoring the guarantee unattended.
-        return START_STICKY
+            // START_STICKY: if Android reclaims the process under memory pressure it
+            // is recreated and onStartCommand runs again with a null intent — which
+            // lands here and re-enters the foreground, restoring the guarantee
+            // unattended.
+            START_STICKY
+        } catch (e: Exception) {
+            stopSelf()
+            // NOT sticky: a restart would hit the same missing permission and throw
+            // again, turning one crash into a loop.
+            START_NOT_STICKY
+        }
     }
 
     private fun startForegroundCompat() {

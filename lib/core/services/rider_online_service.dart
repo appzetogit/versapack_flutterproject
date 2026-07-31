@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/services.dart';
+import 'package:geolocator/geolocator.dart';
 
 /// Starts and stops the Android foreground service that keeps the app's process
 /// alive while the rider is online.
@@ -17,10 +18,27 @@ class RiderOnlineService {
   static const MethodChannel _channel =
       MethodChannel('app.fooddelivery/rider_online');
 
-  /// Call only once location permission has been granted. A service typed
-  /// `location` throws on start without it, which would take the app down.
+  /// Starts the service, but only when location permission is actually held.
+  ///
+  /// The permission is re-checked here rather than trusted from the caller. A
+  /// service typed `location` throws on start without it, and that throw happens
+  /// inside the service on the main thread where no Dart try/catch can reach it —
+  /// it crashed the app immediately after registration, when a rider was restored
+  /// as online before ever being asked for location.
+  ///
+  /// Returns false when it was skipped or refused; never throws.
   static Future<bool> start() async {
     if (!Platform.isAndroid) return false;
+
+    try {
+      final permission = await Geolocator.checkPermission();
+      final granted = permission == LocationPermission.always ||
+          permission == LocationPermission.whileInUse;
+      if (!granted) return false;
+    } catch (_) {
+      return false;
+    }
+
     try {
       return await _channel.invokeMethod<bool>('start') ?? false;
     } catch (_) {
