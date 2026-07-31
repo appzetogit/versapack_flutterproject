@@ -361,9 +361,32 @@ class FcmService {
     }
   }
 
+  /// Unsubscribes this device from pushes for the account being signed out.
+  ///
+  /// The token was not being sent, so the server had no idea which device to
+  /// detach — it rejected the call, this catch swallowed the error, and logout
+  /// completed locally with the token still attached. The rider signed out and
+  /// kept receiving new-order alerts.
+  ///
+  /// Sends the token the device actually holds so only this device is detached.
+  /// Falls back to the live FCM token when nothing was stored, and to a bare
+  /// request when neither is available — the server treats that as "sign this
+  /// owner out everywhere", which is still better than leaving it subscribed.
   Future<void> removeToken() async {
+    String? token = await _tokenStorage.getFcmToken();
+    if (token == null || token.isEmpty) {
+      try {
+        token = await FirebaseMessaging.instance.getToken();
+      } catch (_) {
+        token = null;
+      }
+    }
+
     try {
-      await _dio.delete(ApiEndpoints.fcmTokenRemove);
+      await _dio.delete(
+        ApiEndpoints.fcmTokenRemove,
+        data: (token != null && token.isNotEmpty) ? {'token': token} : null,
+      );
     } catch (_) {
       // Ignore — logging out locally regardless.
     }
