@@ -12,6 +12,7 @@ import '../../../main/presentation/screens/main_screen.dart';
 import '../../../profile/data/profile_repository.dart';
 import '../../../wallet/data/wallet_repository.dart';
 import '../../../../core/theme/theme_mode_provider.dart';
+import 'delivery_readiness_screen.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -469,6 +470,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         'Refer & Earn',
         'Invite friends and earn more',
         () => context.push('/refer-earn'),
+      ),
+      (
+        Icons.shield_moon_outlined,
+        'Order delivery settings',
+        'Make sure orders always reach you',
+        () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const DeliveryReadinessScreen()),
+        ),
       ),
       (
         Icons.palette_outlined,

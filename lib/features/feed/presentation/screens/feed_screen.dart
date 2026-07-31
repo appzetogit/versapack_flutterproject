@@ -14,7 +14,9 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:food_user_application/core/utils/map_launcher.dart';
 import 'package:food_user_application/core/utils/polyline_decoder.dart';
+import 'package:food_user_application/core/services/device_readiness_service.dart';
 import 'package:food_user_application/core/services/location_service.dart';
+import 'package:food_user_application/features/profile/presentation/screens/delivery_readiness_screen.dart';
 import 'package:food_user_application/core/services/haptic_service.dart';
 import 'package:food_user_application/core/services/sound_service.dart';
 import 'package:food_user_application/features/auth/application/auth_controller.dart';
@@ -81,12 +83,45 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
     });
   }
 
-  Future<void> _requestOverlayPermission() async {
-    if (Platform.isAndroid) {
-      final status = await Permission.systemAlertWindow.status;
-      if (status.isDenied) {
-        await Permission.systemAlertWindow.request();
-      }
+  /// Offered when going online with something outstanding that will cost the
+  /// rider orders.
+  ///
+  /// Self-limiting rather than gated on a "seen" flag: the checks report their
+  /// real state, so once they are fixed this stops appearing on its own. Autostart
+  /// is excluded from the blocking set precisely because no ROM lets us read it
+  /// back — including it would make this prompt permanent and train riders to
+  /// dismiss it without reading.
+  Future<void> _promptDeviceReadiness() async {
+    if (!Platform.isAndroid) return;
+    if (!await DeviceReadinessService.hasBlockingIssues()) return;
+    if (!mounted) return;
+
+    final open = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('You may miss orders'),
+        content: const Text(
+          'Your phone is set to stop this app running in the background. '
+          'Orders can stop reaching you without any warning.\n\n'
+          'It takes about a minute to fix.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Later'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Fix now'),
+          ),
+        ],
+      ),
+    );
+
+    if (open == true && mounted) {
+      await Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const DeliveryReadinessScreen()),
+      );
     }
   }
 
@@ -659,7 +694,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
         result.when(
           success: (_) {
             if (ref.read(availabilityControllerProvider)) {
-              _requestOverlayPermission();
+              _promptDeviceReadiness();
             }
           },
           failure: (error) => _showSnack(error.message),
