@@ -334,6 +334,12 @@ class _OrderOverlayUIState extends State<_OrderOverlayUI> {
             _secondsLeft = 45;
           });
           _startCountdown();
+          
+          if (incomingId != null) {
+            SharedPreferences.getInstance().then((prefs) {
+              prefs.setString('overlay_rendered_order', incomingId);
+            });
+          }
         }
       } catch (e) {
         debugPrint('[Overlay] Ignoring unreadable shared data: $e');
@@ -377,10 +383,15 @@ class _OrderOverlayUIState extends State<_OrderOverlayUI> {
     }
 
     if (mounted) {
+      final incomingId = (decoded['orderMongoId'] ?? decoded['orderId'] ?? decoded['_id'])?.toString();
       setState(() {
         _orderData = Map<String, dynamic>.from(decoded);
       });
       _startCountdown();
+      
+      if (incomingId != null) {
+        prefs.setString('overlay_rendered_order', incomingId);
+      }
     }
   }
 

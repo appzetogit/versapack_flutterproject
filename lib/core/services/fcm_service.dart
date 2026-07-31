@@ -8,6 +8,8 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../network/api_endpoints.dart';
 import '../network/dio_client.dart';
 import '../storage/token_storage.dart';
@@ -109,8 +111,26 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     overlayShown = false;
   }
 
-  if (overlayShown) return;
-
+  if (overlayShown) {
+    // Wait up to 3 seconds for the overlay to acknowledge it rendered this specific order
+    bool rendered = false;
+    final prefs = await SharedPreferences.getInstance();
+    
+    for (int i = 0; i < 15; i++) {
+      await Future.delayed(const Duration(milliseconds: 200));
+      await prefs.reload(); // Force read from disk
+      if (prefs.getString('overlay_rendered_order') == incomingOrderId) {
+        rendered = true;
+        break;
+      }
+    }
+    
+    if (rendered) return; // Overlay successfully rendered, we are done
+    
+    // Otherwise, it failed to render within 3s. Proceed to fallback!
+    debugPrint('[FCM] Overlay failed to render within 3s. Falling back to Full-Screen Intent.');
+    await OrderOverlayService.closeForOrder(incomingOrderId!); 
+  }
   try {
     // A fresh isolate — the channel/plugin registered by FcmService.initialize()
     // in the main isolate doesn't exist here, so set both up again.
