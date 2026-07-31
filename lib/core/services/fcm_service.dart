@@ -112,11 +112,11 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   }
 
   if (overlayShown) {
-    // Wait up to 3 seconds for the overlay to acknowledge it rendered this specific order
+    // Wait up to 6 seconds for the overlay to acknowledge it rendered this specific order
     bool rendered = false;
     final prefs = await SharedPreferences.getInstance();
     
-    for (int i = 0; i < 15; i++) {
+    for (int i = 0; i < 30; i++) {
       await Future.delayed(const Duration(milliseconds: 200));
       await prefs.reload(); // Force read from disk
       if (prefs.getString('overlay_rendered_order') == incomingOrderId) {
@@ -127,8 +127,8 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     
     if (rendered) return; // Overlay successfully rendered, we are done
     
-    // Otherwise, it failed to render within 3s. Proceed to fallback!
-    print('[FCM] Overlay failed to render within 3s. Falling back to Full-Screen Intent.');
+    // Otherwise, it failed to render within 6s. Proceed to fallback!
+    print('[FCM] Overlay failed to render within 6s. Falling back to Full-Screen Intent.');
     await OrderOverlayService.closeForOrder(incomingOrderId!); 
   }
   try {
