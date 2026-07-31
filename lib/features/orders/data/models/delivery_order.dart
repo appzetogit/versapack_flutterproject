@@ -192,6 +192,7 @@ class DeliveryOrder {
     required this.customerName,
     required this.customerPhone,
     this.customerId,
+    this.customerPhoto,
     required this.paymentMethod,
     required this.paymentStatus,
     required this.total,
@@ -216,6 +217,7 @@ class DeliveryOrder {
   final String customerName;
   final String customerPhone;
   final String? customerId;
+  final String? customerPhoto;
   final String paymentMethod;
   final String paymentStatus;
   final double total;
@@ -244,6 +246,7 @@ class DeliveryOrder {
       customerName: customerName,
       customerPhone: customerPhone,
       customerId: customerId,
+      customerPhoto: customerPhoto,
       paymentMethod: paymentMethod,
       paymentStatus: paymentStatus,
       total: total,
@@ -290,6 +293,7 @@ class DeliveryOrder {
       customerName: json['customerName'] as String? ?? '',
       customerPhone: json['customerPhone'] as String? ?? '',
       customerId: _extractUserId(json['userId']),
+      customerPhoto: json['customerPhoto'] as String? ?? json['customerImage'] as String? ?? (json['userId'] is Map ? (json['userId']['profilePhoto'] as String? ?? json['userId']['image'] as String?) : null),
       paymentMethod: json['paymentMethod'] as String? ??
           payment['method'] as String? ??
           'cash',
@@ -332,6 +336,7 @@ class DeliveryOrder {
       customerName: data['customerName'] as String? ?? '',
       customerPhone: data['customerPhone'] as String? ?? '',
       customerId: _extractUserId(data['userId'] ?? data['customerId']),
+      customerPhoto: data['customerPhoto'] as String? ?? data['customerImage'] as String?,
       paymentMethod: data['paymentMethod'] as String? ?? 'cash',
       paymentStatus: data['paymentStatus'] as String? ?? 'cod_pending',
       total: n(data['total']),

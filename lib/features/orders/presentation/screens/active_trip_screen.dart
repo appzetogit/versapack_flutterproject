@@ -986,35 +986,39 @@ class _ActiveTripScaffoldState extends ConsumerState<_ActiveTripScaffold> {
                       ),
                     ),
                     SizedBox(height: 8.h),
-                    GestureDetector(
-                      onTap: isPickupPhase && order.restaurant.allImages.isNotEmpty
-                          ? () {
-                              HapticService.light();
-                              _openRestaurantGallery(order);
-                            }
-                          : null,
-                      child: ClipOval(
-                        child: Container(
-                          width: 48.r,
-                          height: 48.r,
-                          color: Colors.grey[200],
-                          alignment: Alignment.center,
-                          child: (isPickupPhase &&
-                                  order.restaurant.displayImage != null &&
-                                  order.restaurant.displayImage!.isNotEmpty)
-                              ? CachedNetworkImage(
-                                  imageUrl: AppConstants.resolveMediaUrl(order.restaurant.displayImage!),
-                                  fit: BoxFit.cover,
-                                  width: 48.r,
-                                  height: 48.r,
-                                  placeholder: (_, __) =>
-                                      Icon(Icons.storefront_rounded, color: Colors.grey[500]),
-                                  errorWidget: (_, __, ___) =>
-                                      Icon(Icons.storefront_rounded, color: Colors.grey[500]),
-                                )
-                              : Icon(isPickupPhase ? Icons.storefront_rounded : Icons.person_rounded, color: Colors.grey[500]),
-                        ),
-                      ),
+                    Builder(
+                      builder: (context) {
+                        final rawImg = isPickupPhase ? order.restaurant.displayImage : order.customerPhoto;
+                        final resolvedImg = AppConstants.resolveMediaUrl(rawImg);
+                        final defaultIcon = isPickupPhase ? Icons.storefront_rounded : Icons.person_rounded;
+
+                        return GestureDetector(
+                          onTap: isPickupPhase && order.restaurant.allImages.isNotEmpty
+                              ? () {
+                                  HapticService.light();
+                                  _openRestaurantGallery(order);
+                                }
+                              : null,
+                          child: ClipOval(
+                            child: Container(
+                              width: 48.r,
+                              height: 48.r,
+                              color: Colors.grey[200],
+                              alignment: Alignment.center,
+                              child: resolvedImg.isNotEmpty
+                                  ? CachedNetworkImage(
+                                      imageUrl: resolvedImg,
+                                      fit: BoxFit.cover,
+                                      width: 48.r,
+                                      height: 48.r,
+                                      placeholder: (_, __) => Icon(defaultIcon, color: Colors.grey[500]),
+                                      errorWidget: (_, __, ___) => Icon(defaultIcon, color: Colors.grey[500]),
+                                    )
+                                  : Icon(defaultIcon, color: Colors.grey[500]),
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),
