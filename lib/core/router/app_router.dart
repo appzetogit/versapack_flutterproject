@@ -16,6 +16,10 @@ import 'package:food_user_application/features/auth/presentation/screens/otp_ver
 import 'package:food_user_application/features/auth/presentation/screens/registration_screen.dart';
 import 'package:food_user_application/features/auth/presentation/screens/account_status_screen.dart';
 import 'package:food_user_application/features/orders/presentation/screens/order_detail_screen.dart';
+import 'package:food_user_application/features/history/presentation/screens/trip_detail_screen.dart';
+import 'package:food_user_application/features/support/presentation/screens/help_screen.dart';
+import 'package:food_user_application/features/support/presentation/screens/chat_admin_screen.dart';
+import 'package:food_user_application/features/support/presentation/screens/support_ticket_screen.dart';
 import 'router_notifier.dart';
 
 final goRouterProvider = Provider<GoRouter>((ref) {
@@ -83,6 +87,26 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/order-details',
         builder: (context, state) => const OrderDetailScreen(),
+      ),
+      GoRoute(
+        path: '/trip-details',
+        builder: (context, state) => TripDetailScreen(
+          trip: state.extra as Map<String, dynamic>? ?? const {},
+        ),
+      ),
+      GoRoute(
+        path: '/help',
+        builder: (context, state) => const HelpScreen(),
+        routes: [
+          GoRoute(
+            path: 'chat',
+            builder: (context, state) => const ChatAdminScreen(),
+          ),
+          GoRoute(
+            path: 'ticket',
+            builder: (context, state) => const SupportTicketScreen(),
+          ),
+        ],
       ),
     ],
     errorBuilder: (context, state) =>

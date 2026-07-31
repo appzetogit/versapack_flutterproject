@@ -4,6 +4,7 @@ import 'package:food_user_application/features/language/domain/models/language_l
 
 class AppConstants {
   static const String title = 'Appzeto Delivery';
+  static const String appFontFamily = 'Latin';
 
   static const String apiHost = 'https://suvio.appzeto.com';
   static const String baseUrl = '$apiHost/api/v1';

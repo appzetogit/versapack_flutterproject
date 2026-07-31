@@ -78,6 +78,35 @@ class LocationService {
     _positionSubscription = null;
   }
 
+  /// Injects a synthetic fix into the same stream real GPS updates flow
+  /// through, so the map marker, the socket `update-location` broadcast, and
+  /// the backend availability ping all react exactly as they would to a real
+  /// movement. Backs the debug route simulator on [ActiveTripScreen], which
+  /// lets testers exercise customer-side live tracking without physically
+  /// travelling the route.
+  void emitSimulatedPosition({
+    required double latitude,
+    required double longitude,
+    double heading = 0,
+    double speed = 0,
+  }) {
+    final pos = Position(
+      latitude: latitude,
+      longitude: longitude,
+      timestamp: DateTime.now(),
+      accuracy: 5,
+      altitude: 0,
+      altitudeAccuracy: 0,
+      heading: heading,
+      headingAccuracy: 1,
+      speed: speed,
+      speedAccuracy: 0,
+      isMocked: true,
+    );
+    lastPosition = pos;
+    _positionController.add(pos);
+  }
+
   void dispose() {
     stopTracking();
     _positionController.close();

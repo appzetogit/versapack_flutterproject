@@ -17,6 +17,7 @@ import 'package:food_user_application/features/auth/application/auth_state.dart'
 import 'package:food_user_application/features/orders/application/incoming_order_controller.dart';
 import 'package:food_user_application/features/orders/data/models/delivery_order.dart';
 import 'package:food_user_application/features/orders/data/orders_repository.dart';
+import 'package:food_user_application/features/orders/presentation/widgets/slide_to_accept_button.dart';
 
 const _incomingOnlineGreen = Color(0xFF1EBE5D);
 
@@ -324,6 +325,11 @@ class _IncomingOrderScreenState extends ConsumerState<IncomingOrderScreen> {
     DeliveryOrder order,
     String? etaLabel,
   ) {
+    final tripTimeVal = (order.tripDurationMins != null && order.tripDurationMins! > 0)
+        ? order.tripDurationMins!
+        : ((order.tripDistanceKm ?? 0) * 3.0);
+    final displayTripTime = tripTimeVal > 0 ? tripTimeVal.toStringAsFixed(0) : '--';
+
     return Padding(
       padding: EdgeInsets.fromLTRB(16.w, 0, 16.w, 12.h),
       child: Stack(
@@ -331,15 +337,12 @@ class _IncomingOrderScreenState extends ConsumerState<IncomingOrderScreen> {
         alignment: Alignment.topCenter,
         children: [
           Padding(
-            // Leaves room at the top for the "New order" pill so the card
-            // doesn't paint over (and hide) it — see the pill below, which
-            // is the last Stack child and therefore always renders on top.
             padding: EdgeInsets.only(top: 14.h),
             child: Container(
               width: double.infinity,
               padding: EdgeInsets.fromLTRB(20.w, 26.h, 20.w, 20.h),
               decoration: BoxDecoration(
-                color: theme.scaffoldBackgroundColor,
+                color: Colors.white, // Always white
                 borderRadius: BorderRadius.circular(28.r),
                 boxShadow: [
                   BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 20, offset: const Offset(0, -4)),
@@ -348,109 +351,215 @@ class _IncomingOrderScreenState extends ConsumerState<IncomingOrderScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    'Estimated earnings',
-                    style: TextStyle(fontSize: 13.sp, color: subTextColor, fontWeight: FontWeight.w600),
+                  // Price Header
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      order.riderEarning > 0 ? '₹ ${order.riderEarning.toStringAsFixed(2)}' : '₹ —',
+                      style: TextStyle(fontSize: 32.sp, fontWeight: FontWeight.w900, color: Colors.black87),
+                    ),
                   ),
-                  SizedBox(height: 4.h),
-                  Text(
-                    order.riderEarning > 0 ? '₹${order.riderEarning.toStringAsFixed(2)}' : '—',
-                    style: TextStyle(fontSize: 34.sp, fontWeight: FontWeight.w900, color: textColor),
-                  ),
-                  SizedBox(height: 6.h),
-                  Text(
-                    '${order.pickupDistanceKm != null ? 'Pickup: ${order.pickupDistanceKm!.toStringAsFixed(2)} kms' : ''}'
-                    '${order.pickupDistanceKm != null && order.tripDistanceKm != null ? '  |  ' : ''}'
-                    '${order.tripDistanceKm != null ? 'Drop: ${order.tripDistanceKm!.toStringAsFixed(2)} kms' : ''}',
-                    style: TextStyle(fontSize: 13.sp, color: subTextColor, fontWeight: FontWeight.w600),
-                  ),
-                  SizedBox(height: 18.h),
-                  Divider(height: 1, color: isDarkMode ? Colors.white12 : Colors.black12),
                   SizedBox(height: 16.h),
+                  
+                  // Three blocks row
                   Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 3.h),
-                        decoration: BoxDecoration(
-                          color: theme.primaryColor.withOpacity(0.12),
-                          borderRadius: BorderRadius.circular(8.r),
-                        ),
-                        child: Text(
-                          'Pick up',
-                          style: TextStyle(color: theme.primaryColor, fontWeight: FontWeight.w800, fontSize: 11.sp),
-                        ),
+                      _buildStatBlock(
+                        Icons.access_time_filled_rounded, 
+                        Colors.amber[600]!, 
+                        'TRIP TIME', 
+                        '$displayTripTime MINS'
                       ),
-                      SizedBox(width: 12.w),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              order.restaurant.name,
-                              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15.sp, color: textColor),
-                            ),
-                            if (order.restaurant.address.isNotEmpty)
-                              Padding(
-                                padding: EdgeInsets.only(top: 4.h),
-                                child: Text(
-                                  order.restaurant.address,
-                                  style: TextStyle(fontSize: 12.sp, color: subTextColor),
-                                ),
-                              ),
-                            if (etaLabel != null)
-                              Padding(
-                                padding: EdgeInsets.only(top: 6.h),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(Icons.access_time_rounded, size: 14.sp, color: subTextColor),
-                                    SizedBox(width: 4.w),
-                                    Text(etaLabel, style: TextStyle(fontSize: 12.sp, color: subTextColor)),
-                                  ],
-                                ),
-                              ),
-                          ],
-                        ),
+                      SizedBox(width: 8.w),
+                      _buildStatBlock(
+                        Icons.location_on_rounded, 
+                        Colors.blue, 
+                        'DISTANCE', 
+                        '${order.tripDistanceKm?.toStringAsFixed(1) ?? '--'} km'
+                      ),
+                      SizedBox(width: 8.w),
+                      _buildStatBlock(
+                        Icons.shopping_bag_rounded, 
+                        Colors.amber[600]!, 
+                        'TOTAL ITEMS', 
+                        '1 Items' // Assumed default if missing
                       ),
                     ],
                   ),
-                  SizedBox(height: 20.h),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _accept,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _incomingOnlineGreen,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        minimumSize: Size(double.infinity, 56.h),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
+                  
+                  SizedBox(height: 16.h),
+                  
+                  // Timeline container
+                  Container(
+                    padding: EdgeInsets.all(12.r),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[50],
+                      borderRadius: BorderRadius.circular(16.r),
+                      border: Border.all(color: Colors.grey[200]!),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildTimelineRow(
+                          title: 'RESTAURANT PICKUP',
+                          name: order.restaurant.name,
+                          address: order.restaurant.address,
+                          dotColor: const Color(0xFFE85B17), // Orange
+                          phoneColor: const Color(0xFFE85B17),
+                        ),
+                        // Dashed line placeholder
+                        Padding(
+                          padding: EdgeInsets.only(left: 3.w, top: 4.h, bottom: 4.h),
+                          child: Container(width: 2, height: 16.h, color: Colors.grey[300]),
+                        ),
+                        _buildTimelineRow(
+                          title: 'CUSTOMER DROP',
+                          name: order.customerName.isNotEmpty ? order.customerName : 'Customer',
+                          address: order.deliveryAddress.fullAddress,
+                          dotColor: Colors.blue,
+                          phoneColor: Colors.blue,
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                  SizedBox(height: 24.h),
+                  
+                  // Slide to accept
+                  SlideToAcceptButton(
+                    onAccept: _accept,
+                    isLoading: _resolving,
+                  ),
+                  
+                  SizedBox(height: 16.h),
+                  
+                  // Reject text
+                  GestureDetector(
+                    onTap: _decline,
+                    child: Text(
+                      'Reject Order',
+                      style: TextStyle(
+                        color: Colors.red[800],
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.bold,
                       ),
-                      child: Text('Accept order', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16.sp)),
                     ),
                   ),
                 ],
               ),
             ),
           ),
+          
+          // "NEW ORDER" pill
           Container(
-            padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 10.h),
+            padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 6.h),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(30.r),
-              border: Border.all(color: _incomingOnlineGreen, width: 1.5),
-              boxShadow: [
-                BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, 4)),
-              ],
+              border: Border.all(color: const Color(0xFFE85B17), width: 1.5),
             ),
             child: Text(
-              'New order',
-              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15.sp, color: _incomingOnlineGreen),
+              'NEW ORDER   ·   #6A6AFD6B', // Placeholder ID style from mock
+              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12.sp, color: const Color(0xFFE85B17)),
             ),
           ),
+          
+          // Timer Circle (top right)
+          Positioned(
+            right: 0,
+            top: -10.h,
+            child: Container(
+              width: 48.r,
+              height: 48.r,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                border: Border.all(color: const Color(0xFFE85B17), width: 2),
+                boxShadow: [
+                  BoxShadow(color: Colors.black12, blurRadius: 4, offset: const Offset(0, 2)),
+                ],
+              ),
+              child: Center(
+                child: Text(
+                  '${_secondsLeft}s',
+                  style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14.sp, color: Colors.black87),
+                ),
+              ),
+            ),
+          )
         ],
       ),
+    );
+  }
+
+  Widget _buildStatBlock(IconData icon, Color iconColor, String title, String value) {
+    return Expanded(
+      child: Container(
+        padding: EdgeInsets.symmetric(vertical: 12.h, horizontal: 4.w),
+        decoration: BoxDecoration(
+          color: Colors.grey[100],
+          borderRadius: BorderRadius.circular(12.r),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: iconColor, size: 18.sp),
+            SizedBox(height: 8.h),
+            Text(
+              title,
+              style: TextStyle(fontSize: 9.sp, fontWeight: FontWeight.w800, color: Colors.grey[500]),
+            ),
+            SizedBox(height: 2.h),
+            Text(
+              value,
+              style: TextStyle(fontSize: 12.sp, fontWeight: FontWeight.w900, color: Colors.black87),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTimelineRow({
+    required String title, 
+    required String name, 
+    required String address, 
+    required Color dotColor,
+    required Color phoneColor,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: EdgeInsets.only(top: 4.h),
+          child: Container(
+            width: 8.r,
+            height: 8.r,
+            decoration: BoxDecoration(
+              color: dotColor,
+              shape: BoxShape.rectangle,
+              borderRadius: BorderRadius.circular(2.r),
+            ),
+          ),
+        ),
+        SizedBox(width: 10.w),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: TextStyle(fontSize: 9.sp, fontWeight: FontWeight.w800, color: dotColor)),
+              SizedBox(height: 4.h),
+              Text(name, style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w900, color: Colors.black87)),
+              SizedBox(height: 2.h),
+              Text(
+                address,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 11.sp, color: Colors.grey[500], fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

@@ -43,7 +43,7 @@ class SoundService {
   static Future<void> playRingtone() async {
     try {
       await _ringtonePlayer.setReleaseMode(ReleaseMode.loop);
-      await _ringtonePlayer.play(AssetSource('sounds/tujh_bin1.mp3'));
+      await _ringtonePlayer.play(AssetSource('sounds/neworder.mp3'));
     } catch (_) {
       // Sound asset not available yet — fail silently.
     }

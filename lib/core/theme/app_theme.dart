@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:food_user_application/core/constants/app_constants.dart';
 
 class AppTheme {
   // Define core colors
@@ -16,6 +17,7 @@ class AppTheme {
 
   static ThemeData get lightTheme {
     return ThemeData(
+      fontFamily: AppConstants.appFontFamily,
       primaryColor: primaryColor,
       scaffoldBackgroundColor: lightBackground,
       colorScheme: const ColorScheme.light(
@@ -44,6 +46,7 @@ class AppTheme {
 
   static ThemeData get darkTheme {
     return ThemeData(
+      fontFamily: AppConstants.appFontFamily,
       primaryColor: primaryColor,
       brightness: Brightness.dark,
       scaffoldBackgroundColor: darkBackground,

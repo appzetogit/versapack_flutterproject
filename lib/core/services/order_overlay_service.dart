@@ -8,6 +8,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:food_user_application/features/orders/presentation/widgets/slide_to_accept_button.dart';
+import 'sound_service.dart';
+
 const _applicationId = 'com.fooddelivery.app';
 const _pendingOrderPrefsKey = 'pending_overlay_order';
 
@@ -30,36 +33,45 @@ class OrderOverlayService {
 
   /// Persists [data] so the main isolate can pick it up on resume, then
   /// shows the bubble. Safe to call from the background FCM isolate.
-  static Future<void> showForOrder(Map<String, dynamic> data) async {
-    if (!Platform.isAndroid) return;
-    if (!await FlutterOverlayWindow.isPermissionGranted()) return;
+  ///
+  /// Returns whether the bubble is actually confirmed on screen. Some OEM
+  /// ROMs (MIUI/ColorOS/etc.) silently drop `TYPE_APPLICATION_OVERLAY`
+  /// windows even with the permission granted, and the plugin call can also
+  /// throw outright — either way the caller needs a truthful answer so it
+  /// can fall back to the full-screen-intent notification instead of
+  /// leaving the rider with nothing on screen despite the push arriving.
+  static Future<bool> showForOrder(Map<String, dynamic> data) async {
+    if (!Platform.isAndroid) return false;
+    if (!await FlutterOverlayWindow.isPermissionGranted()) return false;
 
     final encoded = jsonEncode(data);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_pendingOrderPrefsKey, encoded);
 
-    // A second order UPDATES the open window instead of replacing it.
-    //
-    // Closing and immediately reopening tears down one Flutter engine while
-    // starting another; the two overlap, and the new window can attach before the
-    // old engine has released — leaving a window on screen with nothing rendering
-    // in it. That window is match-parent and consumes touches, so the home screen
-    // becomes unusable. shareData pushes the new order into the engine already
-    // running, so there is only ever one.
-    if (await FlutterOverlayWindow.isActive()) {
-      await FlutterOverlayWindow.shareData(encoded);
-      return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_pendingOrderPrefsKey, encoded);
+
+      if (await FlutterOverlayWindow.isActive()) {
+        await FlutterOverlayWindow.shareData(encoded);
+        return true;
+      }
+
+      await FlutterOverlayWindow.showOverlay(
+        height: WindowSize.matchParent,
+        width: WindowSize.matchParent,
+        alignment: OverlayAlignment.center,
+        flag: OverlayFlag.defaultFlag,
+        enableDrag: false,
+        positionGravity: PositionGravity.auto,
+        overlayTitle: 'New order',
+      );
+
+      // Give the platform channel a moment to actually add the window
+      // before trusting it succeeded.
+      await Future.delayed(const Duration(milliseconds: 400));
+      return await FlutterOverlayWindow.isActive();
+    } catch (_) {
+      return false;
     }
-
-    await FlutterOverlayWindow.showOverlay(
-      height: WindowSize.matchParent,
-      width: WindowSize.matchParent,
-      alignment: OverlayAlignment.center,
-      flag: OverlayFlag.defaultFlag,
-      enableDrag: false,
-      positionGravity: PositionGravity.auto,
-      overlayTitle: 'New order',
-    );
   }
 
   static Future<void> openAppWithOrder(Map<String, dynamic> data) async {
@@ -71,9 +83,11 @@ class OrderOverlayService {
 
   static Future<void> close() async {
     if (!Platform.isAndroid) return;
-    if (await FlutterOverlayWindow.isActive()) {
-      await FlutterOverlayWindow.closeOverlay();
-    }
+    try {
+      if (await FlutterOverlayWindow.isActive()) {
+        await FlutterOverlayWindow.closeOverlay();
+      }
+    } catch (_) {}
   }
 
   /// Closes the bubble if it is showing [orderId] — used when another rider
@@ -166,20 +180,11 @@ class _OrderOverlayUIState extends State<_OrderOverlayUI> {
     return (text == null || text.isEmpty) ? null : text;
   }
   late int _secondsLeft;
-  // ignore: unused_field
-  Timer? _timer;
+  Timer? _countdownTimer;
+  Timer? _failsafeTimer;
+  bool _closing = false;
 
-  /// Closes the window if nothing has rendered shortly after it attached.
-  ///
-  /// This is the safety net for the whole feature. The window is match-parent and
-  /// starts consuming touches the instant it attaches, but its content is only
-  /// known after an async read — so ANY failure in between (missing payload, a
-  /// decode error, a build exception) used to leave a full-screen invisible window
-  /// swallowing every tap on the home screen, with nothing left running to remove
-  /// it. In release that is worse than debug, because a build failure paints
-  /// Flutter's blank release error widget rather than the red debug one.
   Timer? _watchdog;
-
   StreamSubscription<dynamic>? _dataSub;
 
   @override
@@ -187,22 +192,22 @@ class _OrderOverlayUIState extends State<_OrderOverlayUI> {
     super.initState();
     _secondsLeft = 45;
 
+    _failsafeTimer = Timer(const Duration(seconds: 70), _forceClose);
+
     _watchdog = Timer(const Duration(seconds: 5), () {
       if (_orderData == null) {
         debugPrint('[Overlay] Nothing rendered within 5s — closing to free the screen.');
-        FlutterOverlayWindow.closeOverlay();
+        _forceClose();
       }
     });
 
-    // A second order arriving while this one is open updates it in place, rather
-    // than a new window being stacked on top.
     _dataSub = FlutterOverlayWindow.overlayListener.listen((event) {
       try {
         final decoded = jsonDecode(event.toString());
         if (decoded is Map && mounted) {
           setState(() {
             _orderData = Map<String, dynamic>.from(decoded);
-            _secondsLeft = 45; // the countdown belongs to the new order
+            _secondsLeft = 45; 
           });
           _startCountdown();
         }
@@ -214,71 +219,97 @@ class _OrderOverlayUIState extends State<_OrderOverlayUI> {
     _loadOrder();
   }
 
-  Future<void> _loadOrder() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(_pendingOrderPrefsKey);
-
-      // No payload means there is nothing to show — most often because the main
-      // isolate consumed it on resume. Leaving the window attached in that state is
-      // exactly what froze the home screen, so close rather than sit invisible.
-      if (raw == null) {
-        debugPrint('[Overlay] No pending order found — closing.');
-        await FlutterOverlayWindow.closeOverlay();
+  Future<void> _loadOrder({int attempt = 0}) async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_pendingOrderPrefsKey);
+    if (raw == null) {
+      if (attempt < 5) {
+        await Future.delayed(const Duration(milliseconds: 200));
+        if (mounted) await _loadOrder(attempt: attempt + 1);
         return;
       }
+      debugPrint('[Overlay] No pending order found — closing.');
+      await _forceClose();
+      return;
+    }
+    
+    final decoded = jsonDecode(raw);
+    if (decoded is! Map) {
+      await _forceClose();
+      return;
+    }
 
-      final decoded = jsonDecode(raw);
-      if (decoded is! Map) {
-        await FlutterOverlayWindow.closeOverlay();
-        return;
-      }
-
-      if (!mounted) return;
-      setState(() => _orderData = Map<String, dynamic>.from(decoded));
+    if (mounted) {
+      setState(() {
+        _orderData = Map<String, dynamic>.from(decoded);
+      });
       _startCountdown();
-    } catch (e) {
-      // Never swallowed: an exception here previously left the window attached
-      // forever with nothing drawn.
-      debugPrint('[Overlay] Failed to load order, closing: $e');
-      await FlutterOverlayWindow.closeOverlay();
     }
   }
 
   void _startCountdown() {
-    _timer?.cancel();
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+    _countdownTimer?.cancel();
+    SoundService.playEffect('neworder.mp3');
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) {
         timer.cancel();
         return;
       }
       if (_secondsLeft <= 1) {
         timer.cancel();
-        FlutterOverlayWindow.closeOverlay();
+        _forceClose();
       } else {
         setState(() => _secondsLeft--);
       }
     });
   }
 
-  @override
-  void dispose() {
-    _timer?.cancel();
+  Future<void> _forceClose() async {
+    if (_closing) return;
+    _closing = true;
+    _countdownTimer?.cancel();
+    _failsafeTimer?.cancel();
     _watchdog?.cancel();
     _dataSub?.cancel();
+    try {
+      if (await FlutterOverlayWindow.isActive()) {
+        await FlutterOverlayWindow.closeOverlay();
+      }
+    } catch (_) {
+    } finally {
+      _closing = false;
+    }
+  }
+
+  @override
+  void dispose() {
+    _countdownTimer?.cancel();
+    _failsafeTimer?.cancel();
+    _watchdog?.cancel();
+    _dataSub?.cancel();
+    SoundService.stopEffect();
     super.dispose();
   }
 
   Future<void> _accept() async {
+    await SoundService.stopEffect();
+
+    // Set autoAccept to true so the main app accepts it upon resuming
+    if (_orderData != null) {
+      _orderData!['autoAccept'] = true;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_pendingOrderPrefsKey, jsonEncode(_orderData));
+    }
+
     await OrderOverlayService.reopenApp();
-    await FlutterOverlayWindow.closeOverlay();
+    await _forceClose();
   }
 
   Future<void> _reject() async {
     // In a full implementation, we might clear the shared prefs or make an API call to reject
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_pendingOrderPrefsKey);
-    await FlutterOverlayWindow.closeOverlay();
+    await _forceClose();
   }
 
   @override
@@ -322,7 +353,7 @@ class _OrderOverlayUIState extends State<_OrderOverlayUI> {
     // "type 'String' is not a subtype of type 'num?' in type cast", so the overlay
     // rendered a red error box over the launcher instead of the order card. The
     // Accept/Reject buttons only looked broken because they were never drawn.
-    final total = _num(_orderData?['total']);
+    final driverEarning = _num(_orderData?['earnings'] ?? _orderData?['riderEarning'] ?? _orderData?['price'] ?? _orderData?['earningAmount'] ?? _orderData?['total']);
 
     // The push carries ONE road distance for the whole trip, as `tripDistanceKm`
     // (with `distance` as an alias). There are no separate pickup/drop distances,
@@ -344,155 +375,237 @@ class _OrderOverlayUIState extends State<_OrderOverlayUI> {
         _str(_orderData?['customerAddress']) ??
         'Drop Location';
 
-    return Stack(
-      children: [
-        // The Top Card
-        Positioned(
-          top: 40,
-          left: 16,
-          right: 16,
-          child: Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.15),
-                  blurRadius: 20,
-                  offset: const Offset(0, 10),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Pill
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[200],
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.two_wheeler, size: 14, color: Colors.black87),
-                      SizedBox(width: 4),
-                      Text('Bike', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black87)),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                // Earnings
-                Row(
-                  children: [
-                    const Text('Extra ', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Colors.black87)),
-                    Text('₹${total.toStringAsFixed(0)}', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Color(0xFF1EBE5D))),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                // Timeline
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Column(
-                      children: [
-                        const Icon(Icons.circle, size: 12, color: Colors.black),
-                        Container(width: 2, height: 40, color: Colors.grey[300]),
-                        const Icon(Icons.arrow_drop_down, size: 20, color: Colors.black),
-                      ],
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
+    final customerName = _str(_orderData?['customerName']) ?? 'Customer';
+
+    final tripDurationMinsRaw = _num(_orderData?['tripDurationMins']);
+    final tripTimeMins = tripDurationMinsRaw > 0 ? tripDurationMinsRaw : (tripDistance * 3.0);
+    final displayTripTime = tripTimeMins > 0 ? tripTimeMins.toStringAsFixed(0) : '--';
+
+    return Scaffold(
+      backgroundColor: Colors.transparent, // Background transparent
+      body: Stack(
+        children: [
+          // Semi-transparent dark background for the map area
+          Positioned.fill(
+            child: Container(color: Colors.black.withOpacity(0.4)),
+          ),
+          
+          Align(
+            alignment: Alignment.topCenter,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 64, 16, 12), // 64 top padding to avoid status bar
+              child: Stack(
+                clipBehavior: Clip.none,
+                alignment: Alignment.topCenter,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(top: 14),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.fromLTRB(20, 26, 20, 20),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(28),
+                        boxShadow: [
+                          BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 20, offset: const Offset(0, -4)),
+                        ],
+                      ),
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          if (pickupDistance > 0)
-                            Text('${pickupDistance.toStringAsFixed(1)} Km', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-                          Text(pickupAddr, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: Colors.grey[600])),
+                          // Price Header
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              driverEarning > 0 ? '₹ ${driverEarning.toStringAsFixed(2)}' : '₹ —',
+                              style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: Colors.black87),
+                            ),
+                          ),
                           const SizedBox(height: 16),
-                          if (tripDistance > 0)
-                            Text('${tripDistance.toStringAsFixed(1)} Km', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-                          Text(dropAddr, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: Colors.grey[600])),
+                          
+                          // Three blocks row
+                          // Row(
+                          //   children: [
+                          //     _buildStatBlock(
+                          //       Icons.access_time_filled_rounded, 
+                          //       Colors.amber[600]!, 
+                          //       'TRIP TIME', 
+                          //       '$displayTripTime MINS'
+                          //     ),
+                          //     const SizedBox(width: 8),
+                          //     _buildStatBlock(
+                          //       Icons.location_on_rounded, 
+                          //       Colors.blue, 
+                          //       'DISTANCE', 
+                          //       '${tripDistance.toStringAsFixed(1)} km'
+                          //     ),
+                          //     const SizedBox(width: 8),
+                          //     _buildStatBlock(
+                          //       Icons.shopping_bag_rounded, 
+                          //       Colors.amber[600]!, 
+                          //       'TOTAL ITEMS', 
+                          //       '1 Items' // Assumed default if missing
+                          //     ),
+                          //   ],
+                          // ),
+                          
+                          const SizedBox(height: 16),
+                          
+                          // Timeline container
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[50],
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: Colors.grey[200]!),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _buildTimelineRow(
+                                  title: 'RESTAURANT PICKUP',
+                                  name: _str(_orderData?['restaurantName']) ?? 'Restaurant',
+                                  address: pickupAddr,
+                                  dotColor: const Color(0xFFE85B17), // Orange
+                                  phoneColor: const Color(0xFFE85B17),
+                                ),
+                                // Dashed line placeholder
+                                Padding(
+                                  padding: const EdgeInsets.only(left: 3, top: 4, bottom: 4),
+                                  child: Container(width: 2, height: 16, color: Colors.grey[300]),
+                                ),
+                                _buildTimelineRow(
+                                  title: 'CUSTOMER DROP',
+                                  name: customerName,
+                                  address: dropAddr,
+                                  dotColor: Colors.blue,
+                                  phoneColor: Colors.blue,
+                                ),
+                              ],
+                            ),
+                          ),
+                          
+                          const SizedBox(height: 24),
+                          // Slide to accept and Reject Row
+                          Row(
+                            children: [
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: _accept,
+                                  child: Container(
+                                    height: 62,
+                                    width: double.infinity,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFE85B17), // Orange
+                                      borderRadius: BorderRadius.circular(31),
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      'ACCEPT   ·   ${_secondsLeft}s',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w900,
+                                        fontSize: 15,
+                                        letterSpacing: 1.2,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              GestureDetector(
+                                onTap: _reject,
+                                child: Container(
+                                  width: 62,
+                                  height: 62,
+                                  decoration: BoxDecoration(
+                                    color: Colors.red[50],
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: Colors.red[200]!, width: 2),
+                                  ),
+                                  child: Icon(Icons.close_rounded, color: Colors.red[700], size: 32),
+                                ),
+                              ),
+                            ],
+                          ),
                         ],
                       ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-                // Buttons
-                Row(
-                  children: [
-                    GestureDetector(
-                      onTap: _reject,
-                      child: Container(
-                        width: 54,
-                        height: 54,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.grey[300]!, width: 2),
-                        ),
-                        child: const Icon(Icons.remove, color: Colors.black87),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: _accept,
-                        child: Container(
-                          height: 54,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFFC107), // Rapido yellow
-                            borderRadius: BorderRadius.circular(27),
-                          ),
-                          child: const Center(
-                            child: Text('Accept', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black)),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatBlock(IconData icon, Color iconColor, String title, String value) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+        decoration: BoxDecoration(
+          color: Colors.grey[100],
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: iconColor, size: 18),
+            const SizedBox(height: 8),
+            Text(
+              title,
+              style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: Colors.grey[500]),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              value,
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: Colors.black87),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTimelineRow({
+    required String title, 
+    required String name, 
+    required String address, 
+    required Color dotColor,
+    required Color phoneColor,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: dotColor,
+              shape: BoxShape.rectangle,
+              borderRadius: BorderRadius.circular(2),
             ),
           ),
         ),
-        
-        // The Bubble
-        Positioned(
-          bottom: 120,
-          left: 16,
-          child: GestureDetector(
-            onTap: _accept,
-            child: Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white,
-                boxShadow: const [
-                  BoxShadow(color: Colors.black26, blurRadius: 10, spreadRadius: 1),
-                ],
-                border: Border.all(color: Colors.grey[200]!, width: 2),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: dotColor)),
+              const SizedBox(height: 4),
+              Text(name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Colors.black87)),
+              const SizedBox(height: 2),
+              Text(
+                address,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 11, color: Colors.grey[500], fontWeight: FontWeight.w500),
               ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFC107),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Text('rapido', style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Colors.black)),
-                  ),
-                  const SizedBox(height: 2),
-                  const Text('Captain', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.black)),
-                ],
-              ),
-            ),
+            ],
           ),
         ),
       ],

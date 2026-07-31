@@ -156,7 +156,7 @@ class _ReferEarnScreenState extends ConsumerState<ReferEarnScreen>
         actions: [
           IconButton(
             icon: const Icon(Icons.info_outline, color: Colors.white),
-            onPressed: () {},
+            onPressed: () => context.push('/help'),
           ),
         ],
       ),

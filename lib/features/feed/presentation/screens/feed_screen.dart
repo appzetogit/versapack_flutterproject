@@ -679,34 +679,37 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
               child: Stack(
                 alignment: Alignment.center,
                 children: [
-                  Padding(
-                    padding: EdgeInsets.only(left: 16.w),
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (isOnline) ...[
-                            Container(
-                              width: 6.r,
-                              height: 6.r,
-                              decoration: const BoxDecoration(
+                  Positioned.fill(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16.w),
+                      child: AnimatedAlign(
+                        duration: const Duration(milliseconds: 250),
+                        alignment: isOnline ? Alignment.centerLeft : Alignment.centerRight,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (isOnline) ...[
+                              Container(
+                                width: 6.r,
+                                height: 6.r,
+                                decoration: const BoxDecoration(
+                                  color: Colors.white,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              SizedBox(width: 8.w),
+                            ],
+                            Text(
+                              isOnline ? 'ONLINE' : 'OFFLINE',
+                              style: TextStyle(
                                 color: Colors.white,
-                                shape: BoxShape.circle,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 14.sp,
+                                letterSpacing: 0.5,
                               ),
                             ),
-                            SizedBox(width: 8.w),
                           ],
-                          Text(
-                            isOnline ? 'ONLINE' : 'OFFLINE',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w800,
-                              fontSize: 14.sp,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
                     ),
                   ),
@@ -848,28 +851,32 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          GestureDetector(
-            onTap: () {
-              HapticService.light();
-              context.push('/refer-earn');
-            },
-            child: Image.asset('assets/image/refer.png', width: 90.r, height: 90.r),
-          ),
-          Positioned(
-            right: 23,
-            top: -30,
+          Padding(
+            padding: EdgeInsets.only(top: 35.r),
             child: GestureDetector(
               onTap: () {
                 HapticService.light();
+                context.push('/refer-earn');
+              },
+              child: Image.asset('assets/image/refer.png', width: 90.r, height: 90.r),
+            ),
+          ),
+          Positioned(
+            right: 23,
+            top: 5.r,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () {
+                HapticService.light();
                 setState(() => _showReferEarn = false);
-                Future.delayed(const Duration(seconds: 40), () {
+                Future.delayed(const Duration(seconds: 30), () {
                   if (mounted) {
                     setState(() => _showReferEarn = true);
                   }
                 });
               },
               child: Container(
-                padding: EdgeInsets.all(2.r),
+                padding: EdgeInsets.all(4.r),
                 decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
                 child: Icon(Icons.close, color: Colors.white, size: 14.sp),
               ),
@@ -1235,7 +1242,8 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                       final pos = ref.read(locationServiceProvider).lastPosition;
                       if (pos != null && _mapController != null) {
                         _mapController!.animateCamera(
-                          CameraUpdate.newLatLng(LatLng(pos.latitude, pos.longitude)),
+                          // Zoom in fully to 18.0 for a close-up view
+                          CameraUpdate.newLatLngZoom(LatLng(pos.latitude, pos.longitude), 18.0),
                         );
                       }
                     },

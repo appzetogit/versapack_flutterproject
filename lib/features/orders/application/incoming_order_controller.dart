@@ -87,8 +87,15 @@ class IncomingOrderController extends Notifier<DeliveryOrder?> {
   Future<void> accept() async {
     final order = state;
     if (order == null) return;
+    _dismissedOrderIds.add(order.id);
+    // Don't set state to null yet! Let the IncomingOrderScreen show its loader.
+    // Wait for the API to actually complete.
+    final result = await ref.read(ordersControllerProvider.notifier).acceptOrder(order.id);
+    
+    // Once it succeeds (or fails), we can dismiss the incoming order screen.
+    // Note: On success, ordersController immediately shows the ActiveTripScreen, 
+    // so this transition will be seamless.
     state = null;
-    await ref.read(ordersControllerProvider.notifier).acceptOrder(order.id);
   }
 
   Future<void> decline() async {

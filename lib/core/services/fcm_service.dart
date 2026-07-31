@@ -71,9 +71,24 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
   if (message.data['type'] != 'new_order') return;
 
-  if (await OrderOverlayService.hasPermission()) {
-    await OrderOverlayService.showForOrder(message.data);
-  } else {
+  // Try the overlay bubble first, but never trust it blindly — if the
+  // permission check races with it being revoked, the plugin throws, or the
+  // OEM ROM silently drops the overlay window, `showForOrder` now reports
+  // that honestly instead of us assuming success. Whatever happens here,
+  // the full-screen-intent notification below is the guaranteed fallback so
+  // a delivered push is never left with nothing shown on screen.
+  var overlayShown = false;
+  try {
+    if (await OrderOverlayService.hasPermission()) {
+      overlayShown = await OrderOverlayService.showForOrder(message.data);
+    }
+  } catch (_) {
+    overlayShown = false;
+  }
+
+  if (overlayShown) return;
+
+  try {
     // A fresh isolate — the channel/plugin registered by FcmService.initialize()
     // in the main isolate doesn't exist here, so set both up again.
     final localNotifications = FlutterLocalNotificationsPlugin();
@@ -127,8 +142,33 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       ),
       payload: jsonEncode(message.data),
     );
+  } catch (_) {
+    // Last resort: the full-screen path itself failed (channel creation
+    // race, plugin init error, etc.) — still surface a plain heads-up
+    // notification with sound so the push isn't entirely invisible to the
+    // rider instead of silently vanishing.
+    try {
+      await FlutterLocalNotificationsPlugin().show(
+        message.hashCode,
+        message.data['restaurantName'] as String? ?? 'New order',
+        'Tap to view your new order',
+        NotificationDetails(
+          android: AndroidNotificationDetails(
+            _incomingOrdersChannel.id,
+            _incomingOrdersChannel.name,
+            channelDescription: _incomingOrdersChannel.description,
+            importance: Importance.max,
+            priority: Priority.high,
+            sound: const RawResourceAndroidNotificationSound('tujh_bin1'),
+            playSound: true,
+          ),
+        ),
+        payload: jsonEncode(message.data),
+      );
+    } catch (_) {
+      // Genuinely nothing more we can do from a background isolate.
+    }
   }
-
 }
 
 /// The backend's FCM_DEFAULT_CHANNEL_ID, used for every push that is NOT a
@@ -327,6 +367,13 @@ class FcmService {
     } catch (_) {
       // Ignore — logging out locally regardless.
     }
+    try {
+      // Force Firebase to invalidate this token locally. This guarantees that 
+      // even if the backend fails to remove it from the old user's profile, 
+      // this device will no longer receive their pushes. The next user to 
+      // log in will get a brand new unique token.
+      await FirebaseMessaging.instance.deleteToken();
+    } catch (_) {}
   }
 
   void _showForegroundNotification(RemoteMessage message) {

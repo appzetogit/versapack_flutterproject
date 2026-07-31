@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:food_user_application/core/router/app_router.dart';
@@ -15,6 +16,8 @@ import 'package:food_user_application/features/orders/application/pending_custom
 import 'package:food_user_application/features/orders/data/models/delivery_order.dart';
 import 'package:food_user_application/features/orders/presentation/screens/active_trip_screen.dart';
 import 'package:food_user_application/features/orders/presentation/screens/incoming_order_screen.dart';
+import 'package:food_user_application/core/presentation/widgets/no_network_overlay.dart';
+import 'package:food_user_application/core/services/network_controller.dart';
 import 'package:food_user_application/features/orders/presentation/screens/rate_customer_screen.dart';
 
 void main() async {
@@ -71,9 +74,14 @@ class _FoodDeliveryAppState extends ConsumerState<FoodDeliveryApp>
     await OrderOverlayService.close();
     final data = await OrderOverlayService.consumePendingOrder();
     if (data == null || !mounted) return;
-    ref
-        .read(incomingOrderControllerProvider.notifier)
-        .show(DeliveryOrder.fromRealtimePayload(data));
+    
+    final order = DeliveryOrder.fromRealtimePayload(data);
+    final incomingController = ref.read(incomingOrderControllerProvider.notifier);
+    
+    incomingController.show(order);
+    if (data['autoAccept'] == true) {
+      incomingController.accept();
+    }
   }
 
   @override
@@ -91,13 +99,16 @@ class _FoodDeliveryAppState extends ConsumerState<FoodDeliveryApp>
           title: 'Food Delivery',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.lightTheme,
-          darkTheme: AppTheme.darkTheme,
-          themeMode: themeMode,
+          darkTheme: AppTheme.lightTheme, // Force light theme even if dark is somehow triggered
+          themeMode: ThemeMode.light, // Always use light theme
           routerConfig: goRouter,
           builder: (context, routedChild) {
-            return Stack(
-              children: [
-                if (routedChild != null) routedChild,
+            final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+            return AnnotatedRegion<SystemUiOverlayStyle>(
+              value: isDarkMode ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
+              child: Stack(
+                children: [
+                  if (routedChild != null) routedChild,
                 Consumer(
                   builder: (context, ref, _) {
                     final ordersState = ref.watch(ordersControllerProvider);
@@ -127,7 +138,15 @@ class _FoodDeliveryAppState extends ConsumerState<FoodDeliveryApp>
                     );
                   },
                 ),
-              ],
+                  Consumer(
+                    builder: (context, ref, _) {
+                      final isOnline = ref.watch(networkControllerProvider);
+                      if (isOnline) return const SizedBox.shrink();
+                      return const NoNetworkOverlay();
+                    },
+                  ),
+                ],
+              )
             );
           },
         );

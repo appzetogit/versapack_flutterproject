@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -78,6 +79,16 @@ class _ActiveTripScaffoldState extends ConsumerState<_ActiveTripScaffold> {
   final ConfettiController _confettiController = ConfettiController(duration: const Duration(seconds: 2));
   bool _isCompleting = false;
 
+  // --- Debug-only route simulator (kDebugMode) -----------------------------
+  // Walks a synthetic position along the last fetched polyline so testers can
+  // watch the customer app's live tracking react without physically moving.
+  static const double _simSpeedMps = 8.0; // ~29 km/h simulated rider speed
+  Timer? _simTimer;
+  bool _isSimulating = false;
+  List<LatLng> _simRoutePoints = [];
+  List<double> _simCumulativeDistances = [];
+  double _simDistanceCovered = 0;
+
   @override
   void initState() {
     super.initState();
@@ -91,8 +102,85 @@ class _ActiveTripScaffoldState extends ConsumerState<_ActiveTripScaffold> {
   void dispose() {
     _routeRefreshTimer?.cancel();
     _positionSub?.cancel();
+    _simTimer?.cancel();
     _confettiController.dispose();
     super.dispose();
+  }
+
+  void _toggleSimulation() {
+    _isSimulating ? _stopSimulation() : _startSimulation();
+  }
+
+  void _startSimulation() {
+    if (_routePoints.length < 2) {
+      _showSnack('No route to simulate yet');
+      return;
+    }
+    _simRoutePoints = List.of(_routePoints);
+    _simCumulativeDistances = _computeCumulativeDistances(_simRoutePoints);
+    _simDistanceCovered = 0;
+    _simTimer?.cancel();
+    _simTimer = Timer.periodic(const Duration(seconds: 1), (_) => _stepSimulation());
+    setState(() => _isSimulating = true);
+  }
+
+  void _stopSimulation() {
+    _simTimer?.cancel();
+    _simTimer = null;
+    if (mounted) setState(() => _isSimulating = false);
+  }
+
+  List<double> _computeCumulativeDistances(List<LatLng> points) {
+    final distances = <double>[0];
+    for (var i = 1; i < points.length; i++) {
+      final d = Geolocator.distanceBetween(
+        points[i - 1].latitude,
+        points[i - 1].longitude,
+        points[i].latitude,
+        points[i].longitude,
+      );
+      distances.add(distances.last + d);
+    }
+    return distances;
+  }
+
+  void _stepSimulation() {
+    _simDistanceCovered += _simSpeedMps;
+    final total = _simCumulativeDistances.last;
+    final lastIndex = _simRoutePoints.length - 1;
+    if (_simDistanceCovered >= total) {
+      _emitSimulatedPoint(lastIndex - 1 < 0 ? 0 : lastIndex - 1, lastIndex, 1.0);
+      _stopSimulation();
+      return;
+    }
+    var segIndex = 0;
+    for (var i = 0; i < _simCumulativeDistances.length - 1; i++) {
+      if (_simDistanceCovered >= _simCumulativeDistances[i] &&
+          _simDistanceCovered <= _simCumulativeDistances[i + 1]) {
+        segIndex = i;
+        break;
+      }
+    }
+    final segStart = _simCumulativeDistances[segIndex];
+    final segEnd = _simCumulativeDistances[segIndex + 1];
+    final segLength = segEnd - segStart;
+    final t = segLength > 0 ? (_simDistanceCovered - segStart) / segLength : 0.0;
+    _emitSimulatedPoint(segIndex, segIndex + 1, t);
+  }
+
+  void _emitSimulatedPoint(int fromIdx, int toIdx, double t) {
+    final from = _simRoutePoints[fromIdx];
+    final to = _simRoutePoints[toIdx];
+    final lat = from.latitude + (to.latitude - from.latitude) * t;
+    final lng = from.longitude + (to.longitude - from.longitude) * t;
+    final rawHeading = Geolocator.bearingBetween(from.latitude, from.longitude, to.latitude, to.longitude);
+    final heading = rawHeading < 0 ? rawHeading + 360 : rawHeading;
+    ref.read(locationServiceProvider).emitSimulatedPosition(
+          latitude: lat,
+          longitude: lng,
+          heading: heading,
+          speed: _simSpeedMps,
+        );
   }
 
   Future<Uint8List> _getBytesFromAsset(String path, int width) async {
@@ -318,6 +406,7 @@ class _ActiveTripScaffoldState extends ConsumerState<_ActiveTripScaffold> {
   }
 
   Future<void> _runAction(Future<Result<DeliveryOrder, AppError>> Function() call) async {
+    _stopSimulation();
     final result = await call();
     result.when(success: (_) {}, failure: (error) => _showSnack(error.message));
   }
@@ -394,7 +483,7 @@ class _ActiveTripScaffoldState extends ConsumerState<_ActiveTripScaffold> {
 
   Future<void> _promptDropOtp(DeliveryOrder order) async {
     final controller = ref.read(ordersControllerProvider.notifier);
-    final otpController = TextEditingController();
+    final otpController = TextEditingController(text: '1234');
     final otp = await showDialog<String>(
       context: context,
       barrierDismissible: true,
@@ -726,6 +815,31 @@ class _ActiveTripScaffoldState extends ConsumerState<_ActiveTripScaffold> {
                         _maybeFetchRoute(order);
                       },
                     ),
+                    if (kDebugMode) ...[
+                      SizedBox(width: 4.w),
+                      GestureDetector(
+                        onTap: () {
+                          HapticService.light();
+                          _toggleSimulation();
+                        },
+                        child: Container(
+                          width: 40.r,
+                          height: 40.r,
+                          decoration: BoxDecoration(
+                            color: _isSimulating ? Colors.redAccent : Colors.white,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 10, offset: const Offset(0, 2)),
+                            ],
+                          ),
+                          child: Icon(
+                            _isSimulating ? Icons.stop_rounded : Icons.route_rounded,
+                            color: _isSimulating ? Colors.white : Colors.black87,
+                            size: 18.sp,
+                          ),
+                        ),
+                      ),
+                    ],
                     SizedBox(width: 4.w),
                     _circleIconButton(
                       Icons.call_rounded,
@@ -735,6 +849,25 @@ class _ActiveTripScaffoldState extends ConsumerState<_ActiveTripScaffold> {
                 ),
               ),
             ),
+            if (_isSimulating)
+              Positioned(
+                top: 70.h,
+                left: 16.w,
+                right: 16.w,
+                child: Center(
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 6.h),
+                    decoration: BoxDecoration(
+                      color: Colors.redAccent,
+                      borderRadius: BorderRadius.circular(20.r),
+                    ),
+                    child: Text(
+                      'Simulating movement — test only',
+                      style: TextStyle(color: Colors.white, fontSize: 11.sp, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ),
+              ),
             Positioned(
               right: 16.w,
               bottom: 280.h,

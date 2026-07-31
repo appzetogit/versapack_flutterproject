@@ -25,7 +25,7 @@ class _OtpVerifyScreenState extends ConsumerState<OtpVerifyScreen> {
   static const _otpLength = 4;
   late final List<TextEditingController> _controllers = List.generate(
     _otpLength,
-    (_) => TextEditingController(),
+    (index) => TextEditingController(text: '${index + 1}'),
   );
   late final List<FocusNode> _focusNodes = List.generate(
     _otpLength,

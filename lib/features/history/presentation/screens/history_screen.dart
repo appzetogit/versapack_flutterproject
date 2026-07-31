@@ -417,79 +417,108 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       'cancelled' => Colors.redAccent,
       _ => Colors.orange,
     };
+    final statusIcon = switch (status.toLowerCase()) {
+      'completed' => Icons.check_circle_rounded,
+      'cancelled' => Icons.cancel_rounded,
+      _ => Icons.schedule_rounded,
+    };
 
-    return Container(
-      margin: EdgeInsets.only(bottom: 12.h),
-      padding: EdgeInsets.all(16.r),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => context.push('/trip-details', extra: trip),
         borderRadius: BorderRadius.circular(20.r),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+        child: Container(
+          margin: EdgeInsets.only(bottom: 12.h),
+          padding: EdgeInsets.all(16.r),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface,
+            borderRadius: BorderRadius.circular(20.r),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Text(
-                  _tripRestaurant(trip),
-                  style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15.sp),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
               Container(
-                padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
-                decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(12.r),
-                ),
-                child: Text(
-                  status.isEmpty ? '—' : status,
-                  style: TextStyle(
-                    color: statusColor,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 11.sp,
-                  ),
+                width: 40.w,
+                height: 40.w,
+                margin: EdgeInsets.only(top: 2.h),
+                decoration: BoxDecoration(color: statusColor.withOpacity(0.12), shape: BoxShape.circle),
+                child: Icon(statusIcon, color: statusColor, size: 20.sp),
+              ),
+              SizedBox(width: 12.w),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            _tripRestaurant(trip),
+                            style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15.sp),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Container(
+                          padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
+                          decoration: BoxDecoration(
+                            color: statusColor.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(12.r),
+                          ),
+                          child: Text(
+                            status.isEmpty ? '—' : status,
+                            style: TextStyle(
+                              color: statusColor,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 11.sp,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 8.h),
+                    Row(
+                      children: [
+                        if (_tripOrderId(trip).isNotEmpty)
+                          Text(
+                            '#${_tripOrderId(trip)}',
+                            style: TextStyle(color: Colors.grey, fontSize: 12.sp),
+                          ),
+                        if (_tripOrderId(trip).isNotEmpty && _tripTime(trip).isNotEmpty)
+                          Text('  ·  ', style: TextStyle(color: Colors.grey, fontSize: 12.sp)),
+                        if (_tripTime(trip).isNotEmpty)
+                          Text(
+                            _tripTime(trip),
+                            style: TextStyle(color: Colors.grey, fontSize: 12.sp),
+                          ),
+                      ],
+                    ),
+                    SizedBox(height: 12.h),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Order ₹${_tripTotal(trip).toStringAsFixed(0)}',
+                          style: TextStyle(color: Colors.grey, fontSize: 13.sp),
+                        ),
+                        Text(
+                          '+₹${_tripEarning(trip).toStringAsFixed(0)}',
+                          style: TextStyle(
+                            color: const Color(0xFF1EBE5D),
+                            fontWeight: FontWeight.w900,
+                            fontSize: 15.sp,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
+              SizedBox(width: 4.w),
+              Icon(Icons.chevron_right_rounded, color: Colors.grey[400], size: 20.sp),
             ],
           ),
-          SizedBox(height: 8.h),
-          Row(
-            children: [
-              if (_tripOrderId(trip).isNotEmpty)
-                Text(
-                  '#${_tripOrderId(trip)}',
-                  style: TextStyle(color: Colors.grey, fontSize: 12.sp),
-                ),
-              if (_tripOrderId(trip).isNotEmpty && _tripTime(trip).isNotEmpty)
-                Text('  ·  ', style: TextStyle(color: Colors.grey, fontSize: 12.sp)),
-              if (_tripTime(trip).isNotEmpty)
-                Text(
-                  _tripTime(trip),
-                  style: TextStyle(color: Colors.grey, fontSize: 12.sp),
-                ),
-            ],
-          ),
-          SizedBox(height: 12.h),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Order ₹${_tripTotal(trip).toStringAsFixed(0)}',
-                style: TextStyle(color: Colors.grey, fontSize: 13.sp),
-              ),
-              Text(
-                '+₹${_tripEarning(trip).toStringAsFixed(0)}',
-                style: TextStyle(
-                  color: const Color(0xFF1EBE5D),
-                  fontWeight: FontWeight.w900,
-                  fontSize: 15.sp,
-                ),
-              ),
-            ],
-          ),
-        ],
+        ),
       ),
     );
   }
