@@ -56,10 +56,10 @@ class OrderOverlayService {
       }
 
       await FlutterOverlayWindow.showOverlay(
-        height: WindowSize.matchParent,
+        height: -2, // WRAP_CONTENT
         width: WindowSize.matchParent,
-        alignment: OverlayAlignment.center,
-        flag: OverlayFlag.defaultFlag,
+        alignment: OverlayAlignment.topCenter,
+        flag: OverlayFlag.focusPointer, // Allows touches outside this wrapped content to pass to the background
         enableDrag: false,
         positionGravity: PositionGravity.auto,
         overlayTitle: 'New order',
@@ -151,10 +151,7 @@ class OrderBubbleApp extends StatelessWidget {
     return const MaterialApp(
       debugShowCheckedModeBanner: false,
       color: Colors.transparent,
-      home: Scaffold(
-        backgroundColor: Colors.transparent,
-        body: _OrderOverlayUI(),
-      ),
+      home: _OrderOverlayUI(),
     );
   }
 }
@@ -381,20 +378,12 @@ class _OrderOverlayUIState extends State<_OrderOverlayUI> {
     final tripTimeMins = tripDurationMinsRaw > 0 ? tripDurationMinsRaw : (tripDistance * 3.0);
     final displayTripTime = tripTimeMins > 0 ? tripTimeMins.toStringAsFixed(0) : '--';
 
-    return Scaffold(
-      backgroundColor: Colors.transparent, // Background transparent
-      body: Stack(
-        children: [
-          // Semi-transparent dark background for the map area
-          Positioned.fill(
-            child: Container(color: Colors.black.withOpacity(0.4)),
-          ),
-          
-          Align(
-            alignment: Alignment.topCenter,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 64, 16, 12), // 64 top padding to avoid status bar
-              child: Stack(
+    return Material(
+      color: Colors.transparent, // Background transparent
+      type: MaterialType.transparency,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 64, 16, 12), // 64 top padding to avoid status bar
+        child: Stack(
                 clipBehavior: Clip.none,
                 alignment: Alignment.topCenter,
                 children: [
@@ -534,9 +523,6 @@ class _OrderOverlayUIState extends State<_OrderOverlayUI> {
                   ),
                 ],
               ),
-            ),
-          ),
-        ],
       ),
     );
   }
