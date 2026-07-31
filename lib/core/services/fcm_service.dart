@@ -128,7 +128,7 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     if (rendered) return; // Overlay successfully rendered, we are done
     
     // Otherwise, it failed to render within 3s. Proceed to fallback!
-    debugPrint('[FCM] Overlay failed to render within 3s. Falling back to Full-Screen Intent.');
+    print('[FCM] Overlay failed to render within 3s. Falling back to Full-Screen Intent.');
     await OrderOverlayService.closeForOrder(incomingOrderId!); 
   }
   try {
