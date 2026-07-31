@@ -18,6 +18,7 @@ import 'package:food_user_application/core/error/result.dart';
 import 'package:food_user_application/core/services/haptic_service.dart';
 import 'package:food_user_application/core/services/location_service.dart';
 import 'package:food_user_application/core/utils/map_launcher.dart';
+import 'package:food_user_application/core/constants/app_constants.dart';
 import 'package:food_user_application/core/constants/map_styles.dart';
 import 'package:food_user_application/core/utils/polyline_decoder.dart';
 import 'package:food_user_application/features/auth/application/auth_controller.dart';
@@ -1002,14 +1003,12 @@ class _ActiveTripScaffoldState extends ConsumerState<_ActiveTripScaffold> {
                                   order.restaurant.displayImage != null &&
                                   order.restaurant.displayImage!.isNotEmpty)
                               ? CachedNetworkImage(
-                                  imageUrl: order.restaurant.displayImage!,
+                                  imageUrl: AppConstants.resolveMediaUrl(order.restaurant.displayImage!),
                                   fit: BoxFit.cover,
                                   width: 48.r,
                                   height: 48.r,
                                   placeholder: (_, __) =>
                                       Icon(Icons.storefront_rounded, color: Colors.grey[500]),
-                                  // Falls back to the icon instead of leaving a blank
-                                  // circle if the photo URL is broken or unreachable.
                                   errorWidget: (_, __, ___) =>
                                       Icon(Icons.storefront_rounded, color: Colors.grey[500]),
                                 )
@@ -1049,20 +1048,41 @@ class _ActiveTripScaffoldState extends ConsumerState<_ActiveTripScaffold> {
                 SizedBox(width: 8.w),
                 Padding(
                   padding: EdgeInsets.only(top: 2.h),
-                  child: GestureDetector(
-                    onTap: () => _openChat(order),
-                    child: Container(
-                      padding: EdgeInsets.all(10.r),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey[300]!),
-                        shape: BoxShape.circle,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      GestureDetector(
+                        onTap: () => _dial(isPickupPhase ? (order.restaurant.phone ?? '') : order.customerPhone),
+                        child: Container(
+                          padding: EdgeInsets.all(10.r),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey[300]!),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.call_outlined, 
+                            size: 16.sp, 
+                            color: textColor,
+                          ),
+                        ),
                       ),
-                      child: Icon(
-                        Icons.chat_bubble_outline_rounded, 
-                        size: 16.sp, 
-                        color: textColor,
+                      SizedBox(width: 8.w),
+                      GestureDetector(
+                        onTap: () => _openChat(order),
+                        child: Container(
+                          padding: EdgeInsets.all(10.r),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey[300]!),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.chat_bubble_outline_rounded, 
+                            size: 16.sp, 
+                            color: textColor,
+                          ),
+                        ),
                       ),
-                    ),
+                    ],
                   ),
                 ),
               ],
