@@ -23,7 +23,7 @@ import 'package:food_user_application/core/services/haptic_service.dart';
 import 'package:food_user_application/core/services/sound_service.dart';
 import 'package:food_user_application/features/auth/application/auth_controller.dart';
 import 'package:food_user_application/features/auth/application/auth_state.dart';
-import '../../orders/presentation/widgets/otp_bottom_sheet.dart';
+import 'package:food_user_application/features/orders/presentation/widgets/otp_bottom_sheet.dart';
 import 'package:food_user_application/features/orders/application/orders_controller.dart';
 import 'package:food_user_application/features/orders/application/orders_state.dart';
 import 'package:food_user_application/features/orders/data/models/delivery_order.dart';
