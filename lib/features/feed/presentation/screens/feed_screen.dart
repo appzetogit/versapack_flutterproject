@@ -395,12 +395,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
 
   Future<void> _promptDropOtp(DeliveryOrder order) async {
     final controller = ref.read(ordersControllerProvider.notifier);
-    final otp = await showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => _OtpBottomSheetContent(customerName: order.customerName),
-    );
+    final otp = await showOtpBottomSheet(context, customerName: order.customerName);
     if (otp == null || otp.length != 4) return;
     final result = await controller.verifyDropOtp(order.id, otp);
     result.when(success: (_) {}, failure: (error) => _showSnack(error.message));
