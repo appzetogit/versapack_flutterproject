@@ -394,27 +394,13 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
 
   Future<void> _promptDropOtp(DeliveryOrder order) async {
     final controller = ref.read(ordersControllerProvider.notifier);
-    final otpController = TextEditingController();
-    final otp = await showDialog<String>(
+    final otp = await showModalBottomSheet<String>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Verify Drop OTP'),
-        content: TextField(
-          controller: otpController,
-          keyboardType: TextInputType.number,
-          maxLength: 6,
-          decoration: const InputDecoration(hintText: 'Enter 6-digit OTP'),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () => Navigator.of(dialogContext).pop(otpController.text.trim()),
-            child: const Text('Verify'),
-          ),
-        ],
-      ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _OtpBottomSheetContent(customerName: order.customerName),
     );
-    if (otp == null || otp.isEmpty) return;
+    if (otp == null || otp.length != 4) return;
     final result = await controller.verifyDropOtp(order.id, otp);
     result.when(success: (_) {}, failure: (error) => _showSnack(error.message));
   }

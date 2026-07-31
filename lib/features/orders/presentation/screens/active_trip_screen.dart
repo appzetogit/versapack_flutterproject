@@ -489,101 +489,13 @@ class _ActiveTripScaffoldState extends ConsumerState<_ActiveTripScaffold> {
 
   Future<void> _promptDropOtp(DeliveryOrder order) async {
     final controller = ref.read(ordersControllerProvider.notifier);
-    final otpController = TextEditingController(text: '1234');
-    final otp = await showDialog<String>(
+    final otp = await showModalBottomSheet<String>(
       context: context,
-      barrierDismissible: true,
-      builder: (dialogContext) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32.r)),
-        backgroundColor: Colors.white,
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 32.h),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: EdgeInsets.all(16.r),
-                decoration: BoxDecoration(
-                  color: _tripOnlineGreen.withOpacity(0.12),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(Icons.verified_user_rounded, color: _tripOnlineGreen, size: 36.sp),
-              ),
-              SizedBox(height: 20.h),
-              Text(
-                'Verify Delivery',
-                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 20.sp, color: Colors.black87),
-              ),
-              SizedBox(height: 8.h),
-              Text(
-                'Enter the 4-digit OTP provided by the customer to complete this delivery.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14.sp, color: Colors.grey[600]),
-              ),
-              SizedBox(height: 28.h),
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.grey[50],
-                  borderRadius: BorderRadius.circular(20.r),
-                  border: Border.all(color: Colors.grey[300]!),
-                ),
-                padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 6.h),
-                child: TextField(
-                  controller: otpController,
-                  keyboardType: TextInputType.number,
-                  maxLength: 4,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 28.sp, fontWeight: FontWeight.bold, letterSpacing: 16.w, color: Colors.black87),
-                  decoration: InputDecoration(
-                    hintText: '••••',
-                    hintStyle: TextStyle(color: Colors.grey[300], letterSpacing: 16.w),
-                    border: InputBorder.none,
-                    counterText: '',
-                  ),
-                ),
-              ),
-              SizedBox(height: 32.h),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.of(dialogContext).pop(),
-                      style: OutlinedButton.styleFrom(
-                        padding: EdgeInsets.symmetric(vertical: 16.h),
-                        side: BorderSide(color: Colors.grey[200]!),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
-                      ),
-                      child: Text('Cancel', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w700, fontSize: 15.sp)),
-                    ),
-                  ),
-                  SizedBox(width: 12.w),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        if (otpController.text.trim().length == 4) {
-                          Navigator.of(dialogContext).pop(otpController.text.trim());
-                        } else {
-                          _showSnack('Please enter a valid 4-digit OTP');
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _tripOnlineGreen,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        padding: EdgeInsets.symmetric(vertical: 16.h),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
-                      ),
-                      child: Text('Verify', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15.sp)),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _OtpBottomSheetContent(customerName: order.customerName),
     );
-    if (otp == null || otp.isEmpty) return;
+    if (otp == null || otp.length != 4) return;
     final result = await controller.verifyDropOtp(order.id, otp);
     result.when(
       success: (updatedOrder) async {
@@ -1283,6 +1195,183 @@ class _RestaurantGalleryViewerState extends State<_RestaurantGalleryViewer> {
                 }),
               ),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OtpBottomSheetContent extends StatefulWidget {
+  final String customerName;
+  const _OtpBottomSheetContent({required this.customerName});
+
+  @override
+  State<_OtpBottomSheetContent> createState() => _OtpBottomSheetContentState();
+}
+
+class _OtpBottomSheetContentState extends State<_OtpBottomSheetContent> {
+  final TextEditingController _controller = TextEditingController();
+  final FocusNode _focusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _focusNode.requestFocus();
+    });
+    _controller.addListener(_onTextChanged);
+  }
+
+  void _onTextChanged() {
+    final text = _controller.text;
+    if (text.length == 4) {
+      HapticService.medium();
+      Navigator.of(context).pop(text);
+    } else {
+      setState(() {});
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.removeListener(_onTextChanged);
+    _controller.dispose();
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final text = _controller.text;
+
+    return Container(
+      margin: EdgeInsets.fromLTRB(12.w, 0, 12.w, 12.h + bottomInset),
+      padding: EdgeInsets.fromLTRB(20.w, 16.h, 20.w, 20.h),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24.r),
+        boxShadow: const [
+          BoxShadow(color: Colors.black26, blurRadius: 20, offset: Offset(0, 4)),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 36.w,
+            height: 4.h,
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              borderRadius: BorderRadius.circular(2.r),
+            ),
+          ),
+          SizedBox(height: 12.h),
+
+          Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(8.r),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFE8F5E9),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.lock_outline_rounded, color: const Color(0xFF1EBE5D), size: 20.sp),
+              ),
+              SizedBox(width: 10.w),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Enter Delivery OTP',
+                      style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16.sp, color: Colors.black87),
+                    ),
+                    Text(
+                      'Ask ${widget.customerName.isNotEmpty ? widget.customerName : "customer"} for 4-digit code',
+                      style: TextStyle(fontSize: 12.sp, color: Colors.grey[600]),
+                    ),
+                  ],
+                ),
+              ),
+              GestureDetector(
+                onTap: () => Navigator.of(context).pop(),
+                child: Container(
+                  padding: EdgeInsets.all(6.r),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.close_rounded, size: 18.sp, color: Colors.grey[600]),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 20.h),
+
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              Opacity(
+                opacity: 0.0,
+                child: TextField(
+                  controller: _controller,
+                  focusNode: _focusNode,
+                  keyboardType: TextInputType.number,
+                  maxLength: 4,
+                  autofocus: true,
+                  decoration: const InputDecoration(counterText: ''),
+                ),
+              ),
+
+              GestureDetector(
+                onTap: () => _focusNode.requestFocus(),
+                behavior: HitTestBehavior.opaque,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: List.generate(4, (index) {
+                    final char = index < text.length ? text[index] : '';
+                    final isFocused = index == text.length || (index == 3 && text.length == 4);
+
+                    return AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      width: 54.w,
+                      height: 58.h,
+                      decoration: BoxDecoration(
+                        color: char.isNotEmpty ? const Color(0xFFF0FDF4) : Colors.grey[50],
+                        borderRadius: BorderRadius.circular(16.r),
+                        border: Border.all(
+                          color: isFocused
+                              ? const Color(0xFF1EBE5D)
+                              : (char.isNotEmpty ? const Color(0xFF86EFAC) : Colors.grey[300]!),
+                          width: isFocused ? 2.0 : 1.0,
+                        ),
+                        boxShadow: isFocused
+                            ? [
+                                BoxShadow(
+                                  color: const Color(0xFF1EBE5D).withOpacity(0.2),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                )
+                              ]
+                            : [],
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        char,
+                        style: TextStyle(
+                          fontSize: 24.sp,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF1E1E1E),
+                        ),
+                      ),
+                    );
+                  }),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 12.h),
         ],
       ),
     );
