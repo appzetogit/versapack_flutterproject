@@ -63,7 +63,14 @@ class _FoodDeliveryAppState extends ConsumerState<FoodDeliveryApp>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) _consumePendingOverlayOrder();
+    if (state == AppLifecycleState.resumed) {
+      _consumePendingOverlayOrder();
+      // Re-checks full-screen-intent / overlay permissions on every resume,
+      // not just cold start — catches a rider who dismissed the Settings
+      // prompt the first time or toggled it manually while the app was
+      // backgrounded (see FcmService.ensureAndroidAlertPermissions).
+      ref.read(fcmServiceProvider).ensureAndroidAlertPermissions();
+    }
   }
 
   /// Surfaces an order that arrived as a home-screen bubble (app was

@@ -256,22 +256,9 @@ class FcmService {
       await androidPlugin?.createNotificationChannel(_channel);
       await androidPlugin?.createNotificationChannel(_highImportanceChannel);
       await androidPlugin?.createNotificationChannel(_incomingOrdersChannel);
-
-      // Android 14+ revokes USE_FULL_SCREEN_INTENT by default for apps
-      // without calling/alarm functionality, even though it's declared in
-      // the manifest — without this explicit grant, fullScreenIntent
-      // notifications silently downgrade to a normal heads-up banner on
-      // both the lock screen and home screen. No-ops (returns true) if
-      // already granted or on pre-Android 14 devices.
-      await androidPlugin?.requestFullScreenIntentPermission();
-
-      // Overlay bubble permission ("display over other apps") — powers the
-      // floating home-screen bubble for new orders that arrive while the
-      // app is backgrounded (see OrderOverlayService). Separate from the
-      // full-screen-intent permission above, which only covers the locked-
-      // device case.
-      await OrderOverlayService.requestPermission();
     }
+
+    await ensureAndroidAlertPermissions();
 
     // Cold start via the full-screen-intent notification (lock screen /
     // killed app) — onDidReceiveNotificationResponse above isn't guaranteed
@@ -291,6 +278,37 @@ class FcmService {
     if (initialMessage != null) _handleNotificationOpen(initialMessage);
 
     FirebaseMessaging.instance.onTokenRefresh.listen(_saveToken);
+  }
+
+  /// Re-checked on every cold start AND every app resume (see main.dart's
+  /// `didChangeAppLifecycleState`), not just once at cold start.
+  ///
+  /// Android 14+ revokes USE_FULL_SCREEN_INTENT by default for apps without
+  /// calling/alarm functionality, even though it's declared in the
+  /// manifest — without this explicit grant, fullScreenIntent notifications
+  /// silently downgrade to a normal heads-up banner on both the lock screen
+  /// and home screen. `requestFullScreenIntentPermission()` no-ops (returns
+  /// true) if already granted or on pre-Android-14 devices, so it's cheap
+  /// to call repeatedly. Re-running it on resume also catches riders who
+  /// dismissed the Settings prompt the first time, or who granted/revoked
+  /// it manually from system Settings mid-session — a one-shot check at
+  /// process init would otherwise miss both cases for the app's entire
+  /// lifetime in memory.
+  Future<void> ensureAndroidAlertPermissions() async {
+    if (!Platform.isAndroid) return;
+
+    final androidPlugin = _localNotifications
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
+    await androidPlugin?.requestFullScreenIntentPermission();
+
+    // Overlay bubble permission ("display over other apps") — powers the
+    // floating home-screen bubble for new orders that arrive while the app
+    // is backgrounded (see OrderOverlayService). Separate from the
+    // full-screen-intent permission above, which only covers the locked-
+    // device case.
+    await OrderOverlayService.requestPermission();
   }
 
   /// Routes a notification interaction: an Accept/Reject action button, or a
