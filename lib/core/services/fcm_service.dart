@@ -8,8 +8,10 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../constants/app_constants.dart';
 import '../network/api_endpoints.dart';
 import '../network/dio_client.dart';
 import '../storage/token_storage.dart';
@@ -53,9 +55,64 @@ Future<void> dismissIncomingOrderAlert(String orderId) async {
     const InitializationSettings(
       android: AndroidInitializationSettings('@mipmap/launcher_icon'),
     ),
+    onDidReceiveBackgroundNotificationResponse: backgroundNotificationResponseHandler,
   );
   await localNotifications.cancel(incomingOrderNotificationId(orderId));
   await cancelFcmTrayCopy(orderId);
+}
+
+@pragma('vm:entry-point')
+void backgroundNotificationResponseHandler(NotificationResponse response) async {
+  final payload = response.payload;
+  final actionId = response.actionId;
+
+  if (actionId == 'accept' || actionId == 'reject') {
+    final orderId = _orderIdOfPayload(payload);
+    if (orderId != null) {
+      await _respondToOrderFromBackground(orderId: orderId, accept: actionId == 'accept');
+    }
+  }
+}
+
+String? _orderIdOfPayload(String? payload) {
+  if (payload == null || payload.isEmpty) return null;
+  try {
+    final decoded = jsonDecode(payload);
+    if (decoded is Map) {
+      final id = (decoded['orderMongoId'] ?? decoded['orderId'] ?? decoded['_id'])?.toString();
+      return (id == null || id.isEmpty) ? null : id;
+    }
+  } catch (_) {}
+  return payload;
+}
+
+Future<void> _respondToOrderFromBackground({
+  required String orderId,
+  required bool accept,
+}) async {
+  try {
+    const storage = FlutterSecureStorage();
+    final token = await storage.read(key: 'access_token');
+    if (token != null && token.isNotEmpty) {
+      final dio = Dio(BaseOptions(
+        baseUrl: AppConstants.baseUrl,
+        headers: {'Authorization': 'Bearer $token'},
+      ));
+      await dio.patch(
+        accept
+            ? ApiEndpoints.orderAccept(orderId)
+            : ApiEndpoints.orderReject(orderId),
+      );
+    }
+  } catch (e) {
+    print('[FCM Background Action] Error responding to order $orderId: $e');
+  } finally {
+    try {
+      final localNotifications = FlutterLocalNotificationsPlugin();
+      await localNotifications.cancel(incomingOrderNotificationId(orderId));
+      await OrderOverlayService.closeForOrder(orderId);
+    } catch (_) {}
+  }
 }
 
 /// Removes the OS-rendered copy of the new-order push.
@@ -139,6 +196,7 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       const InitializationSettings(
         android: AndroidInitializationSettings('@mipmap/launcher_icon'),
       ),
+      onDidReceiveBackgroundNotificationResponse: backgroundNotificationResponseHandler,
     );
     await localNotifications
         .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
@@ -171,13 +229,13 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
             const AndroidNotificationAction(
               'accept',
               'Accept',
-              showsUserInterface: true,
+              showsUserInterface: false,
               cancelNotification: true,
             ),
             const AndroidNotificationAction(
               'reject',
               'Reject',
-              showsUserInterface: true,
+              showsUserInterface: false,
               cancelNotification: true,
             ),
           ],
@@ -266,6 +324,7 @@ class FcmService {
     await _localNotifications.initialize(
       const InitializationSettings(android: androidInit, iOS: iosInit),
       onDidReceiveNotificationResponse: _handleNotificationResponse,
+      onDidReceiveBackgroundNotificationResponse: backgroundNotificationResponseHandler,
     );
 
     if (Platform.isAndroid) {
@@ -351,8 +410,7 @@ class FcmService {
       if (orderId != null) {
         unawaited(_respondToOrder(orderId: orderId, accept: actionId == 'accept'));
       }
-      // Still surface it so the UI can navigate to the order it just acted on.
-      if (payload != null) _handleLocalNotificationPayload(payload);
+      // Action performed in background — do NOT open the app
       return;
     }
 
