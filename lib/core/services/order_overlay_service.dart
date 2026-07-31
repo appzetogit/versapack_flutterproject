@@ -293,6 +293,7 @@ class _OrderOverlayUIState extends State<_OrderOverlayUI> {
   Timer? _countdownTimer;
   Timer? _failsafeTimer;
   bool _closing = false;
+  bool _submitting = false;
 
   Timer? _watchdog;
   StreamSubscription<dynamic>? _dataSub;
@@ -439,6 +440,8 @@ class _OrderOverlayUIState extends State<_OrderOverlayUI> {
   }
 
   Future<void> _accept() async {
+    if (_submitting) return;
+    setState(() => _submitting = true);
     await SoundService.stopEffect();
 
     // Set autoAccept to true so the main app accepts it upon resuming
