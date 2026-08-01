@@ -145,12 +145,13 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
   if (message.data['type'] != 'new_order') return;
 
-  // If this handler is running at all, this device CAN show our own richer
-  // alert — so take down the tray copy FCM just posted (the hybrid push exists
-  // for ROMs where this handler never runs). Done first, so a throw later
-  // can't leave both on screen.
+  // The tray copy FCM posted itself is the fallback for ROMs where this handler
+  // never runs. We take it down once OUR alert is actually on screen — never
+  // before, or a failure to show leaves the rider with nothing at all.
   final incomingOrderId = _orderIdOf(message.data);
-  if (incomingOrderId != null) await cancelFcmTrayCopy(incomingOrderId);
+  Future<void> dropTrayCopy() async {
+    if (incomingOrderId != null) await cancelFcmTrayCopy(incomingOrderId);
+  }
 
   // Try the overlay bubble first, but never trust it blindly — if the
   // permission check races with it being revoked, the plugin throws, or the
@@ -167,7 +168,10 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     overlayShown = false;
   }
 
-  if (overlayShown) return;
+  if (overlayShown) {
+    await dropTrayCopy();
+    return;
+  }
   try {
     // A fresh isolate — the channel/plugin registered by FcmService.initialize()
     // in the main isolate doesn't exist here, so set both up again.
@@ -223,6 +227,7 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       ),
       payload: jsonEncode(message.data),
     );
+    await dropTrayCopy();
   } catch (_) {
     // Last resort: the full-screen path itself failed (channel creation
     // race, plugin init error, etc.) — still surface a plain heads-up
