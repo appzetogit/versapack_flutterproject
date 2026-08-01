@@ -4,9 +4,13 @@ import 'dart:io';
 
 import 'package:android_intent_plus/android_intent.dart';
 import 'package:android_intent_plus/flag.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import 'package:food_user_application/core/constants/app_constants.dart';
 
 import 'package:food_user_application/features/orders/presentation/widgets/slide_to_accept_button.dart';
 import 'sound_service.dart';
@@ -186,6 +190,47 @@ class OrderOverlayService {
     }
   }
 
+  /// Accepts or rejects an order straight from the overlay.
+  ///
+  /// The overlay runs in its own engine with no Riverpod container and no
+  /// configured Dio, so the token is read directly from the same secure-storage
+  /// key TokenStorage uses and the request goes out on a bare client — the same
+  /// approach the FCM background handler takes.
+  ///
+  /// Never throws. A failure here falls back to the autoAccept flag the caller
+  /// wrote, which the app applies when it opens; surfacing an error inside a
+  /// window that is about to close would help nobody.
+  static Future<bool> submitOrderAction({
+    required String orderId,
+    required bool accept,
+  }) async {
+    try {
+      const storage = FlutterSecureStorage();
+      final token = await storage.read(key: 'access_token');
+      if (token == null || token.isEmpty) return false;
+
+      final path = accept
+          ? '/food/delivery/orders/$orderId/accept'
+          : '/food/delivery/orders/$orderId/reject';
+
+      final dio = Dio(
+        BaseOptions(
+          baseUrl: AppConstants.baseUrl,
+          headers: {'Authorization': 'Bearer $token'},
+          // Short: the rider is watching a window that is closing. Better to
+          // fall through to the app-open retry than to hold the overlay.
+          connectTimeout: const Duration(seconds: 8),
+          receiveTimeout: const Duration(seconds: 8),
+        ),
+      );
+
+      await dio.patch(path);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   static Future<void> reopenApp() async {
     const intent = AndroidIntent(
       action: 'android.intent.action.MAIN',
@@ -298,6 +343,37 @@ class _OrderOverlayUIState extends State<_OrderOverlayUI> {
   Timer? _watchdog;
   StreamSubscription<dynamic>? _dataSub;
 
+  /// When the currently shown order was last applied, so the shareData retry
+  /// burst can be told apart from a genuine re-offer of the same order.
+  DateTime? _lastAppliedAt;
+
+  /// The offer window, taken from the push rather than hardcoded.
+  ///
+  /// The backend sends acceptTimeoutSeconds and an absolute
+  /// acceptanceDeadlineAt. The deadline is preferred because it cannot drift
+  /// with delivery latency, but a push held in Doze arrives already expired —
+  /// so the window length is used whenever the deadline is in the past or
+  /// missing, rather than opening the card at zero.
+  static int _timeoutSecondsFrom(Map<String, dynamic>? data) {
+    const fallback = 45;
+    if (data == null) return fallback;
+
+    final deadlineRaw = data['acceptanceDeadlineAt']?.toString();
+    if (deadlineRaw != null && deadlineRaw.isNotEmpty) {
+      final deadline = DateTime.tryParse(deadlineRaw);
+      if (deadline != null) {
+        final left = deadline.difference(DateTime.now()).inSeconds;
+        if (left > 0) return left;
+      }
+    }
+
+    final windowRaw = data['acceptTimeoutSeconds']?.toString();
+    final window = int.tryParse(windowRaw ?? '');
+    if (window != null && window > 0) return window;
+
+    return fallback;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -317,21 +393,34 @@ class _OrderOverlayUIState extends State<_OrderOverlayUI> {
         final decoded = jsonDecode(event.toString());
         if (decoded is Map && mounted) {
           final map = Map<String, dynamic>.from(decoded);
-          // showForOrder retries shareData several times to beat the race with
-          // this listener registering — so the same order arrives more than
-          // once. Re-applying it would reset the countdown and replay the
-          // alert sound on each retry; only a genuinely different order does.
           final incomingId =
               (map['orderMongoId'] ?? map['orderId'] ?? map['_id'])?.toString();
           final currentId = (_orderData?['orderMongoId'] ??
                   _orderData?['orderId'] ??
                   _orderData?['_id'])
               ?.toString();
-          if (incomingId != null && incomingId == currentId) return;
 
+          // showForOrder fires shareData several times to beat the race with
+          // this listener registering, so the same order lands repeatedly
+          // within about a second. Those repeats must not restart the countdown
+          // or replay the sound.
+          //
+          // Deduped on a short time window rather than on the id alone. The id
+          // check rejected the order FOREVER, so when an admin re-sent the same
+          // order the card was ignored outright — the reported "second time it
+          // will not start". A resend arrives seconds or minutes later and is a
+          // genuinely new offer that must restart the countdown.
+          final now = DateTime.now();
+          final isRetryBurst = incomingId != null &&
+              incomingId == currentId &&
+              _lastAppliedAt != null &&
+              now.difference(_lastAppliedAt!) < const Duration(seconds: 3);
+          if (isRetryBurst) return;
+
+          _lastAppliedAt = now;
           setState(() {
             _orderData = map;
-            _secondsLeft = 45;
+            _secondsLeft = _timeoutSecondsFrom(map);
           });
           _startCountdown();
           
@@ -384,8 +473,14 @@ class _OrderOverlayUIState extends State<_OrderOverlayUI> {
 
     if (mounted) {
       final incomingId = (decoded['orderMongoId'] ?? decoded['orderId'] ?? decoded['_id'])?.toString();
+      final map = Map<String, dynamic>.from(decoded);
+      _lastAppliedAt = DateTime.now();
       setState(() {
-        _orderData = Map<String, dynamic>.from(decoded);
+        _orderData = map;
+        // Same server-driven window as the shareData path — this one had kept
+        // the initState default of 45, so a card restored from disk counted
+        // down from a number unrelated to the offer actually in flight.
+        _secondsLeft = _timeoutSecondsFrom(map);
       });
       _startCountdown();
       
@@ -403,13 +498,28 @@ class _OrderOverlayUIState extends State<_OrderOverlayUI> {
         timer.cancel();
         return;
       }
-      if (_secondsLeft <= 1) {
+
+      final next = _secondsLeft - 1;
+      setState(() => _secondsLeft = next < 0 ? 0 : next);
+
+      // Counts down to 0 and only then closes.
+      //
+      // It used to close at 1, so the card never showed 0 — and, worse, the
+      // timer was cancelled BEFORE the close was attempted. Any failure to
+      // close then left the card frozen at "1s" forever with the countdown
+      // already dead, which is exactly the stuck state riders were seeing.
+      if (next <= 0) {
         timer.cancel();
-        _forceClose();
-      } else {
-        setState(() => _secondsLeft--);
+        _expire();
       }
     });
+  }
+
+  /// The offer ran out. Distinct from accept/reject so the sound and the
+  /// countdown state are cleaned up the same way regardless of how it ended.
+  Future<void> _expire() async {
+    await SoundService.stopEffect();
+    await _forceClose();
   }
 
   Future<void> _forceClose() async {
@@ -419,11 +529,18 @@ class _OrderOverlayUIState extends State<_OrderOverlayUI> {
     _failsafeTimer?.cancel();
     _watchdog?.cancel();
     _dataSub?.cancel();
+    await SoundService.stopEffect();
+
+    // closeOverlay is called unconditionally.
+    //
+    // It used to be gated on isActive(), so whenever that returned false — or
+    // threw — the window was left on screen with every timer already cancelled
+    // and nothing able to remove it. Closing a window that is already closed is
+    // harmless; failing to close one that is open is not.
     try {
-      if (await FlutterOverlayWindow.isActive()) {
-        await FlutterOverlayWindow.closeOverlay();
-      }
+      await FlutterOverlayWindow.closeOverlay();
     } catch (_) {
+      // Already gone, or the channel is unavailable in this isolate.
     } finally {
       _closing = false;
     }
@@ -439,16 +556,40 @@ class _OrderOverlayUIState extends State<_OrderOverlayUI> {
     super.dispose();
   }
 
+  String? get _orderId => (_orderData?['orderMongoId'] ??
+          _orderData?['orderId'] ??
+          _orderData?['_id'])
+      ?.toString();
+
   Future<void> _accept() async {
     if (_submitting) return;
     setState(() => _submitting = true);
-    await SoundService.stopEffect();
 
-    // Set autoAccept to true so the main app accepts it upon resuming
+    // Sound and countdown stop on the tap, not when the app finishes opening.
+    // A rider who has already decided should not still be hearing the alert.
+    await SoundService.stopEffect();
+    _countdownTimer?.cancel();
+
+    // Claim the order from HERE, before opening the app.
+    //
+    // This used to only set an autoAccept flag and reopen the app, so the order
+    // was not actually claimed until the app had finished launching — seconds
+    // during which another rider could take it, and the rider who tapped first
+    // lost it. The accept window is 45 seconds; a cold app start can eat a
+    // meaningful part of that.
+    //
+    // The flag is still written as a fallback: if this call fails (no network
+    // in the overlay isolate, token expired), the app retries on open rather
+    // than the tap being lost entirely.
     if (_orderData != null) {
       _orderData!['autoAccept'] = true;
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = await _freshPrefs();
       await prefs.setString(_pendingOrderPrefsKey, jsonEncode(_orderData));
+    }
+
+    final id = _orderId;
+    if (id != null && id.isNotEmpty) {
+      await OrderOverlayService.submitOrderAction(orderId: id, accept: true);
     }
 
     await OrderOverlayService.reopenApp();
@@ -456,8 +597,20 @@ class _OrderOverlayUIState extends State<_OrderOverlayUI> {
   }
 
   Future<void> _reject() async {
-    // In a full implementation, we might clear the shared prefs or make an API call to reject
-    final prefs = await SharedPreferences.getInstance();
+    if (_submitting) return;
+    setState(() => _submitting = true);
+
+    await SoundService.stopEffect();
+    _countdownTimer?.cancel();
+
+    // Told to the server immediately, so dispatch can re-offer to someone else
+    // now rather than waiting out the rest of this rider's window.
+    final id = _orderId;
+    if (id != null && id.isNotEmpty) {
+      await OrderOverlayService.submitOrderAction(orderId: id, accept: false);
+    }
+
+    final prefs = await _freshPrefs();
     await prefs.remove(_pendingOrderPrefsKey);
     await _forceClose();
   }
