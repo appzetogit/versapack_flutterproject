@@ -106,8 +106,8 @@ class _FoodDeliveryAppState extends ConsumerState<FoodDeliveryApp>
           title: 'Food Delivery',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.lightTheme,
-          darkTheme: AppTheme.lightTheme, // Force light theme even if dark is somehow triggered
-          themeMode: ThemeMode.light, // Always use light theme
+          darkTheme: AppTheme.darkTheme,
+          themeMode: themeMode,
           routerConfig: goRouter,
           builder: (context, routedChild) {
             final isDarkMode = Theme.of(context).brightness == Brightness.dark;
