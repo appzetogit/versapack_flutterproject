@@ -4,8 +4,6 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:permission_handler/permission_handler.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:food_user_application/core/error/result.dart';
@@ -217,8 +215,12 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
       return;
     }
     if (locationService.isTracking) return;
-    final granted = await locationService.ensurePermissions();
-    if (!granted || !mounted) return;
+
+    final permission = await Geolocator.checkPermission();
+    final isGranted = permission == LocationPermission.whileInUse ||
+        permission == LocationPermission.always;
+    if (!isGranted || !mounted) return;
+
     try {
       final pos = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(

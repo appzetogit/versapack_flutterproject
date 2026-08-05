@@ -19,14 +19,28 @@ class LocationService {
 
   Future<bool> ensurePermissions() async {
     final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) return false;
+    if (!serviceEnabled) {
+      await Geolocator.openLocationSettings();
+      return false;
+    }
 
     var permission = await Geolocator.checkPermission();
+
+    if (permission == LocationPermission.deniedForever) {
+      await Geolocator.openAppSettings();
+      return false;
+    }
+
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.deniedForever) {
+        await Geolocator.openAppSettings();
+        return false;
+      }
     }
-    if (permission == LocationPermission.denied ||
-        permission == LocationPermission.deniedForever) {
+
+    if (permission != LocationPermission.whileInUse &&
+        permission != LocationPermission.always) {
       return false;
     }
 
@@ -40,6 +54,7 @@ class LocationService {
         await Permission.notification.request();
       }
     }
+
     return true;
   }
 
