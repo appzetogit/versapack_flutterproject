@@ -1,4 +1,4 @@
-package com.fooddelivery.app
+package com.appzetofood.delivery
 
 import android.app.KeyguardManager
 import android.content.ComponentName

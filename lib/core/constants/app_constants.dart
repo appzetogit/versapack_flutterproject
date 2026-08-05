@@ -12,7 +12,9 @@ class AppConstants {
   static String resolveMediaUrl(String? raw) {
     final v = (raw ?? '').trim();
     if (v.isEmpty) return '';
-    if (v.startsWith('http://') || v.startsWith('https://') || v.startsWith('data:')) {
+    if (v.startsWith('http://') ||
+        v.startsWith('https://') ||
+        v.startsWith('data:')) {
       return v;
     }
     final path = v.startsWith('/') ? v : '/$v';
@@ -22,16 +24,18 @@ class AppConstants {
   static String firbaseApiKey = (Platform.isAndroid)
       ? "AIzaSyC_twLhO7C21HdRBvoZvedceka0jdLCUjc"
       : "ios firebase api key";
-      
+
   static String firebaseAppId = (Platform.isAndroid)
       ? "1:592916974677:android:5366c1825a27cf201518dc"
       : "ios firebase app id";
-      
-  static String firebasemessagingSenderId =
-      (Platform.isAndroid) ? "592916974677" : "ios firebase sender id";
-      
-  static String firebaseProjectId =
-      (Platform.isAndroid) ? "flutterfoodapp-e6742" : "ios firebase project id";
+
+  static String firebasemessagingSenderId = (Platform.isAndroid)
+      ? "592916974677"
+      : "ios firebase sender id";
+
+  static String firebaseProjectId = (Platform.isAndroid)
+      ? "flutterfoodapp-e6742"
+      : "ios firebase project id";
 
   static String mapKey = (Platform.isAndroid)
       ? 'AIzaSyArBbII2fgAuVaycfkEAm1GcuyvKPTSWyc'
@@ -43,6 +47,6 @@ class AppConstants {
     LocaleLanguageList(name: 'English', lang: 'en'),
   ];
 
-  static String packageName = 'com.fooddelivery.app';
+  static String packageName = 'com.appzetofood.delivery';
   static String signKey = '';
 }

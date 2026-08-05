@@ -24,7 +24,6 @@ const _incomingOrdersChannel = AndroidNotificationChannel(
   'Incoming Orders',
   description: 'Full-screen incoming order alerts that require immediate action',
   importance: Importance.max,
-  sound: RawResourceAndroidNotificationSound('tujh_bin1'),
   playSound: true,
 );
 
@@ -206,7 +205,6 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
           category: AndroidNotificationCategory.call,
           fullScreenIntent: true,
           ongoing: true,
-          sound: const RawResourceAndroidNotificationSound('tujh_bin1'),
           playSound: true,
           styleInformation: BigTextStyleInformation(body),
           actions: <AndroidNotificationAction>[

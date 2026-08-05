@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:food_user_application/core/services/update_service.dart';
+
 import '../../../auth/application/auth_controller.dart';
 import '../../../auth/application/auth_state.dart';
 
@@ -26,6 +28,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   @override
   void initState() {
     super.initState();
+    UpdateService.checkForUpdate();
     // Hide status bar during splash screen (keeps bottom nav bar if present)
     SystemChrome.setEnabledSystemUIMode(
       SystemUiMode.manual,
@@ -135,7 +138,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                     width: 270,
                     height: 270,
                     child: Image.asset(
-                      'assets/image/logo.png',
+                      'assets/image/logo.webp',
                       fit: BoxFit.contain,
                     ),
                   ),

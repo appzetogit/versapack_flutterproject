@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 String? _extractUserId(dynamic value) {
   if (value is Map) return (value['_id'] ?? value['id'])?.toString();
   if (value is String && value.isNotEmpty) return value;
@@ -319,6 +321,19 @@ class DeliveryOrder {
   /// to [fromJson]'s nested REST-response shape.
   factory DeliveryOrder.fromRealtimePayload(Map<String, dynamic> data) {
     double n(dynamic v) => (v is num) ? v.toDouble() : double.tryParse('$v') ?? 0.0;
+    double? nNullable(dynamic v) => v == null ? null : ((v is num) ? v.toDouble() : double.tryParse('$v'));
+
+    List<OrderItem> parseItems(dynamic itemsData) {
+      if (itemsData != null) {
+        try {
+          final List<dynamic> list = itemsData is String ? jsonDecode(itemsData) : itemsData;
+          final parsed = list.whereType<Map<String, dynamic>>().map(OrderItem.fromJson).toList();
+          if (parsed.isNotEmpty) return parsed;
+        } catch (_) {}
+      }
+      final count = int.tryParse(data['itemCount']?.toString() ?? data['totalItems']?.toString() ?? '0') ?? 0;
+      return List.generate(count, (i) => const OrderItem(name: 'Item', price: 0, quantity: 1));
+    }
 
     return DeliveryOrder(
       id: (data['orderMongoId'] ?? data['_id'] ?? '').toString(),
@@ -332,7 +347,7 @@ class DeliveryOrder {
       deliveryAddress: DeliveryAddress(
         street: data['customerAddress'] as String? ?? '',
       ),
-      items: const [],
+      items: parseItems(data['items']),
       customerName: data['customerName'] as String? ?? '',
       customerPhone: data['customerPhone'] as String? ?? '',
       customerId: _extractUserId(data['userId'] ?? data['customerId']),
@@ -343,9 +358,9 @@ class DeliveryOrder {
       riderEarning: n(data['riderEarning'] ?? data['earnings']),
       dropOtpRequired: false,
       dropOtpVerified: false,
-      pickupDistanceKm: n(data['pickupDistanceKm']),
-      tripDistanceKm: n(data['tripDistanceKm']),
-      tripDurationMins: n(data['tripDurationMins']),
+      pickupDistanceKm: nNullable(data['pickupDistanceKm']),
+      tripDistanceKm: nNullable(data['tripDistanceKm']),
+      tripDurationMins: nNullable(data['tripDurationMins']),
       acceptanceDeadlineAt: data['acceptanceDeadlineAt'] != null
           ? DateTime.tryParse(data['acceptanceDeadlineAt'].toString())
           : null,

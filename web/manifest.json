@@ -1,6 +1,6 @@
 {
-    "name": "Food Delivery",
-    "short_name": "Food Delivery",
+    "name": "Appzeto Food Delivery",
+    "short_name": "Appzeto Food Delivery",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

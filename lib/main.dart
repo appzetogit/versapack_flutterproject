@@ -116,7 +116,7 @@ class _FoodDeliveryAppState extends ConsumerState<FoodDeliveryApp>
       splitScreenMode: true,
       builder: (context, child) {
         return MaterialApp.router(
-          title: 'Food Delivery',
+          title: 'Appzeto Food Delivery',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.lightTheme,
           darkTheme: AppTheme.darkTheme,
@@ -132,15 +132,22 @@ class _FoodDeliveryAppState extends ConsumerState<FoodDeliveryApp>
                 Consumer(
                   builder: (context, ref, _) {
                     final ordersState = ref.watch(ordersControllerProvider);
-                    final hasActiveOrder = ordersState is OrdersLoaded && ordersState.currentOrder != null;
-                    final showTrip = ref.watch(activeTripVisibilityControllerProvider);
-                    if (!hasActiveOrder || !showTrip) return const SizedBox.shrink();
+                    final hasActiveOrder =
+                        ordersState is OrdersLoaded &&
+                        ordersState.currentOrder != null;
+                    final showTrip = ref.watch(
+                      activeTripVisibilityControllerProvider,
+                    );
+                    if (!hasActiveOrder || !showTrip)
+                      return const SizedBox.shrink();
                     return const ActiveTripScreen();
                   },
                 ),
                 Consumer(
                   builder: (context, ref, _) {
-                    final incomingOrder = ref.watch(incomingOrderControllerProvider);
+                    final incomingOrder = ref.watch(
+                      incomingOrderControllerProvider,
+                    );
                     if (incomingOrder == null) return const SizedBox.shrink();
                     return IncomingOrderScreen(
                       key: ValueKey(incomingOrder.id),
@@ -150,7 +157,9 @@ class _FoodDeliveryAppState extends ConsumerState<FoodDeliveryApp>
                 ),
                 Consumer(
                   builder: (context, ref, _) {
-                    final pendingRating = ref.watch(pendingCustomerRatingControllerProvider);
+                    final pendingRating = ref.watch(
+                      pendingCustomerRatingControllerProvider,
+                    );
                     if (pendingRating == null) return const SizedBox.shrink();
                     return RateCustomerScreen(
                       key: ValueKey(pendingRating.id),

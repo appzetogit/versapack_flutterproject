@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:food_user_application/features/orders/presentation/widgets/incoming_order_bottom_sheet.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:food_user_application/core/error/result.dart';
@@ -55,7 +56,7 @@ class _IncomingOrderScreenState extends ConsumerState<IncomingOrderScreen> {
   void initState() {
     super.initState();
     HapticService.light();
-    SoundService.playRingtone();
+    SoundService.playRingtone(source: 'IncomingOrderScreen');
 
     final deadline = widget.order.acceptanceDeadlineAt;
     _secondsLeft = deadline != null
@@ -169,14 +170,20 @@ class _IncomingOrderScreenState extends ConsumerState<IncomingOrderScreen> {
   void dispose() {
     _timer?.cancel();
     _positionSub?.cancel();
-    SoundService.stopRingtone();
+    // Backstop — accept/decline/expire already stopped it. Covers the screen
+    // being torn down some other way (navigation, hot reload).
+    SoundService.stopRingtone(source: 'IncomingOrderScreen.dispose');
     super.dispose();
   }
 
+  // The ringtone is silenced here rather than left to dispose(): dispose only
+  // runs once the accept/decline request comes back and this screen is torn
+  // down, so on a slow network it would keep ringing for seconds after the tap.
   Future<void> _accept() async {
     if (_resolving) return;
     _resolving = true;
     _timer?.cancel();
+    SoundService.stopRingtone(source: 'IncomingOrderScreen.accept');
     await ref.read(incomingOrderControllerProvider.notifier).accept();
   }
 
@@ -184,12 +191,14 @@ class _IncomingOrderScreenState extends ConsumerState<IncomingOrderScreen> {
     if (_resolving) return;
     _resolving = true;
     _timer?.cancel();
+    SoundService.stopRingtone(source: 'IncomingOrderScreen.decline');
     await ref.read(incomingOrderControllerProvider.notifier).decline();
   }
 
   Future<void> _expire() async {
     if (_resolving) return;
     _resolving = true;
+    SoundService.stopRingtone(source: 'IncomingOrderScreen.expire');
     await ref.read(incomingOrderControllerProvider.notifier).expire();
   }
 
@@ -310,14 +319,21 @@ class _IncomingOrderScreenState extends ConsumerState<IncomingOrderScreen> {
               alignment: Alignment.bottomCenter,
               child: SafeArea(
                 top: false,
-                child: _buildBottomCard(theme, isDarkMode, textColor, subTextColor, order, etaLabel),
+                bottom: false,
+                child: IncomingOrderBottomSheet(
+                  order: order,
+                  secondsLeft: _secondsLeft,
+                  onAccept: _accept,
+                  onReject: _decline,
+                ),
               ),
             ),
           ],
-        ),
+        ), 
       ),
     );
   }
+
 
   Widget _buildBottomCard(
     ThemeData theme,
@@ -564,4 +580,5 @@ class _IncomingOrderScreenState extends ConsumerState<IncomingOrderScreen> {
       ],
     );
   }
+
 }

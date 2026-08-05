@@ -103,7 +103,7 @@ abstract class AppLocalizations {
   /// No description provided for @onboardingTitle1.
   ///
   /// In en, this message translates to:
-  /// **'Welcome to Food Delivery'**
+  /// **'Welcome to Appzeto Food Delivery'**
   String get onboardingTitle1;
 
   /// No description provided for @onboardingTitle2.

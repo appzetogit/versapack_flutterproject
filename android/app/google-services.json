@@ -1,22 +1,21 @@
 {
   "project_info": {
-    "project_number": "592916974677",
-    "firebase_url": "https://flutterfoodapp-e6742-default-rtdb.firebaseio.com",
-    "project_id": "flutterfoodapp-e6742",
-    "storage_bucket": "flutterfoodapp-e6742.firebasestorage.app"
+    "project_number": "1094463683805",
+    "project_id": "appzeto-food-b99c7",
+    "storage_bucket": "appzeto-food-b99c7.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:592916974677:android:3d0944149b8965b01518dc",
+        "mobilesdk_app_id": "1:1094463683805:android:d89dd8ba1755d003baaf34",
         "android_client_info": {
-          "package_name": "com.fooddelivery.app"
+          "package_name": "com.appzeto.food"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyC_twLhO7C21HdRBvoZvedceka0jdLCUjc"
+          "current_key": "AIzaSyD4YwYvy4Y8GwZjFFEKht1Dpa_1-qajeJE"
         }
       ],
       "services": {
@@ -27,15 +26,15 @@
     },
     {
       "client_info": {
-        "mobilesdk_app_id": "1:592916974677:android:f60f1fee11a338111518dc",
+        "mobilesdk_app_id": "1:1094463683805:android:bb977ec4a941493ebaaf34",
         "android_client_info": {
-          "package_name": "com.foodrestaurant.app"
+          "package_name": "com.appzetofood.delivery"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyC_twLhO7C21HdRBvoZvedceka0jdLCUjc"
+          "current_key": "AIzaSyD4YwYvy4Y8GwZjFFEKht1Dpa_1-qajeJE"
         }
       ],
       "services": {
@@ -46,15 +45,15 @@
     },
     {
       "client_info": {
-        "mobilesdk_app_id": "1:592916974677:android:5366c1825a27cf201518dc",
+        "mobilesdk_app_id": "1:1094463683805:android:0601ad0c8441d2ecbaaf34",
         "android_client_info": {
-          "package_name": "com.fooduser.app"
+          "package_name": "com.appzetofood.restaurant"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyC_twLhO7C21HdRBvoZvedceka0jdLCUjc"
+          "current_key": "AIzaSyD4YwYvy4Y8GwZjFFEKht1Dpa_1-qajeJE"
         }
       ],
       "services": {

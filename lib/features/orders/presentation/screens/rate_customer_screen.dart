@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:food_user_application/core/error/result.dart';
+import 'package:food_user_application/core/services/review_service.dart';
 import 'package:food_user_application/features/orders/application/pending_customer_rating_controller.dart';
 import 'package:food_user_application/features/orders/data/models/delivery_order.dart';
 import 'package:food_user_application/features/orders/data/orders_repository.dart';
@@ -50,8 +51,12 @@ class _RateCustomerScreenState extends ConsumerState<RateCustomerScreen> {
         );
     if (!mounted) return;
     result.when(
-      success: (_) =>
-          ref.read(pendingCustomerRatingControllerProvider.notifier).dismiss(),
+      success: (_) {
+        if (_rating >= 4) {
+          ReviewService.requestReview();
+        }
+        ref.read(pendingCustomerRatingControllerProvider.notifier).dismiss();
+      },
       failure: (error) => setState(() {
         _error = error.message;
         _submitting = false;

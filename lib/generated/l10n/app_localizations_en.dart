@@ -12,7 +12,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get appName => 'Appzeto Delivery';
 
   @override
-  String get onboardingTitle1 => 'Welcome to Food Delivery';
+  String get onboardingTitle1 => 'Welcome to Appzeto Food Delivery';
 
   @override
   String get onboardingTitle2 => 'Fast & Reliable Delivery';
