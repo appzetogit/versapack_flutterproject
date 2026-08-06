@@ -52,11 +52,47 @@ android {
             appKeys.getProperty("MAPS_API_KEY") ?: ""
     }
 
+    // Release signing, read from android/key.properties, which is gitignored and
+    // never committed. Absent, the release build falls back to the debug key so
+    // `flutter run --release` still works on a fresh clone -- but a debug-signed
+    // APK cannot be uploaded to Play, and cannot be upgraded over an existing
+    // install signed with the real key.
+    val keystoreProperties = Properties().apply {
+        val f = rootProject.file("key.properties")
+        if (f.exists()) f.inputStream().use { load(it) }
+    }
+    val hasReleaseKeystore = keystoreProperties.getProperty("storeFile") != null
+
+    signingConfigs {
+        if (hasReleaseKeystore) {
+            create("release") {
+                storeFile = file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = if (hasReleaseKeystore) {
+                signingConfigs.getByName("release")
+            } else {
+                logger.warn(
+                    "android/key.properties not found — signing the release build with the " +
+                        "DEBUG key. Fine for testing; Play Store uploads will be rejected."
+                )
+                signingConfigs.getByName("debug")
+            }
+            // Shrink only when a real signing setup exists, so debug-key test
+            // builds stay quick to produce.
+            isMinifyEnabled = hasReleaseKeystore
+            isShrinkResources = hasReleaseKeystore
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
     }
 }
