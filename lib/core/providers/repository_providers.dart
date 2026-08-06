@@ -1,0 +1,52 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:quick_commerce_seller/features/complaints/domain/complaint_model.dart';
+import 'package:quick_commerce_seller/features/explore/data/mock_explore_repository.dart';
+import 'package:quick_commerce_seller/features/explore/domain/explore_repository.dart';
+import 'package:quick_commerce_seller/features/feedback/domain/feedback_model.dart';
+import 'package:quick_commerce_seller/features/inventory/data/mock_inventory_repository.dart';
+import 'package:quick_commerce_seller/features/inventory/domain/inventory_repository.dart';
+import 'package:quick_commerce_seller/features/notifications/domain/notification_model.dart';
+import 'package:quick_commerce_seller/features/offers/data/mock_offer_repository.dart';
+import 'package:quick_commerce_seller/features/offers/domain/offer_repository.dart';
+import 'package:quick_commerce_seller/features/orders/data/mock_order_repository.dart';
+import 'package:quick_commerce_seller/features/orders/domain/order_repository.dart';
+import 'package:quick_commerce_seller/features/payouts/data/mock_payout_repository.dart';
+import 'package:quick_commerce_seller/features/payouts/domain/payout_repository.dart';
+
+/// Centralized Dependency Injection Repository Providers.
+///
+/// Note: To integrate with real backend API services in Phase 2,
+/// replace the return statements here with production API repository implementations
+/// (e.g. `HttpOrderRepository(ref.watch(dioProvider))`).
+
+final orderRepositoryProvider = Provider<OrderRepository>((ref) {
+  return MockOrderRepository();
+});
+
+final inventoryRepositoryProvider = Provider<InventoryRepository>((ref) {
+  return MockInventoryRepository();
+});
+
+final payoutRepositoryProvider = Provider<PayoutRepository>((ref) {
+  return MockPayoutRepository();
+});
+
+final offerRepositoryProvider = Provider<OfferRepository>((ref) {
+  return MockOfferRepository();
+});
+
+final exploreRepositoryProvider = Provider<ExploreRepository>((ref) {
+  return MockExploreRepository();
+});
+
+final complaintRepositoryProvider = Provider<ComplaintRepository>((ref) {
+  return MockComplaintRepository();
+});
+
+final feedbackRepositoryProvider = Provider<FeedbackRepository>((ref) {
+  return MockFeedbackRepository();
+});
+
+final notificationRepositoryProvider = Provider<NotificationRepository>((ref) {
+  return MockNotificationRepository();
+});
