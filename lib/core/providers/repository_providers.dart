@@ -7,11 +7,11 @@ import 'package:quick_commerce_seller/features/feedback/domain/feedback_model.da
 import 'package:quick_commerce_seller/features/inventory/data/api_inventory_repository.dart';
 import 'package:quick_commerce_seller/features/inventory/domain/inventory_repository.dart';
 import 'package:quick_commerce_seller/features/notifications/domain/notification_model.dart';
-import 'package:quick_commerce_seller/features/offers/data/mock_offer_repository.dart';
+import 'package:quick_commerce_seller/features/offers/data/api_offer_repository.dart';
 import 'package:quick_commerce_seller/features/offers/domain/offer_repository.dart';
 import 'package:quick_commerce_seller/features/orders/data/api_order_repository.dart';
 import 'package:quick_commerce_seller/features/orders/domain/order_repository.dart';
-import 'package:quick_commerce_seller/features/payouts/data/mock_payout_repository.dart';
+import 'package:quick_commerce_seller/features/payouts/data/api_payout_repository.dart';
 import 'package:quick_commerce_seller/features/payouts/domain/payout_repository.dart';
 
 /// Centralized Dependency Injection Repository Providers.
@@ -29,11 +29,11 @@ final inventoryRepositoryProvider = Provider<InventoryRepository>((ref) {
 });
 
 final payoutRepositoryProvider = Provider<PayoutRepository>((ref) {
-  return MockPayoutRepository();
+  return ApiPayoutRepository(ref.watch(dioProvider));
 });
 
 final offerRepositoryProvider = Provider<OfferRepository>((ref) {
-  return MockOfferRepository();
+  return ApiOfferRepository(ref.watch(dioProvider));
 });
 
 final exploreRepositoryProvider = Provider<ExploreRepository>((ref) {
