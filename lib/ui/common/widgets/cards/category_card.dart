@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_durations.dart';
-import '../../../../core/theme/app_radii.dart';
-import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../domain/model/category.dart';
 import '../misc/app_network_image.dart';
@@ -41,32 +39,38 @@ class _CategoryCardState extends State<CategoryCard> {
         scale: _pressed ? 0.94 : 1,
         duration: AppDurations.instant,
         child: SizedBox(
-          width: widget.size + 12,
+          width: widget.size + 14,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                height: widget.size,
-                width: widget.size,
+                height: widget.size + 6,
+                width: widget.size + 14,
+                padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: context.colors.primary.withValues(alpha: 0.07),
-                  borderRadius: AppRadii.rLg,
+                  color: const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(16),
                 ),
                 clipBehavior: Clip.antiAlias,
                 child: AppNetworkImage(
                   url: widget.category.imageUrl,
                   height: widget.size,
                   width: widget.size,
-                  fallbackIcon: Icons.category_outlined,
+                  fallbackIcon: Icons.shopping_basket_outlined,
                 ),
               ),
-              const SizedBox(height: AppSpacing.sm),
+              const SizedBox(height: 6),
               Text(
                 widget.category.name,
                 maxLines: 2,
                 textAlign: TextAlign.center,
                 overflow: TextOverflow.ellipsis,
-                style: context.text.labelMedium,
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.black,
+                  height: 1.1,
+                ),
               ),
               if (widget.showCount && widget.category.itemCount > 0)
                 Text(

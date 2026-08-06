@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -13,12 +12,7 @@ class SectionHeader extends StatelessWidget {
     this.subtitle,
     this.onSeeAll,
     this.trailing,
-    this.padding = const EdgeInsets.fromLTRB(
-      AppSpacing.lg,
-      AppSpacing.xl,
-      AppSpacing.lg,
-      AppSpacing.md,
-    ),
+    this.padding = const EdgeInsets.fromLTRB(14, 10, 14, 4),
   });
 
   final String title;
@@ -54,19 +48,23 @@ class SectionHeader extends StatelessWidget {
             GestureDetector(
               onTap: onSeeAll,
               behavior: HitTestBehavior.opaque,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+              child: const Padding(
+                padding: EdgeInsets.symmetric(vertical: AppSpacing.xs),
                 child: Row(
                   children: [
                     Text(
-                      AppStrings.seeAll,
-                      style: context.text.labelMedium!
-                          .copyWith(color: context.colors.primary),
+                      'See all',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF16A34A),
+                      ),
                     ),
+                    SizedBox(width: 2),
                     Icon(
-                      Icons.chevron_right_rounded,
-                      size: 17,
-                      color: context.colors.primary,
+                      Icons.arrow_forward_rounded,
+                      size: 13,
+                      color: Color(0xFF16A34A),
                     ),
                   ],
                 ),

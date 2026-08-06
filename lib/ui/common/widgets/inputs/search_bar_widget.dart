@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/constants/app_durations.dart';
-import '../../../../core/theme/app_radii.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme.dart';
 
@@ -53,10 +51,16 @@ class _SearchBarWidgetState extends State<SearchBarWidget> {
   @override
   Widget build(BuildContext context) {
     final decoration = BoxDecoration(
-      color: context.colors.surface,
-      borderRadius: AppRadii.rMd,
-      border: Border.all(color: context.semantic.border),
-      boxShadow: context.semantic.cardShadow,
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: Colors.grey.shade300, width: 1),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.05),
+          blurRadius: 8,
+          offset: const Offset(0, 2),
+        ),
+      ],
     );
 
     if (widget.readOnly) {
@@ -64,31 +68,32 @@ class _SearchBarWidgetState extends State<SearchBarWidget> {
         onTap: widget.onTap,
         behavior: HitTestBehavior.opaque,
         child: Container(
-          height: 48,
+          height: 52,
           decoration: decoration,
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
             children: [
-              Icon(
+              const Icon(
                 Icons.search_rounded,
-                size: 20,
-                color: context.semantic.textSecondary,
+                size: 24,
+                color: Color(0xFF616161),
               ),
-              const SizedBox(width: AppSpacing.md),
+              const SizedBox(width: 12),
               Expanded(
-                child: AnimatedSwitcher(
-                  duration: AppDurations.medium,
-                  child: Text(
-                    widget.hintRotation[_hintIndex],
-                    key: ValueKey(_hintIndex),
-                    style: context.text.bodyLarge!
-                        .copyWith(color: context.semantic.textSecondary),
+                child: Text(
+                  'Search for "milk, eggs, bread"',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.grey.shade600,
                   ),
                 ),
               ),
-              Container(width: 1, height: 20, color: context.semantic.border),
-              const SizedBox(width: AppSpacing.md),
-              Icon(Icons.mic_none_rounded, size: 19, color: context.colors.primary),
+              const Icon(
+                Icons.qr_code_scanner_rounded,
+                size: 24,
+                color: Color(0xFFE6A100),
+              ),
             ],
           ),
         ),

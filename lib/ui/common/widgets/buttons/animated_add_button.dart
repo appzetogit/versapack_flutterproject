@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_durations.dart';
-import '../../../../core/theme/app_radii.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../misc/quantity_stepper.dart';
 
 /// "ADD" that morphs into a quantity stepper once the item is in the cart.
@@ -101,7 +99,6 @@ class _AddPillState extends State<_AddPill> {
   @override
   Widget build(BuildContext context) {
     final enabled = widget.onTap != null;
-    final primary = context.colors.primary;
 
     return Semantics(
       button: true,
@@ -116,32 +113,17 @@ class _AddPillState extends State<_AddPill> {
           scale: _pressed ? 0.93 : 1,
           duration: AppDurations.instant,
           child: Container(
-            height: widget.height,
-            width: widget.width,
+            height: 30,
+            width: 30,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: enabled
-                  ? primary.withValues(alpha: 0.10)
-                  : context.semantic.surfaceAlt,
-              borderRadius: AppRadii.rSm,
-              border: Border.all(
-                color: enabled
-                    ? primary.withValues(alpha: 0.45)
-                    : context.semantic.border,
-              ),
+              color: enabled ? const Color(0xFF0F9D28) : Colors.grey.shade400,
+              borderRadius: BorderRadius.circular(8),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  'ADD',
-                  style: context.text.labelMedium!.copyWith(
-                    color: enabled ? primary : context.semantic.textSecondary,
-                  ),
-                ),
-                if (widget.hasVariants)
-                  Icon(Icons.expand_more_rounded, size: 14, color: primary),
-              ],
+            child: const Icon(
+              Icons.add_rounded,
+              size: 20,
+              color: Colors.white,
             ),
           ),
         ),

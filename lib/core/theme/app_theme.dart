@@ -12,10 +12,20 @@ abstract final class AppTheme {
 
   static ThemeData _build(AppThemeFlavor flavor, Brightness brightness) {
     final isDark = brightness == Brightness.dark;
+    final primaryColor = flavor == AppThemeFlavor.appzeto
+        ? AppColors.appzetoGreen
+        : flavor.accent;
+    final secondaryColor = flavor == AppThemeFlavor.appzeto
+        ? AppColors.appzetoYellow
+        : flavor.seed;
+
     final scheme = ColorScheme.fromSeed(
-      seedColor: flavor.seed,
+      seedColor: primaryColor,
       brightness: brightness,
     ).copyWith(
+      primary: isDark ? AppColors.appzetoYellow : primaryColor,
+      secondary: secondaryColor,
+      tertiary: AppColors.orangeBadge,
       surface: isDark ? AppColors.darkSurface : AppColors.lightSurface,
       onSurface: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
       error: isDark ? const Color(0xFFFF6B7A) : AppColors.danger,

@@ -5,23 +5,22 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../domain/model/banner.dart';
-import '../../../domain/model/product.dart';
 import '../../../navigation/route_paths.dart';
-import '../../common/widgets/cards/brand_card.dart';
-import '../../common/widgets/cards/category_card.dart';
 import '../../common/widgets/inputs/search_bar_widget.dart';
-import '../../common/widgets/loaders/list_skeleton.dart';
-import '../../common/widgets/loaders/product_card_skeleton.dart';
-import '../../common/widgets/misc/section_header.dart';
 import '../../common/widgets/states/error_state_widget.dart';
 import '../../common/widgets/states/offline_banner.dart';
 import '../product/product_listing/product_listing_args.dart';
 import 'home_provider.dart';
 import 'home_state.dart';
 import 'widgets/banner_carousel.dart';
+import 'widgets/bestsellers_row.dart';
 import 'widgets/delivery_header.dart';
-import 'widgets/flash_countdown.dart';
-import 'widgets/product_row.dart';
+import 'widgets/mega_deals_section.dart';
+import 'widgets/offer_coupons_row.dart';
+import 'widgets/quick_category_row.dart';
+import 'widgets/shop_by_category_row.dart';
+
+import 'package:flutter/services.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -30,23 +29,33 @@ class HomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(homeProvider);
 
-    return Scaffold(
-      body: SafeArea(
-        bottom: false,
-        child: Column(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
+      ),
+      child: Scaffold(
+        backgroundColor: const Color(0xFFFAFAFA),
+        body: Column(
           children: [
             const OfflineBanner(),
-            DeliveryHeader(etaMinutes: state.etaMinutes),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.lg,
-                0,
-                AppSpacing.lg,
-                AppSpacing.md,
-              ),
-              child: SearchBarWidget(
-                readOnly: true,
-                onTap: () => context.push(RoutePaths.search),
+            Container(
+              color: const Color(0xFFFFD400),
+              child: SafeArea(
+                bottom: false,
+                child: Column(
+                  children: [
+                    DeliveryHeader(etaMinutes: state.etaMinutes),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(14, 2, 14, 14),
+                      child: SearchBarWidget(
+                        readOnly: true,
+                        onTap: () => context.push(RoutePaths.search),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
             Expanded(child: _body(context, ref, state)),
@@ -57,7 +66,7 @@ class HomeScreen extends ConsumerWidget {
   }
 
   Widget _body(BuildContext context, WidgetRef ref, HomeState state) {
-    if (state.failure != null && state.sections.isEmpty) {
+    if (state.failure != null && state.sections.isEmpty && state.categories.isEmpty) {
       return ErrorStateWidget(
         failure: state.failure!,
         onRetry: () => ref.read(homeProvider.notifier).load(refresh: true),
@@ -68,9 +77,20 @@ class HomeScreen extends ConsumerWidget {
       onRefresh: () => ref.read(homeProvider.notifier).load(refresh: true),
       child: CustomScrollView(
         slivers: [
+          // 1. Quick Categories Icon Strip (All, Rakhi, Electronics, Beauty, Home, Toys, More)
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+              padding: const EdgeInsets.only(bottom: 4),
+              child: QuickCategoryRow(
+                onCategoryTap: (catId) => context.push(RoutePaths.categories),
+              ),
+            ),
+          ),
+
+          // 2. Hero Promotional Banner ("Groceries in 10 minutes")
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 6),
               child: BannerCarousel(
                 banners: state.banners,
                 isLoading: state.isLoadingBanners,
@@ -78,163 +98,49 @@ class HomeScreen extends ConsumerWidget {
               ),
             ),
           ),
-          SliverToBoxAdapter(child: _categories(context, state)),
-          if (state.brands.isNotEmpty)
-            SliverToBoxAdapter(child: _brands(context, state)),
-          if (state.isLoadingSections && state.sections.isEmpty)
-            const SliverToBoxAdapter(child: _SectionsSkeleton())
-          else
-            SliverList.builder(
-              itemCount: state.sections.length,
-              itemBuilder: (context, index) =>
-                  _section(context, state.sections[index]),
-            ),
-          if (state.promoBanners.isNotEmpty)
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
-                child: BannerCarousel(
-                  banners: state.promoBanners,
-                  height: 132,
-                  onTap: (banner) => _openBanner(context, banner),
-                ),
+
+          // 3. Offer & Coupon Cards Row (FLAT 50 OFF, FREE DELIVERY, EXTRA 5% OFF)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: OfferCouponsRow(
+                onOrderNowTap: (_) => context.push(RoutePaths.coupons),
               ),
             ),
+          ),
+
+          // 4. Shop by Category Row
+          const SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.only(bottom: 4),
+              child: ShopByCategoryRow(),
+            ),
+          ),
+
+          // 5. Bestsellers Row (Amul Gold, Aashirvaad Atta, Lay's, Fortune Sunlite, Coca Cola)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: BestsellersRow(
+                onProductTap: (id) => context.push(RoutePaths.productDetailsOf(id)),
+              ),
+            ),
+          ),
+
+          // 6. MEGA DEALS Section
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: MegaDealsSection(
+                onShopNowTap: () => context.push(RoutePaths.productListing),
+                onItemTap: (index) => context.push(RoutePaths.productListing),
+              ),
+            ),
+          ),
+
           const SliverToBoxAdapter(child: _HomeFooter()),
         ],
       ),
-    );
-  }
-
-  Widget _categories(BuildContext context, HomeState state) {
-    if (state.isLoadingCategories && state.categories.isEmpty) {
-      return const CategoryGridSkeleton(count: 8);
-    }
-    if (state.categories.isEmpty) return const SizedBox.shrink();
-
-    // Two rows that scroll together horizontally — the quick-commerce standard,
-    // and denser than a single strip.
-    final categories = state.categories;
-    final rows = [
-      [for (var i = 0; i < categories.length; i += 2) categories[i]],
-      [for (var i = 1; i < categories.length; i += 2) categories[i]],
-    ];
-
-    // A horizontal scroller needs a bounded height, and a hardcoded one clips
-    // as soon as the user raises their font size. Derive it from the tile: the
-    // image plate, the gap, two lines of label, and the row gap.
-    const tileSize = 68.0;
-    const labelLineHeight = 12 * 1.2;
-    final labelBlock =
-        MediaQuery.textScalerOf(context).scale(labelLineHeight) * 2;
-    final rowHeight = tileSize + AppSpacing.sm + labelBlock + AppSpacing.md;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SectionHeader(
-          title: 'Shop by category',
-          onSeeAll: () => context.push(RoutePaths.categories),
-        ),
-        SizedBox(
-          height: rowHeight * rows.length,
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-            child: Column(
-              children: [
-                for (final row in rows)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                    child: Row(
-                      children: [
-                        for (final category in row)
-                          Padding(
-                            padding: const EdgeInsets.only(right: AppSpacing.md),
-                            child: CategoryCard(
-                              category: category,
-                              size: tileSize,
-                              onTap: () => context.push(
-                                RoutePaths.subCategoryOf(category.id),
-                                extra: category,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _brands(BuildContext context, HomeState state) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SectionHeader(
-          title: 'Featured brands',
-          onSeeAll: () => context.push(RoutePaths.brands),
-        ),
-        SizedBox(
-          height: 146,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-            itemCount: state.brands.length,
-            separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.md),
-            itemBuilder: (context, index) {
-              final brand = state.brands[index];
-              return BrandCard(
-                brand: brand,
-                onTap: () => context.push(
-                  RoutePaths.productListing,
-                  extra: ProductListingArgs.forBrand(brand),
-                ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _section(BuildContext context, HomeSection section) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SectionHeader(
-          title: section.title,
-          subtitle: section.subtitle.isEmpty ? null : section.subtitle,
-          trailing: section.countdownEndsAt == null
-              ? null
-              : FlashCountdown(endsAt: section.countdownEndsAt!),
-          onSeeAll: section.countdownEndsAt != null
-              ? null
-              : () => context.push(
-                    RoutePaths.productListing,
-                    extra: ProductListingArgs(
-                      title: section.title,
-                      categoryId: section.categoryId,
-                      seedProducts: section.categoryId == null
-                          ? section.products
-                          : const <Product>[],
-                    ),
-                  ),
-        ),
-        ProductRow(
-          products: section.products,
-          heroTag: section.id,
-          showRanks: section.showRanks,
-          onProductTap: (product) => context.push(
-            RoutePaths.productDetailsOf(product.id),
-            extra: product,
-          ),
-        ),
-      ],
     );
   }
 
@@ -258,24 +164,6 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
-class _SectionsSkeleton extends StatelessWidget {
-  const _SectionsSkeleton();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SectionHeader(title: 'Loading fresh picks…'),
-        ProductRowSkeleton(),
-        SizedBox(height: AppSpacing.xl),
-        SectionHeader(title: ' '),
-        ProductRowSkeleton(),
-      ],
-    );
-  }
-}
-
 class _HomeFooter extends StatelessWidget {
   const _HomeFooter();
 
@@ -291,15 +179,16 @@ class _HomeFooter extends StatelessWidget {
       child: Column(
         children: [
           Text(
-            'SUVIO QUICK',
+            'appzeto',
             style: context.text.displayMedium!.copyWith(
               color: context.semantic.border,
               letterSpacing: 2,
+              fontWeight: FontWeight.w900,
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(
-            'Delivered fresh, delivered fast.',
+            'Fresh essentials, delivered to your doorstep.',
             style: context.text.bodySmall,
           ),
         ],

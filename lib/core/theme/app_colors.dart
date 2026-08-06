@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 /// evergreen ("Suvio Green") paired with a warm citrus accent, which reads as
 /// fresh + premium while staying high-contrast at small sizes.
 enum AppThemeFlavor {
+  appzeto('Appzeto Yellow', Color(0xFFFFD400), Color(0xFF16A34A)),
   green('Suvio Green', Color(0xFF0E7C66), Color(0xFFFFB020)),
   indigo('Suvio Indigo', Color(0xFF4338CA), Color(0xFFFF7A59)),
   sunset('Suvio Sunset', Color(0xFFE0533D), Color(0xFF1F9C8A));
@@ -19,13 +20,19 @@ enum AppThemeFlavor {
   static AppThemeFlavor fromName(String? name) =>
       AppThemeFlavor.values.firstWhere(
         (f) => f.name == name,
-        orElse: () => AppThemeFlavor.green,
+        orElse: () => AppThemeFlavor.appzeto,
       );
 }
 
 abstract final class AppColors {
+  // Appzeto exact colors
+  static const appzetoYellow = Color(0xFFFFD400);
+  static const appzetoGreen = Color(0xFF16A34A);
+  static const appzetoDarkGreen = Color(0xFF16A34A);
+  static const orangeBadge = Color(0xFFFF6B35);
+
   // Semantic, flavor-independent tokens.
-  static const success = Color(0xFF178A5A);
+  static const success = Color(0xFF16A34A);
   static const successSoft = Color(0xFFE4F5EC);
   static const warning = Color(0xFFB8761B);
   static const warningSoft = Color(0xFFFDF1DC);
@@ -33,16 +40,16 @@ abstract final class AppColors {
   static const dangerSoft = Color(0xFFFDE8EB);
   static const info = Color(0xFF2563EB);
 
-  static const veg = Color(0xFF158A45);
+  static const veg = Color(0xFF16A34A);
   static const nonVeg = Color(0xFFB3261E);
 
   // Light surfaces
-  static const lightBackground = Color(0xFFF7F8F7);
+  static const lightBackground = Color(0xFFFAFAFA);
   static const lightSurface = Color(0xFFFFFFFF);
   static const lightSurfaceAlt = Color(0xFFF1F3F2);
   static const lightBorder = Color(0xFFE3E7E5);
-  static const lightTextPrimary = Color(0xFF101613);
-  static const lightTextSecondary = Color(0xFF5C6862);
+  static const lightTextPrimary = Color(0xFF111111);
+  static const lightTextSecondary = Color(0xFF666666);
 
   // Dark surfaces — hand-picked, not an inversion. Cards sit *above* the
   // background by lightness so elevation stays legible without heavy shadows.
@@ -54,6 +61,17 @@ abstract final class AppColors {
   static const darkTextSecondary = Color(0xFFA3AFA9);
 
   static const discountGradient = [Color(0xFF1E88E5), Color(0xFF1565C0)];
+
+  // Appzeto brand surfaces matching home screen.
+  static const brandYellow = Color(0xFFFFD400);
+  static const brandYellowSoft = Color(0xFFFFF1C5);
+  static const brandYellowFaint = Color(0xFFFFF9E6);
+  static const brandGreen = Color(0xFF16A34A);
+  static const brandOrange = Color(0xFFFF6B35);
+
+  // Dark-mode counterparts
+  static const brandYellowDark = Color(0xFF3A3416);
+  static const brandYellowSoftDark = Color(0xFF2B2712);
 }
 
 /// Tokens the Material [ColorScheme] has no slot for.
@@ -61,6 +79,9 @@ abstract final class AppColors {
 class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
   const AppSemanticColors({
     required this.accent,
+    required this.brandSurface,
+    required this.brandSurfaceSoft,
+    required this.onBrandSurface,
     required this.success,
     required this.successSoft,
     required this.warning,
@@ -76,6 +97,16 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
   });
 
   final Color accent;
+
+  /// The saturated brand plate: app header, bottom-nav highlight, badges.
+  final Color brandSurface;
+
+  /// The tinted plate used behind hero and promo cards.
+  final Color brandSurfaceSoft;
+
+  /// Text/icon colour that is legible on [brandSurface].
+  final Color onBrandSurface;
+
   final Color success;
   final Color successSoft;
   final Color warning;
@@ -90,7 +121,16 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
   final List<BoxShadow> floatingShadow;
 
   factory AppSemanticColors.light(AppThemeFlavor flavor) => AppSemanticColors(
-        accent: flavor.accent,
+        accent: flavor == AppThemeFlavor.appzeto
+            ? AppColors.appzetoGreen
+            : flavor.accent,
+        brandSurface: flavor == AppThemeFlavor.appzeto
+            ? AppColors.appzetoYellow
+            : flavor.accent,
+        brandSurfaceSoft: flavor == AppThemeFlavor.appzeto
+            ? AppColors.brandYellowSoft
+            : flavor.accent.withValues(alpha: 0.16),
+        onBrandSurface: AppColors.lightTextPrimary,
         success: AppColors.success,
         successSoft: AppColors.successSoft,
         warning: AppColors.warning,
@@ -117,6 +157,13 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
 
   factory AppSemanticColors.dark(AppThemeFlavor flavor) => AppSemanticColors(
         accent: flavor.accent,
+        brandSurface: flavor == AppThemeFlavor.appzeto
+            ? AppColors.brandYellowDark
+            : AppColors.darkSurfaceAlt,
+        brandSurfaceSoft: flavor == AppThemeFlavor.appzeto
+            ? AppColors.brandYellowSoftDark
+            : AppColors.darkSurfaceAlt,
+        onBrandSurface: AppColors.darkTextPrimary,
         success: const Color(0xFF3DD68C),
         successSoft: const Color(0xFF13301F),
         warning: const Color(0xFFF2B950),
@@ -144,6 +191,9 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
   @override
   AppSemanticColors copyWith({
     Color? accent,
+    Color? brandSurface,
+    Color? brandSurfaceSoft,
+    Color? onBrandSurface,
     Color? success,
     Color? successSoft,
     Color? warning,
@@ -159,6 +209,9 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
   }) {
     return AppSemanticColors(
       accent: accent ?? this.accent,
+      brandSurface: brandSurface ?? this.brandSurface,
+      brandSurfaceSoft: brandSurfaceSoft ?? this.brandSurfaceSoft,
+      onBrandSurface: onBrandSurface ?? this.onBrandSurface,
       success: success ?? this.success,
       successSoft: successSoft ?? this.successSoft,
       warning: warning ?? this.warning,
@@ -179,6 +232,10 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
     if (other is! AppSemanticColors) return this;
     return AppSemanticColors(
       accent: Color.lerp(accent, other.accent, t)!,
+      brandSurface: Color.lerp(brandSurface, other.brandSurface, t)!,
+      brandSurfaceSoft:
+          Color.lerp(brandSurfaceSoft, other.brandSurfaceSoft, t)!,
+      onBrandSurface: Color.lerp(onBrandSurface, other.onBrandSurface, t)!,
       success: Color.lerp(success, other.success, t)!,
       successSoft: Color.lerp(successSoft, other.successSoft, t)!,
       warning: Color.lerp(warning, other.warning, t)!,

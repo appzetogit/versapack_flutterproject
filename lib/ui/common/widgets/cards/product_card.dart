@@ -74,7 +74,7 @@ class _ProductCardState extends ConsumerState<ProductCard> {
         child: AnimatedContainer(
           duration: AppDurations.fast,
           width: widget.width,
-          padding: const EdgeInsets.all(AppSpacing.sm),
+          padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
             color: context.colors.surface,
             borderRadius: AppRadii.rLg,
@@ -86,16 +86,16 @@ class _ProductCardState extends ConsumerState<ProductCard> {
             mainAxisSize: MainAxisSize.min,
             children: [
               _image(context, isWishlisted: isWishlisted, outOfStock: outOfStock),
-              const SizedBox(height: AppSpacing.sm),
+              const SizedBox(height: 4),
               _meta(context),
-              const SizedBox(height: AppSpacing.xs),
+              const SizedBox(height: 2),
               Text(
                 _product.name,
-                maxLines: 2,
+                maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: context.text.titleSmall,
               ),
-              const SizedBox(height: AppSpacing.xxs),
+              const SizedBox(height: 2),
               Text(
                 _product.hasVariants
                     ? '${_product.variants.length} options'
@@ -103,7 +103,7 @@ class _ProductCardState extends ConsumerState<ProductCard> {
                 style: context.text.bodySmall,
               ),
               if (stockLabel.isNotEmpty) ...[
-                const SizedBox(height: AppSpacing.xxs),
+                const SizedBox(height: 2),
                 Text(
                   stockLabel,
                   style: context.text.labelMedium!.copyWith(
@@ -113,7 +113,7 @@ class _ProductCardState extends ConsumerState<ProductCard> {
                   ),
                 ),
               ],
-              const SizedBox(height: AppSpacing.sm),
+              const SizedBox(height: 4),
               _priceRow(context, quantity: quantity, outOfStock: outOfStock),
             ],
           ),
