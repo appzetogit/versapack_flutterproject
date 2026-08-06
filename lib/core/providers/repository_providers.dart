@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:quick_commerce_seller/core/network/dio_client.dart';
 import 'package:quick_commerce_seller/features/complaints/domain/complaint_model.dart';
-import 'package:quick_commerce_seller/features/explore/data/mock_explore_repository.dart';
+import 'package:quick_commerce_seller/features/explore/data/api_explore_repository.dart';
 import 'package:quick_commerce_seller/features/explore/domain/explore_repository.dart';
 import 'package:quick_commerce_seller/features/feedback/domain/feedback_model.dart';
 import 'package:quick_commerce_seller/features/inventory/data/api_inventory_repository.dart';
@@ -37,7 +37,7 @@ final offerRepositoryProvider = Provider<OfferRepository>((ref) {
 });
 
 final exploreRepositoryProvider = Provider<ExploreRepository>((ref) {
-  return MockExploreRepository();
+  return ApiExploreRepository(ref.watch(dioProvider));
 });
 
 final complaintRepositoryProvider = Provider<ComplaintRepository>((ref) {
