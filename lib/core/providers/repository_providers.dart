@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:quick_commerce_seller/core/network/dio_client.dart';
 import 'package:quick_commerce_seller/features/complaints/domain/complaint_model.dart';
 import 'package:quick_commerce_seller/features/explore/data/mock_explore_repository.dart';
 import 'package:quick_commerce_seller/features/explore/domain/explore_repository.dart';
@@ -8,7 +9,7 @@ import 'package:quick_commerce_seller/features/inventory/domain/inventory_reposi
 import 'package:quick_commerce_seller/features/notifications/domain/notification_model.dart';
 import 'package:quick_commerce_seller/features/offers/data/mock_offer_repository.dart';
 import 'package:quick_commerce_seller/features/offers/domain/offer_repository.dart';
-import 'package:quick_commerce_seller/features/orders/data/mock_order_repository.dart';
+import 'package:quick_commerce_seller/features/orders/data/api_order_repository.dart';
 import 'package:quick_commerce_seller/features/orders/domain/order_repository.dart';
 import 'package:quick_commerce_seller/features/payouts/data/mock_payout_repository.dart';
 import 'package:quick_commerce_seller/features/payouts/domain/payout_repository.dart';
@@ -20,7 +21,7 @@ import 'package:quick_commerce_seller/features/payouts/domain/payout_repository.
 /// (e.g. `HttpOrderRepository(ref.watch(dioProvider))`).
 
 final orderRepositoryProvider = Provider<OrderRepository>((ref) {
-  return MockOrderRepository();
+  return ApiOrderRepository(ref.watch(dioProvider));
 });
 
 final inventoryRepositoryProvider = Provider<InventoryRepository>((ref) {
