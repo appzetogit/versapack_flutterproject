@@ -131,7 +131,7 @@ class RegistrationSuccessScreen extends ConsumerWidget {
                 height: 52,
                 child: ElevatedButton(
                   onPressed: () =>
-                      ref.read(authControllerProvider.notifier).loginMock(),
+                      ref.read(authControllerProvider.notifier).refreshSession(),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFFFC400),
                     foregroundColor: const Color(0xFF181C2E),

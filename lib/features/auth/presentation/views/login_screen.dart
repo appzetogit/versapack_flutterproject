@@ -56,25 +56,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
-  void _performLogin() {
-    FocusScope.of(context).unfocus();
-    _run(() async {
-      ref
-          .read(authControllerProvider.notifier)
-          .loginMock(
-            phone: _phone.text.trim().isEmpty
-                ? '9876543210'
-                : _phone.text.trim(),
-          );
-    });
-  }
-
   Future<void> _requestOtp() async {
-    _performLogin();
+    if (!(_phoneForm.currentState?.validate() ?? false)) return;
+    FocusScope.of(context).unfocus();
+    await _run(
+      () => ref
+          .read(authControllerProvider.notifier)
+          .requestOtp(_phone.text.trim()),
+    );
   }
 
   Future<void> _verifyOtp(String phone) async {
-    _performLogin();
+    if (!(_otpForm.currentState?.validate() ?? false)) return;
+    FocusScope.of(context).unfocus();
+    await _run(
+      () => ref
+          .read(authControllerProvider.notifier)
+          .verifyOtp(phone: phone, otp: _otp.text.trim()),
+    );
   }
 
   @override

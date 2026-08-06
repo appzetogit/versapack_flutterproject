@@ -51,21 +51,38 @@ class AuthController extends Notifier<AuthState> {
         return;
       }
 
-      // Mock session handling while backend is disconnected
-      const mockSeller = SellerModel(
-        id: 'seller-mock-1',
-        name: 'Store Partner',
-        storeName: 'Fresh Mart Superstore',
-        phone: '9876543210',
-        email: 'seller@freshmart.com',
-        status: 'approved',
-        imageUrl: '',
-        isAcceptingOrders: true,
-        rating: 4.8,
-        totalRatings: 124,
+      // A stored token proves nothing on its own: the backend evicts a session
+      // when the account signs in elsewhere, and it answers 401 for a token
+      // whose tokenVersion has moved on. Asking the server is the only way to
+      // know the session is still live.
+      final payload = await _api.me();
+      final seller = SellerModel.fromJson(payload);
+
+      await storage.saveSeller(
+        id: seller.id,
+        status: seller.status,
+        phone: seller.phone,
       );
-      state = const AuthAuthenticated(seller: mockSeller);
+
+      state = _stateForSeller(seller);
       startupLog('auth.resolveSession done', state.runtimeType);
+    } on DioException catch (e) {
+      // 401 means the session is genuinely gone -- expired, or evicted by a
+      // sign-in on another device -- so the stored tokens are dead weight and
+      // are cleared. Any other failure (no signal, server down, timeout) is
+      // transient: the tokens are kept so a retry can still succeed, and the
+      // seller merely lands on the login screen rather than being wiped.
+      final status = e.response?.statusCode;
+      if (status == 401) {
+        await ref.read(tokenStorageProvider).clear();
+        final message = e.error is ApiException
+            ? (e.error as ApiException).message
+            : null;
+        state = AuthLoggedOut(reason: message);
+      } else {
+        state = const AuthLoggedOut();
+      }
+      startupLog('auth.resolveSession rejected', status);
     } catch (e) {
       state = const AuthLoggedOut();
       startupLog('auth.resolveSession FAILED', e);
@@ -81,30 +98,40 @@ class AuthController extends Notifier<AuthState> {
     startupLog('auth.forceLoggedOut', reason);
   }
 
-  /// Mock sign-in for Phase 1 UI presentation.
-  /// Bypasses backend API calls and directly sets [AuthAuthenticated] state so
-  /// the app routes directly to [/home]. When Phase 2 backend integration is
-  /// ready, swap this back to [requestOtp]/[verifyOtp].
-  void loginMock({String phone = '9876543210'}) {
-    const mockSeller = SellerModel(
-      id: 'seller-mock-1',
-      name: 'Store Partner',
-      storeName: 'Fresh Mart Superstore',
-      phone: '9876543210',
-      email: 'seller@freshmart.com',
-      status: 'approved',
-      imageUrl: '',
-      isAcceptingOrders: true,
-      rating: 4.8,
-      totalRatings: 124,
-    );
-    ref
-        .read(tokenStorageProvider)
-        .saveTokens(
-          accessToken: 'mock_access_token',
-          refreshToken: 'mock_refresh_token',
-        );
-    state = const AuthAuthenticated(seller: mockSeller);
+  /// Re-reads the seller from the server and moves to whatever state they are
+  /// now in.
+  ///
+  /// Used by the screens that finish registration: a store that has just
+  /// submitted its papers is normally `pending`, so this is what routes it to
+  /// the waiting screen rather than the dashboard. It replaces a mock sign-in
+  /// that granted a fake approved session to anyone who pressed Continue.
+  Future<void> refreshSession() async {
+    try {
+      final seller = SellerModel.fromJson(await _api.me());
+      await ref
+          .read(tokenStorageProvider)
+          .saveSeller(
+            id: seller.id,
+            status: seller.status,
+            phone: seller.phone,
+          );
+      state = _stateForSeller(seller);
+    } on DioException catch (e) {
+      final message = e.error is ApiException
+          ? (e.error as ApiException).message
+          : '';
+      final lower = message.toLowerCase();
+      // Approval state arrives as a login failure, not a field.
+      if (lower.contains('pending approval')) {
+        state = AuthPendingApproval(message: message);
+        return;
+      }
+      if (lower.contains('rejected')) {
+        state = AuthRejected(message: message);
+        return;
+      }
+      rethrow;
+    }
   }
 
   Future<void> requestOtp(String phone) async {

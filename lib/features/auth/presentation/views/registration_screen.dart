@@ -303,7 +303,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                     height: 50,
                     child: ElevatedButton(
                       onPressed: () =>
-                          ref.read(authControllerProvider.notifier).loginMock(),
+                          ref.read(authControllerProvider.notifier).refreshSession(),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFFFC400),
                         foregroundColor: const Color(0xFF181C2E),
@@ -328,7 +328,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                     height: 50,
                     child: OutlinedButton(
                       onPressed: () =>
-                          ref.read(authControllerProvider.notifier).loginMock(),
+                          ref.read(authControllerProvider.notifier).refreshSession(),
                       style: OutlinedButton.styleFrom(
                         side: const BorderSide(
                           color: Color(0xFFFFC400),

@@ -22,16 +22,33 @@ class SellerModel {
 
     return SellerModel(
       id: (json['id'] ?? json['_id'] ?? '').toString(),
-      name: (json['name'] ?? '').toString(),
+      // `name` on a seller document is the store's name, not a person's, so the
+      // owner is read from `ownerName` and `name` only as a fallback.
+      name: (json['ownerName'] ?? json['name'] ?? '').toString(),
       // The backend exposes the store under `restaurantName` and falls back to
       // `name` for older records.
       storeName: (json['restaurantName'] ?? json['name'] ?? '').toString(),
-      phone: (json['phone'] ?? '').toString(),
-      email: (json['email'] ?? '').toString(),
+      // A seller document carries no plain `phone`/`email`: the contact details
+      // live on the owner, with the store's public line under
+      // `primaryContactNumber`. Reading only `phone`/`email` left both blank
+      // everywhere they are shown.
+      phone:
+          (json['ownerPhone'] ??
+                  json['primaryContactNumber'] ??
+                  json['phone'] ??
+                  '')
+              .toString(),
+      email: (json['ownerEmail'] ?? json['email'] ?? '').toString(),
       status: (json['status'] ?? '').toString(),
       imageUrl: (json['profileImage'] ?? json['image'] ?? '').toString(),
-      // Absent means the store is not taking orders — the safer default.
-      isAcceptingOrders: json['isAcceptingOrders'] == true,
+      // Explicit false means closed. Absent means the payload simply does not
+      // carry it -- `/food/auth/me` never does -- and treating that as closed
+      // made every seller's store look shut the moment their session was
+      // restored from storage. The store document is the authority; until it
+      // says otherwise, an approved seller is assumed to be trading.
+      isAcceptingOrders: json['isAcceptingOrders'] is bool
+          ? json['isAcceptingOrders'] as bool
+          : true,
       rating: asNum(json['rating'])?.toDouble() ?? 0,
       totalRatings: asNum(json['totalRatings'])?.toInt() ?? 0,
     );
