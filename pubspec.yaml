@@ -51,6 +51,10 @@ dependencies:
   cached_network_image: ^3.4.1
   # Date/number formatting
   intl: ^0.20.2
+  # Picking registration documents and store photos from camera or gallery.
+  # Without it the documents step could only mark a file attached locally and
+  # never send one.
+  image_picker: ^1.1.2
 
 dev_dependencies:
   flutter_test:

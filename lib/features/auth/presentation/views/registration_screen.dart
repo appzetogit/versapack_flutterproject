@@ -302,8 +302,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                     width: double.infinity,
                     height: 50,
                     child: ElevatedButton(
-                      onPressed: () =>
-                          ref.read(authControllerProvider.notifier).refreshSession(),
+                      onPressed: () => context.push('/registration-documents'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFFFC400),
                         foregroundColor: const Color(0xFF181C2E),

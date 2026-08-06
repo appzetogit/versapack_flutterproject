@@ -10,6 +10,7 @@ import 'package:quick_commerce_seller/features/auth/presentation/controllers/aut
 import 'package:quick_commerce_seller/features/auth/presentation/views/account_status_screen.dart';
 import 'package:quick_commerce_seller/features/auth/presentation/views/login_screen.dart';
 import 'package:quick_commerce_seller/features/auth/presentation/views/registration_screen.dart';
+import 'package:quick_commerce_seller/features/auth/presentation/views/registration_documents_screen.dart';
 import 'package:quick_commerce_seller/features/auth/presentation/views/registration_success_screen.dart';
 import 'package:quick_commerce_seller/features/complaints/presentation/views/complaints_screen.dart';
 import 'package:quick_commerce_seller/features/explore/presentation/views/delivery_settings_screen.dart';
@@ -127,6 +128,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/registration',
         builder: (_, _) => const RegistrationScreen(),
+      ),
+      GoRoute(
+        path: '/registration-documents',
+        builder: (_, _) => const RegistrationDocumentsScreen(),
       ),
       GoRoute(
         path: '/registration-success',
