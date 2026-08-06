@@ -4,7 +4,7 @@ import 'package:quick_commerce_seller/features/complaints/domain/complaint_model
 import 'package:quick_commerce_seller/features/explore/data/mock_explore_repository.dart';
 import 'package:quick_commerce_seller/features/explore/domain/explore_repository.dart';
 import 'package:quick_commerce_seller/features/feedback/domain/feedback_model.dart';
-import 'package:quick_commerce_seller/features/inventory/data/mock_inventory_repository.dart';
+import 'package:quick_commerce_seller/features/inventory/data/api_inventory_repository.dart';
 import 'package:quick_commerce_seller/features/inventory/domain/inventory_repository.dart';
 import 'package:quick_commerce_seller/features/notifications/domain/notification_model.dart';
 import 'package:quick_commerce_seller/features/offers/data/mock_offer_repository.dart';
@@ -25,7 +25,7 @@ final orderRepositoryProvider = Provider<OrderRepository>((ref) {
 });
 
 final inventoryRepositoryProvider = Provider<InventoryRepository>((ref) {
-  return MockInventoryRepository();
+  return ApiInventoryRepository(ref.watch(dioProvider));
 });
 
 final payoutRepositoryProvider = Provider<PayoutRepository>((ref) {
