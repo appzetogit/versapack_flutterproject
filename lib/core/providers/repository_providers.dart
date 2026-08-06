@@ -1,5 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:quick_commerce_seller/core/network/dio_client.dart';
+import 'package:quick_commerce_seller/features/complaints/data/api_complaint_repository.dart';
+import 'package:quick_commerce_seller/features/feedback/data/api_feedback_repository.dart';
+import 'package:quick_commerce_seller/features/notifications/data/api_notification_repository.dart';
 import 'package:quick_commerce_seller/features/complaints/domain/complaint_model.dart';
 import 'package:quick_commerce_seller/features/explore/data/api_explore_repository.dart';
 import 'package:quick_commerce_seller/features/explore/domain/explore_repository.dart';
@@ -41,13 +44,13 @@ final exploreRepositoryProvider = Provider<ExploreRepository>((ref) {
 });
 
 final complaintRepositoryProvider = Provider<ComplaintRepository>((ref) {
-  return MockComplaintRepository();
+  return ApiComplaintRepository(ref.watch(dioProvider));
 });
 
 final feedbackRepositoryProvider = Provider<FeedbackRepository>((ref) {
-  return MockFeedbackRepository();
+  return ApiFeedbackRepository(ref.watch(dioProvider));
 });
 
 final notificationRepositoryProvider = Provider<NotificationRepository>((ref) {
-  return MockNotificationRepository();
+  return ApiNotificationRepository(ref.watch(dioProvider));
 });
