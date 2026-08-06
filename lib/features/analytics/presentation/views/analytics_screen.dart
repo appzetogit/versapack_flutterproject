@@ -1,16 +1,19 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:quick_commerce_seller/config/theme/app_palette.dart';
+import 'package:quick_commerce_seller/features/analytics/data/api_analytics_repository.dart';
+import 'package:quick_commerce_seller/features/analytics/domain/analytics_model.dart';
 
-class AnalyticsScreen extends StatefulWidget {
+class AnalyticsScreen extends ConsumerStatefulWidget {
   const AnalyticsScreen({super.key});
 
   @override
-  State<AnalyticsScreen> createState() => _AnalyticsScreenState();
+  ConsumerState<AnalyticsScreen> createState() => _AnalyticsScreenState();
 }
 
-class _AnalyticsScreenState extends State<AnalyticsScreen> {
+class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
   final String _selectedDate = 'Today, 4 May';
 
   @override
@@ -175,7 +178,15 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               const SizedBox(height: 16),
 
               // 6 Performance Metric Cards (2 Grid columns)
-              _buildMetricsGrid(),
+              _buildMetricsGrid(
+                ref
+                    .watch(analyticsSummaryProvider)
+                    .maybeWhen(
+                      data: (s) => s,
+                      orElse: () => const AnalyticsSummary.empty(),
+                    ),
+                isLoading: ref.watch(analyticsSummaryProvider).isLoading,
+              ),
               const SizedBox(height: 16),
 
               // Sales Overview Chart Card
@@ -196,7 +207,24 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     );
   }
 
-  Widget _buildMetricsGrid() {
+  /// Renders an em dash while the figures are still loading, so the tiles never
+  /// show a number that was not measured.
+  String _money(double v, {required bool isLoading}) =>
+      isLoading ? '—' : '₹${v.toStringAsFixed(2)}';
+
+  String _count(int v, {required bool isLoading}) =>
+      isLoading ? '—' : '$v';
+
+  /// Null means there was no previous period to compare with, which is not the
+  /// same as no change.
+  String _trend(double? percent, {required bool isLoading}) {
+    if (isLoading) return ' ';
+    if (percent == null) return 'No earlier period';
+    final up = percent >= 0;
+    return '${up ? '↑' : '↓'} ${percent.abs().toStringAsFixed(1)}% vs previous';
+  }
+
+  Widget _buildMetricsGrid(AnalyticsSummary s, {required bool isLoading}) {
     return Column(
       children: [
         Row(
@@ -207,8 +235,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 iconBg: const Color(0xFFFEF3C7),
                 iconColor: const Color(0xFFD97706),
                 title: 'Total Sales',
-                value: '₹12,580.00',
-                trend: '↑ 18.6% vs Yesterday',
+                value: _money(s.totalSales, isLoading: isLoading),
+                trend: _trend(s.salesTrendPercent, isLoading: isLoading),
               ),
             ),
             const SizedBox(width: 12),
@@ -218,8 +246,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 iconBg: const Color(0xFFECFDF5),
                 iconColor: const Color(0xFF059669),
                 title: 'Total Orders',
-                value: '48',
-                trend: '↑ 12.5% vs Yesterday',
+                value: _count(s.totalOrders, isLoading: isLoading),
+                trend: _trend(s.ordersTrendPercent, isLoading: isLoading),
               ),
             ),
             const SizedBox(width: 12),
@@ -229,8 +257,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 iconBg: const Color(0xFFF5F3FF),
                 iconColor: const Color(0xFF7C3AED),
                 title: 'Average Order Value',
-                value: '₹262.08',
-                trend: '↑ 8.4% vs Yesterday',
+                value: _money(s.averageOrderValue, isLoading: isLoading),
+                trend: _trend(null, isLoading: isLoading),
               ),
             ),
           ],
@@ -244,8 +272,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 iconBg: const Color(0xFFEFF6FF),
                 iconColor: const Color(0xFF2563EB),
                 title: 'Items Sold',
-                value: '156',
-                trend: '↑ 14.2% vs Yesterday',
+                value: _count(s.itemsSold, isLoading: isLoading),
+                trend: _trend(null, isLoading: isLoading),
               ),
             ),
             const SizedBox(width: 12),
@@ -255,8 +283,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 iconBg: const Color(0xFFFFF7ED),
                 iconColor: const Color(0xFFEA580C),
                 title: 'New Customers',
-                value: '22',
-                trend: '↑ 15.0% vs Yesterday',
+                value: _count(s.newCustomers, isLoading: isLoading),
+                trend: _trend(null, isLoading: isLoading),
               ),
             ),
             const SizedBox(width: 12),
@@ -266,8 +294,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 iconBg: const Color(0xFFE0F2FE),
                 iconColor: const Color(0xFF0284C7),
                 title: 'Returning Customers',
-                value: '26',
-                trend: '↑ 10.0% vs Yesterday',
+                value: _count(s.returningCustomers, isLoading: isLoading),
+                trend: _trend(null, isLoading: isLoading),
               ),
             ),
           ],
