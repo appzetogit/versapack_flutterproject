@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:quick_commerce_seller/config/theme/app_palette.dart';
+import 'package:quick_commerce_seller/features/orders/domain/order_model.dart';
+import 'package:quick_commerce_seller/features/orders/presentation/controllers/orders_controller.dart';
 
 class OrdersScreen extends ConsumerStatefulWidget {
   const OrdersScreen({super.key});
@@ -14,102 +16,36 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
   int _selectedFilterIndex = 0;
   final TextEditingController _searchController = TextEditingController();
 
-  final List<Map<String, dynamic>> _filters = [
-    {'label': 'All Orders', 'count': '24'},
-    {'label': 'New', 'count': '6'},
-    {'label': 'Accepted', 'count': '5'},
-    {'label': 'Preparing', 'count': '4'},
-    {'label': 'Ready', 'count': '3'},
-    {'label': 'Completed', 'count': '6'},
-    {'label': 'Cancelled', 'count': '0'},
+  /// Labels only. The counts beside them are derived from the orders on screen,
+  /// because a pill that says 6 while the list shows none is worse than no
+  /// number at all.
+  static const List<String> _filterLabels = [
+    'All Orders',
+    'New',
+    'Accepted',
+    'Preparing',
+    'Ready',
+    'Completed',
+    'Cancelled',
   ];
 
-  final List<Map<String, dynamic>> _todayOrders = [
-    {
-      'id': '#AZ12678',
-      'status': 'New',
-      'statusColor': Color(0xFFFEF3C7),
-      'textColor': Color(0xFFD97706),
-      'customer': 'Rohit Sharma',
-      'phone': '9876543210',
-      'amount': '₹685.00',
-      'items': '12 items',
-      'distance': '2.2 km away',
-      'time': 'Today, 10:30 AM',
-      'action': 'Accept Order',
-      'expiry': 'Expires in 04:35',
-    },
-    {
-      'id': '#AZ12677',
-      'status': 'Accepted',
-      'statusColor': Color(0xFFECFDF5),
-      'textColor': Color(0xFF059669),
-      'customer': 'Neha Verma',
-      'phone': '9123456780',
-      'amount': '₹452.50',
-      'items': '8 items',
-      'distance': '1.8 km away',
-      'time': 'Today, 10:22 AM',
-      'action': 'Start Preparing',
-    },
-    {
-      'id': '#AZ12676',
-      'status': 'Preparing',
-      'statusColor': Color(0xFFFFFBEB),
-      'textColor': Color(0xFFD97706),
-      'customer': 'Amit Patel',
-      'phone': '9988776655',
-      'amount': '₹299.00',
-      'items': '6 items',
-      'distance': '1.5 km away',
-      'time': 'Today, 10:15 AM',
-      'action': 'Mark as Ready',
-    },
-    {
-      'id': '#AZ12675',
-      'status': 'Ready',
-      'statusColor': Color(0xFFEFF6FF),
-      'textColor': Color(0xFF2563EB),
-      'customer': 'Pooja Singh',
-      'phone': '9812345678',
-      'amount': '₹320.75',
-      'items': '7 items',
-      'distance': '1.2 km away',
-      'time': 'Today, 10:05 AM',
-      'action': 'Order Picked Up',
-    },
-  ];
+  List<Map<String, dynamic>> _filtersFor(List<OrderModel> orders) {
+    int count(OrderStatus s) => orders.where((o) => o.status == s).length;
+    final byLabel = <String, int>{
+      'All Orders': orders.length,
+      'New': count(OrderStatus.newOrder),
+      'Accepted': count(OrderStatus.preparing),
+      'Preparing': count(OrderStatus.preparing),
+      'Ready': count(OrderStatus.ready),
+      'Completed': count(OrderStatus.delivered),
+      'Cancelled': count(OrderStatus.cancelled),
+    };
+    return _filterLabels
+        .map((l) => {'label': l, 'count': '${byLabel[l] ?? 0}'})
+        .toList();
+  }
 
-  final List<Map<String, dynamic>> _yesterdayOrders = [
-    {
-      'id': '#AZ12674',
-      'status': 'Completed',
-      'statusColor': Color(0xFFECFDF5),
-      'textColor': Color(0xFF059669),
-      'customer': 'Vikram Mehta',
-      'phone': '8877665544',
-      'amount': '₹560.00',
-      'items': '10 items',
-      'distance': '—',
-      'time': 'Yesterday, 09:45 PM',
-      'action': 'View Details',
-      'isOutlined': true,
-    },
-    {
-      'id': '#AZ12673',
-      'status': 'Cancelled',
-      'statusColor': Color(0xFFFEF2F2),
-      'textColor': Color(0xFFDC2626),
-      'customer': 'Karan Yadav',
-      'phone': '9753186420',
-      'amount': '₹185.00',
-      'items': '4 items',
-      'distance': '—',
-      'time': 'Yesterday, 08:30 PM',
-      'action': 'View Details',
-      'isOutlined': true,
-    },
-  ];
+
 
   @override
   void dispose() {
@@ -228,9 +164,13 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(
-                  children: List.generate(_filters.length, (index) {
+                  children: (() {
+                    final orders =
+                        ref.watch(ordersControllerProvider).value ?? const [];
+                    final filters = _filtersFor(orders);
+                    return List.generate(filters.length, (index) {
                     final isSelected = _selectedFilterIndex == index;
-                    final f = _filters[index];
+                    final f = filters[index];
 
                     return GestureDetector(
                       onTap: () => setState(() => _selectedFilterIndex = index),
@@ -279,7 +219,8 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                         ),
                       ),
                     );
-                  }),
+                    });
+                  })(),
                 ),
               ),
               const SizedBox(height: 14),
@@ -362,7 +303,18 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                 ),
               ),
               const SizedBox(height: 10),
-              ..._todayOrders.map((o) => _buildOrderCard(o)),
+              ...(() {
+                final all = ref.watch(ordersControllerProvider).value ?? const [];
+                final now = DateTime.now();
+                final today = all.where(
+                  (o) =>
+                      o.createdAt.year == now.year &&
+                      o.createdAt.month == now.month &&
+                      o.createdAt.day == now.day,
+                );
+                if (today.isEmpty) return [_buildEmptySection('No orders yet today')];
+                return today.map((o) => _buildOrderCard(_cardFor(o))).toList();
+              })(),
 
               const SizedBox(height: 16),
               // Section: Yesterday
@@ -375,7 +327,17 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                 ),
               ),
               const SizedBox(height: 10),
-              ..._yesterdayOrders.map((o) => _buildOrderCard(o)),
+              ...(() {
+                final all = ref.watch(ordersControllerProvider).value ?? const [];
+                final now = DateTime.now();
+                final earlier = all.where(
+                  (o) => !(o.createdAt.year == now.year &&
+                      o.createdAt.month == now.month &&
+                      o.createdAt.day == now.day),
+                );
+                if (earlier.isEmpty) return <Widget>[];
+                return earlier.map((o) => _buildOrderCard(_cardFor(o))).toList();
+              })(),
 
               const SizedBox(height: 24),
             ],
@@ -383,6 +345,102 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
         ),
       ),
     );
+  }
+
+
+
+  /// Shown where cards would be when there is genuinely nothing to show. Uses
+  /// the same card metrics as an order row so the list does not jump.
+  Widget _buildEmptySection(String message) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: context.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: context.borderColor),
+      ),
+      child: Column(
+        children: [
+          Icon(
+            Icons.receipt_long_outlined,
+            size: 30,
+            color: context.textSecondary,
+          ),
+          const SizedBox(height: 10),
+          Text(
+            message,
+            style: TextStyle(fontSize: 14, color: context.textSecondary),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Shapes a real order into the map `_buildOrderCard` already renders, so the
+  /// card keeps its exact layout and only its contents become true.
+  Map<String, dynamic> _cardFor(OrderModel o) {
+    final (label, bg, fg, action) = switch (o.status) {
+      OrderStatus.newOrder => (
+        'New',
+        const Color(0xFFFEF3C7),
+        const Color(0xFFD97706),
+        'Accept Order',
+      ),
+      OrderStatus.preparing => (
+        'Preparing',
+        const Color(0xFFECFDF5),
+        const Color(0xFF059669),
+        'Mark Ready',
+      ),
+      OrderStatus.ready => (
+        'Ready',
+        const Color(0xFFEFF6FF),
+        const Color(0xFF2563EB),
+        'Handed Over',
+      ),
+      OrderStatus.delivered => (
+        'Completed',
+        const Color(0xFFF3F4F6),
+        const Color(0xFF6B7280),
+        '',
+      ),
+      OrderStatus.cancelled => (
+        'Cancelled',
+        const Color(0xFFFEE2E2),
+        const Color(0xFFDC2626),
+        '',
+      ),
+    };
+
+    final count = o.items.fold<int>(0, (n, i) => n + i.quantity);
+
+    return {
+      'id': o.orderNumber.isEmpty ? o.id : o.orderNumber,
+      'orderId': o.id,
+      'status': label,
+      'statusColor': bg,
+      'textColor': fg,
+      'customer': o.customer.name,
+      'phone': o.customer.phone,
+      'amount': '₹${o.totalAmount.toStringAsFixed(2)}',
+      'items': '$count item${count == 1 ? '' : 's'}',
+      'distance': o.customer.address,
+      'time': _formatWhen(o.createdAt),
+      'action': action,
+      'expiry': '',
+    };
+  }
+
+  static String _formatWhen(DateTime at) {
+    final h = at.hour % 12 == 0 ? 12 : at.hour % 12;
+    final m = at.minute.toString().padLeft(2, '0');
+    final period = at.hour < 12 ? 'AM' : 'PM';
+    final now = DateTime.now();
+    final sameDay =
+        at.year == now.year && at.month == now.month && at.day == now.day;
+    return '${sameDay ? 'Today' : '${at.day}/${at.month}'}, $h:$m $period';
   }
 
   Widget _buildOrderCard(Map<String, dynamic> o) {
