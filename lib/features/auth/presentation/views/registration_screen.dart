@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:quick_commerce_seller/config/theme/app_text_styles.dart';
+import 'package:quick_commerce_seller/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:quick_commerce_seller/config/theme/app_palette.dart';
 import 'package:quick_commerce_seller/core/widgets/app_toast.dart';
 import 'package:quick_commerce_seller/features/auth/presentation/controllers/auth_state.dart';
@@ -16,16 +16,6 @@ class RegistrationScreen extends ConsumerStatefulWidget {
 }
 
 class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
-  static const int _stepCount = 4;
-
-  /// Zero-based. The header, the progress pills and the button behaviour all
-  /// read from this — previously the screen hardcoded "Step 1 of 4" and had
-  /// nowhere to go.
-  int _currentStep = 0;
-
-  final _formKeys = List.generate(_stepCount, (_) => GlobalKey<FormState>());
-
-  // Step 1 — business
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _licenseController = TextEditingController();
   // The register endpoint requires both, and neither was collected anywhere in
@@ -34,28 +24,6 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
   final TextEditingController _emailController = TextEditingController();
   String? _selectedStoreCategory;
   String? _selectedBusinessType;
-
-  // Step 2 — address
-  final TextEditingController _addressController = TextEditingController();
-  final TextEditingController _localityController = TextEditingController();
-  final TextEditingController _cityController = TextEditingController();
-  final TextEditingController _pincodeController = TextEditingController();
-
-  // Step 3 — payout
-  final TextEditingController _accountHolderController =
-      TextEditingController();
-  final TextEditingController _accountNumberController =
-      TextEditingController();
-  final TextEditingController _ifscController = TextEditingController();
-
-  // Step 4 — documents. Frontend-only: tapping a tile marks it attached so the
-  // flow can be walked end to end before the upload endpoint is wired.
-  final Map<String, bool> _documents = {
-    'PAN Card': false,
-    'GSTIN Certificate': false,
-    'FSSAI Licence': false,
-    'Store Photo': false,
-  };
 
   final List<String> _storeCategories = [
     'Grocery & Staples',
@@ -85,55 +53,6 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
     super.dispose();
   }
 
-  /// Back moves through the steps before it leaves the screen, so a seller four
-  /// screens deep does not lose everything to one tap.
-  void _back() {
-    if (_currentStep == 0) {
-      context.pop();
-      return;
-    }
-    setState(() => _currentStep--);
-  }
-
-  /// Validates the current step, then advances or finishes.
-  ///
-  /// Nothing here talks to the backend: registration is submitted in one
-  /// multipart call once the upload contract is wired, so the steps only
-  /// collect and validate until then.
-  void _continue({bool saveDraft = false}) {
-    if (_formKeys[_currentStep].currentState?.validate() != true) return;
-
-    // The dropdowns are not form fields, so step 1 needs an explicit check.
-    if (_currentStep == 0 &&
-        (_selectedStoreCategory == null || _selectedBusinessType == null)) {
-      AppToast.showError(
-        context,
-        'Choose a store category and business type to continue',
-      );
-      return;
-    }
-
-    if (_currentStep == _stepCount - 1) {
-      final missing = _documents.entries
-          .where((e) => !e.value)
-          .map((e) => e.key)
-          .toList();
-      if (missing.isNotEmpty) {
-        AppToast.showError(context, 'Still needed: ${missing.join(', ')}');
-        return;
-      }
-      context.go('/registration-success');
-      return;
-    }
-
-    FocusScope.of(context).unfocus();
-    setState(() => _currentStep++);
-    if (saveDraft) AppToast.showSuccess(context, 'Draft saved');
-  }
-
-  String? _required(String? value, String field) =>
-      (value ?? '').trim().isEmpty ? 'Enter your $field' : null;
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -147,10 +66,10 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
             color: context.textPrimary,
             size: 28,
           ),
-          onPressed: _back,
+          onPressed: () => context.pop(),
         ),
         title: Text(
-          'Step ${_currentStep + 1} of $_stepCount',
+          'Step 1 of 4',
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
@@ -167,17 +86,13 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
               child: Row(
                 children: List.generate(
-                  _stepCount,
+                  4,
                   (index) => Expanded(
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 250),
-                      curve: Curves.easeOut,
+                    child: Container(
                       height: 5,
                       margin: const EdgeInsets.symmetric(horizontal: 3),
                       decoration: BoxDecoration(
-                        // Every step up to the current one stays filled, so the
-                        // bar reads as progress rather than a position marker.
-                        color: index <= _currentStep
+                        color: index == 0
                             ? const Color(0xFFFFC400)
                             : context.borderColor,
                         borderRadius: BorderRadius.circular(3),
@@ -194,7 +109,8 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                 padding: const EdgeInsets.symmetric(
                   horizontal: 24,
                   vertical: 8,
-                         child: Column(
+                ),
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Section Header with Yellow Store Icon Circle
@@ -322,7 +238,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                       controller: _ownerController,
                       textCapitalization: TextCapitalization.words,
                       decoration: _buildInputDecoration(
-                        hintText: 'Enter the owner\'s full name',
+                        hintText: "Enter the owner's full name",
                         prefixIcon: Icons.person_outline_rounded,
                       ),
                     ),
@@ -391,7 +307,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                                     color: context.textPrimary,
                                   ),
                                 ),
-                                const SizedBox(height: 4),
+                                SizedBox(height: 4),
                                 Text(
                                   'FSSAI / GSTIN number helps us verify your store and ensure safety & legal standards.',
                                   style: TextStyle(
@@ -406,10 +322,11 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                         ],
                       ),
                     ),
+                    const SizedBox(height: 24),
                   ],
                 ),
               ),
-            ),        ),
+            ),
 
             // Bottom Buttons
             Padding(
@@ -430,9 +347,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                         elevation: 0,
                       ),
                       child: Text(
-                        _currentStep == _stepCount - 1
-                            ? 'Submit application'
-                            : 'Continue',
+                        'Continue',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -475,6 +390,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
     );
   }
 
+
   /// Holds what was typed so the documents step can submit it, and refuses to
   /// advance without the three fields the backend will not register a store
   /// without.
@@ -513,7 +429,6 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
         );
 
     context.push('/registration-documents');
-  }
   }
 
   Widget _buildLabel(String labelText) {
@@ -559,77 +474,6 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: Color(0xFFFFC400), width: 1.5),
-      ),
-    );
-  }
-}
-
-/// A document slot. Frontend-only until the upload contract is wired: tapping
-/// toggles the attached state so the flow can be walked end to end.
-class _DocumentTile extends StatelessWidget {
-  const _DocumentTile({
-    required this.label,
-    required this.attached,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool attached;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: '$label, ${attached ? 'attached' : 'not attached'}',
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: attached ? const Color(0xFFFFFBEB) : Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: attached ? const Color(0xFFFFC400) : context.borderColor,
-              width: attached ? 1.5 : 1,
-            ),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                attached
-                    ? Icons.check_circle_rounded
-                    : Icons.upload_file_rounded,
-                color: attached
-                    ? const Color(0xFFD97706)
-                    : context.textSecondary,
-                size: 22,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: context.textPrimary,
-                  ),
-                ),
-              ),
-              Text(
-                attached ? 'Attached' : 'Upload',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: attached
-                      ? const Color(0xFFD97706)
-                      : context.textSecondary,
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

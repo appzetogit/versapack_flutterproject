@@ -16,6 +16,7 @@ const navigableRoutes = {
   '/onboarding',
   '/login',
   '/registration',
+  '/registration-documents',
   '/registration-success',
   '/account-status',
   '/home',

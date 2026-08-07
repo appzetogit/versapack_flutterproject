@@ -5,7 +5,6 @@ import 'package:image_picker/image_picker.dart';
 import 'package:quick_commerce_seller/config/theme/app_palette.dart';
 import 'package:quick_commerce_seller/core/widgets/app_toast.dart';
 import 'package:quick_commerce_seller/features/auth/data/registration_api.dart';
-import 'package:quick_commerce_seller/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:quick_commerce_seller/features/auth/presentation/controllers/registration_draft.dart';
 
 /// Step 4: the papers a store is verified against.
