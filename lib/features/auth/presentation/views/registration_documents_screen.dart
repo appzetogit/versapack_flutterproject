@@ -93,6 +93,19 @@ class _RegistrationDocumentsScreenState
       // wizard collected everything, uploaded the papers, and registered
       // nothing.
       final draft = ref.read(registrationDraftProvider);
+      // Refusing here is better than registering a store the seller can never
+      // sign into. Missing details mean the earlier steps were skipped, so send
+      // them back rather than creating an unreachable account.
+      if (!draft.isComplete) {
+        if (mounted) {
+          AppToast.showError(
+            context,
+            'Some details are missing. Please go back and complete the form.',
+          );
+          setState(() => _submitting = false);
+        }
+        return;
+      }
       await ref
           .read(registrationApiProvider)
           .register(fields: draft.toRegisterFields(), documents: _paths);

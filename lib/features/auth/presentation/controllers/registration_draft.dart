@@ -43,6 +43,16 @@ class RegistrationDraft {
     licenseNumber: licenseNumber ?? this.licenseNumber,
   );
 
+  /// True once everything the backend insists on is present.
+  ///
+  /// The phone matters as much as the rest: sign-in finds a store by it, so
+  /// registering without one produces a store nobody can reach.
+  bool get isComplete =>
+      storeName.trim().isNotEmpty &&
+      ownerName.trim().isNotEmpty &&
+      ownerEmail.trim().isNotEmpty &&
+      phone.trim().isNotEmpty;
+
   /// The multipart text fields `/food/restaurant/register` reads.
   ///
   /// `pureVegRestaurant` is required by the schema and is a food-delivery
@@ -55,7 +65,11 @@ class RegistrationDraft {
       'restaurantName': storeName.trim(),
       'ownerName': ownerName.trim(),
       'ownerEmail': ownerEmail.trim(),
-      if (phone.trim().isNotEmpty) 'ownerPhone': phone.trim(),
+      // Sent unconditionally, and under both names the login lookup searches.
+      // A store registered without a phone exists but can never be signed into,
+      // so the seller is sent back to registration every time.
+      'ownerPhone': phone.trim(),
+      'primaryContactNumber': phone.trim(),
       'pureVegRestaurant': 'false',
       if (storeCategory != null) 'cuisines': storeCategory,
       if (licence.isNotEmpty && licence.length == 15) 'gstNumber': licence,

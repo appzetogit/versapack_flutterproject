@@ -8,6 +8,7 @@ import 'package:quick_commerce_seller/core/providers/session_reset.dart';
 import 'package:quick_commerce_seller/features/auth/data/auth_api.dart';
 import 'package:quick_commerce_seller/features/auth/domain/seller_model.dart';
 import 'package:quick_commerce_seller/features/auth/presentation/controllers/auth_state.dart';
+import 'package:quick_commerce_seller/features/auth/presentation/controllers/registration_draft.dart';
 
 /// Owns the session. A synchronous state machine rather than an `AsyncNotifier`
 /// because the router redirect has to read the current state on every
@@ -144,6 +145,13 @@ class AuthController extends Notifier<AuthState> {
       final payload = await _api.verifyOtp(phone: phone, otp: otp);
 
       if (payload['needsRegistration'] == true) {
+        // Captured here, at the only moment it is certainly known. Sign-in
+        // finds a store by the phone it was registered with, so a registration
+        // submitted without one creates a store that can never be logged into
+        // -- the seller is asked to register again, forever.
+        ref
+            .read(registrationDraftProvider.notifier)
+            .update((d) => d.copyWith(phone: phone));
         state = AuthNeedsRegistration(phone: phone);
         return;
       }
