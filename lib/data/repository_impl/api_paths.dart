@@ -18,11 +18,9 @@ abstract final class ApiPaths {
   static String favoriteFood(String id) => '/food/user/favorites/foods/$id';
   static const cartSync = '/food/user/cart';
   static const supportTicket = '/food/user/support/ticket';
-  static const myTickets = '/food/user/support/my-tickets';
 
   // Catalog — modules/food/search + modules/food/restaurant
   static const searchProducts = '/food/search/products';
-  static const searchUnified = '/food/search/unified';
   static const adminCategories = '/food/search/categories/admin';
   static String sellerMenu(String id) => '/food/restaurant/restaurants/$id/menu';
   static String sellerAddons(String id) => '/food/restaurant/restaurants/$id/addons';
@@ -32,6 +30,10 @@ abstract final class ApiPaths {
   static const heroBanners = '/food/hero-banners/public';
   static const topBanners = '/food/top-banners/public';
   static const promotionBanners = '/food/hero-banners/home-promotion/public';
+
+  // CMS pages — modules/food/landing (`/pages/:key`), keys: terms, privacy,
+  // refund, shipping, cancellation, support, about.
+  static String page(String key) => '/food/pages/$key';
 
   // Public settings — modules/food/admin
   static const feeSettings = '/food/admin/fee-settings/public';
@@ -47,6 +49,11 @@ abstract final class ApiPaths {
   static String orderRatings(String id) => '/food/orders/$id/ratings';
   static String orderInstructions(String id) => '/food/orders/$id/instructions';
   static String orderPendingPayment(String id) => '/food/orders/$id/pending-payment';
+
+  // Push tokens — core/notifications/fcm.routes.js. Mounted at `/v1/fcm-tokens`,
+  // outside the `/food` namespace the rest of the app lives in.
+  static const fcmTokenSave = '/fcm-tokens/mobile/save';
+  static const fcmTokenRemove = '/fcm-tokens/remove';
 
   // Notifications — core/notifications/notification.routes.js
   static const notificationInbox = '/food/notifications/inbox';

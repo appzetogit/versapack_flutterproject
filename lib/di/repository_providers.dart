@@ -30,6 +30,7 @@ import '../domain/repository/review_repository.dart';
 import '../domain/repository/wishlist_repository.dart';
 import '../platform/location/location_service.dart';
 import '../platform/notification/notification_service.dart';
+import '../platform/payment/razorpay_checkout.dart';
 import '../platform/permission/permission_service.dart';
 
 /// Overridden in `main()` once SharedPreferences has loaded.
@@ -73,8 +74,19 @@ final locationServiceProvider = Provider<LocationService>(
   ),
 );
 
+/// Razorpay checkout. Disposed with the container so a half-open sheet cannot
+/// outlive the app session.
+final paymentGatewayProvider = Provider<PaymentGateway>((ref) {
+  final gateway = RazorpayCheckout();
+  ref.onDispose(gateway.dispose);
+  return gateway;
+});
+
 final notificationServiceProvider = Provider<NotificationService>(
-  (ref) => PlaceholderNotificationService(ref.watch(permissionServiceProvider)),
+  (ref) => FcmNotificationService(
+    ref.watch(apiClientProvider),
+    ref.watch(localStorageProvider),
+  ),
 );
 
 // ── Repositories (interface → API implementation) ───────────────────────────
@@ -84,6 +96,7 @@ final authRepositoryProvider = Provider<AuthRepository>(
     ref.watch(apiClientProvider),
     ref.watch(localStorageProvider),
     ref.watch(authTokenStoreProvider),
+    ref.watch(notificationServiceProvider),
   ),
 );
 

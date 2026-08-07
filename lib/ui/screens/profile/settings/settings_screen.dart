@@ -84,8 +84,14 @@ class SettingsScreen extends ConsumerWidget {
               ),
               onChanged: (value) async {
                 await storage.setBool(StorageKeys.notificationsEnabled, value);
+                final push = ref.read(notificationServiceProvider);
                 if (value) {
-                  await ref.read(notificationServiceProvider).requestPermission();
+                  // Re-register: turning the switch off dropped the token, so
+                  // the backend has no way to reach this device until it is
+                  // sent again.
+                  if (await push.requestPermission()) await push.registerDevice();
+                } else {
+                  await push.unregisterDevice();
                 }
                 // Rebuild so the switch reflects what was actually persisted.
                 ref.invalidate(localStorageProvider);

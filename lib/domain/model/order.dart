@@ -179,12 +179,29 @@ class Order {
 }
 
 /// Payload returned by order creation: the order plus any gateway handoff.
+/// An order the backend has created. When it is an online-payment order the
+/// backend has also created the matching Razorpay order and handed back the
+/// checkout parameters — `POST /food/orders` → `razorpay: {key, orderId,
+/// amount, currency}`.
 class PlacedOrder {
-  const PlacedOrder({required this.order, this.gatewayOrderId, this.gatewayKey});
+  const PlacedOrder({
+    required this.order,
+    this.gatewayOrderId,
+    this.gatewayKey,
+    this.gatewayAmountPaise = 0,
+    this.gatewayCurrency = 'INR',
+  });
 
   final Order order;
   final String? gatewayOrderId;
   final String? gatewayKey;
 
-  bool get needsGatewayPayment => gatewayOrderId != null;
+  /// Amount in the smallest currency unit, exactly as Razorpay recorded it.
+  /// Never recomputed here — the backend compares this against the captured
+  /// payment paise-for-paise.
+  final int gatewayAmountPaise;
+  final String gatewayCurrency;
+
+  bool get needsGatewayPayment =>
+      gatewayOrderId != null && gatewayOrderId!.isNotEmpty;
 }

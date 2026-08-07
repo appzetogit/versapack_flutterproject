@@ -5,6 +5,7 @@ import 'core/constants/app_strings.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/app_theme_provider.dart';
 import 'navigation/app_router.dart';
+import 'platform/notification/push_listener.dart';
 
 class SuvioQuickApp extends ConsumerWidget {
   const SuvioQuickApp({super.key});
@@ -29,7 +30,7 @@ class SuvioQuickApp extends ConsumerWidget {
         );
         return MediaQuery(
           data: MediaQuery.of(context).copyWith(textScaler: scale),
-          child: child!,
+          child: PushListener(child: child!),
         );
       },
     );

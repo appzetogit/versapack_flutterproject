@@ -1,68 +1,152 @@
 import 'package:flutter/material.dart';
 
-class QuickCategoryRow extends StatelessWidget {
-  const QuickCategoryRow({super.key, this.onCategoryTap});
+import '../../../../domain/model/category.dart';
+import '../../../common/widgets/loaders/shimmer_box.dart';
+import '../../../common/widgets/misc/app_network_image.dart';
 
+/// The icon strip at the very top of home.
+///
+/// "All" is a fixed entry into the category tree; every other tile is a real
+/// top-level category from `/food/restaurant/categories/public`.
+class QuickCategoryRow extends StatelessWidget {
+  const QuickCategoryRow({
+    super.key,
+    this.categories = const [],
+    this.isLoading = false,
+    this.onCategoryTap,
+    this.onAllTap,
+  });
+
+  final List<Category> categories;
+  final bool isLoading;
+
+  /// Receives a real category id.
   final ValueChanged<String>? onCategoryTap;
 
-  static const _categories = [
-    (
-      id: 'all',
-      name: 'All',
-      icon: Icons.grid_view_rounded,
-      assetPath: null,
-      isAll: true,
-      badge: null,
-    ),
-    (
-      id: 'rakhi',
-      name: 'Rakhi',
-      icon: Icons.card_giftcard_rounded,
-      assetPath: 'assets/images/icon_rakhi.png',
-      isAll: false,
-      badge: 'NEW',
-    ),
-    (
-      id: 'electronics',
-      name: 'Electronics',
-      icon: Icons.headphones_rounded,
-      assetPath: 'assets/images/icon_electronics.png',
-      isAll: false,
-      badge: null,
-    ),
-    (
-      id: 'beauty',
-      name: 'Beauty',
-      icon: Icons.sanitizer_rounded,
-      assetPath: 'assets/images/icon_beauty.png',
-      isAll: false,
-      badge: null,
-    ),
-    (
-      id: 'home',
-      name: 'Home',
-      icon: Icons.local_florist_rounded,
-      assetPath: 'assets/images/icon_home.png',
-      isAll: false,
-      badge: null,
-    ),
-    (
-      id: 'toys',
-      name: 'Toys',
-      icon: Icons.smart_toy_rounded,
-      assetPath: 'assets/images/icon_toys.png',
-      isAll: false,
-      badge: null,
-    ),
-    (
-      id: 'more',
-      name: 'More',
-      icon: Icons.keyboard_arrow_down_rounded,
-      assetPath: null,
-      isAll: false,
-      badge: null,
-    ),
-  ];
+  /// "All" and the trailing "More" tile both open the full category list.
+  final VoidCallback? onAllTap;
+
+  /// Tiles beyond this spill into the "More" entry.
+  static const _maxTiles = 5;
+
+  @override
+  Widget build(BuildContext context) {
+    if (isLoading && categories.isEmpty) return const _QuickCategorySkeleton();
+    if (categories.isEmpty) return const SizedBox.shrink();
+
+    final shown = categories.take(_maxTiles).toList();
+    // "All" leads, real categories follow, "More" only when some were cut.
+    final hasMore = categories.length > _maxTiles;
+    final itemCount = shown.length + (hasMore ? 2 : 1);
+
+    return SizedBox(
+      height: 96,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+        itemCount: itemCount,
+        separatorBuilder: (_, _) => const SizedBox(width: 14),
+        itemBuilder: (context, index) {
+          if (index == 0) {
+            return _Tile(
+              label: 'All',
+              icon: Icons.grid_view_rounded,
+              isAll: true,
+              onTap: onAllTap,
+            );
+          }
+          if (hasMore && index == itemCount - 1) {
+            return _Tile(
+              label: 'More',
+              icon: Icons.keyboard_arrow_down_rounded,
+              isPill: true,
+              onTap: onAllTap,
+            );
+          }
+          final cat = shown[index - 1];
+          return _Tile(
+            label: cat.name,
+            imageUrl: cat.imageUrl,
+            icon: Icons.category_rounded,
+            onTap: () => onCategoryTap?.call(cat.id),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _Tile extends StatelessWidget {
+  const _Tile({
+    required this.label,
+    required this.icon,
+    this.imageUrl = '',
+    this.isAll = false,
+    this.isPill = false,
+    this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final String imageUrl;
+  final bool isAll;
+  final bool isPill;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasImage = imageUrl.trim().isNotEmpty;
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            padding: hasImage ? const EdgeInsets.all(3) : EdgeInsets.zero,
+            decoration: BoxDecoration(
+              color: isAll ? const Color(0xFFFFD400) : const Color(0xFFF3F4F6),
+              borderRadius:
+                  isPill ? BorderRadius.circular(28) : BorderRadius.circular(16),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: hasImage
+                ? AppNetworkImage(
+                    url: imageUrl,
+                    width: 48,
+                    height: 48,
+                    fallbackIcon: icon,
+                  )
+                : Icon(
+                    icon,
+                    size: 26,
+                    color: isAll ? Colors.black : const Color(0xFF333333),
+                  ),
+          ),
+          const SizedBox(height: 4),
+          SizedBox(
+            width: 60,
+            child: Text(
+              label,
+              maxLines: 1,
+              textAlign: TextAlign.center,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF111111),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _QuickCategorySkeleton extends StatelessWidget {
+  const _QuickCategorySkeleton();
 
   @override
   Widget build(BuildContext context) {
@@ -70,82 +154,18 @@ class QuickCategoryRow extends StatelessWidget {
       height: 96,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
+        physics: const NeverScrollableScrollPhysics(),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-        itemCount: _categories.length,
+        itemCount: 6,
         separatorBuilder: (_, _) => const SizedBox(width: 14),
-        itemBuilder: (context, index) {
-          final cat = _categories[index];
-          return GestureDetector(
-            onTap: () => onCategoryTap?.call(cat.id),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Container(
-                      width: 56,
-                      height: 56,
-                      padding: cat.assetPath != null ? const EdgeInsets.all(3) : EdgeInsets.zero,
-                      decoration: BoxDecoration(
-                        color: cat.isAll
-                            ? const Color(0xFFFFD400)
-                            : const Color(0xFFF3F4F6),
-                        borderRadius: cat.id == 'more'
-                            ? BorderRadius.circular(28)
-                            : BorderRadius.circular(16),
-                      ),
-                      clipBehavior: Clip.antiAlias,
-                      child: cat.assetPath != null
-                          ? Image.asset(
-                              cat.assetPath!,
-                              width: 48,
-                              height: 48,
-                              fit: BoxFit.cover,
-                            )
-                          : Icon(
-                              cat.icon,
-                              size: 26,
-                              color: cat.isAll ? Colors.black : const Color(0xFF333333),
-                            ),
-                    ),
-                    if (cat.badge != null)
-                      Positioned(
-                        top: -5,
-                        left: 6,
-                        right: 6,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFE53935),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            cat.badge!,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 8.5,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  cat.name,
-                  style: const TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF111111),
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
+        itemBuilder: (_, _) => const Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ShimmerBox(width: 56, height: 56),
+            SizedBox(height: 4),
+            ShimmerBox(width: 44, height: 10),
+          ],
+        ),
       ),
     );
   }

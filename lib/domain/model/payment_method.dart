@@ -15,6 +15,24 @@ enum PaymentMethod {
 
   bool get isOnline => this != PaymentMethod.cash && this != PaymentMethod.wallet;
 
+  /// What `POST /orders` is told.
+  ///
+  /// `razorpay_qr` is accepted by the validator but the order service neither
+  /// creates a Razorpay order for it nor holds it as awaiting payment — the
+  /// order would be placed and never charged. Sending `razorpay` instead keeps
+  /// the scan-and-pay option working, with the QR shown inside the Razorpay
+  /// sheet via the `upi` method hint below. (`card` the backend already
+  /// rewrites to `razorpay` itself.)
+  String get orderWireValue =>
+      this == PaymentMethod.qr ? 'razorpay' : wireValue;
+
+  /// Preselects a tab in the Razorpay sheet. Empty means "show them all".
+  String get razorpayMethod => switch (this) {
+        PaymentMethod.upi || PaymentMethod.qr => 'upi',
+        PaymentMethod.card => 'card',
+        PaymentMethod.wallet || PaymentMethod.cash => '',
+      };
+
   static PaymentMethod fromWire(String? value) => PaymentMethod.values.firstWhere(
         (m) => m.wireValue == value,
         orElse: () => PaymentMethod.upi,

@@ -341,7 +341,7 @@ class OrderDetailsScreen extends ConsumerWidget {
           ? '$added items added to your cart'
           : '$added added · $missing unavailable',
     );
-    context.push(RoutePaths.cart);
+    context.go(RoutePaths.cart);
   }
 
   static String _dateTime(DateTime time) {

@@ -11,6 +11,7 @@ class ResolvedPlace {
     this.state = '',
     this.postalCode = '',
     this.streetLine = '',
+    this.country = '',
   });
 
   final double latitude;
@@ -25,6 +26,8 @@ class ResolvedPlace {
 
   /// House/street portion, pre-filled into the address form's first field.
   final String streetLine;
+
+  final String country;
 
   /// Shortest meaningful label for the home header.
   String get shortLabel {

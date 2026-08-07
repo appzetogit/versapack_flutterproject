@@ -23,12 +23,12 @@ import '../../common/widgets/feedback/app_dialog.dart';
 /// Where the payment attempt currently stands.
 enum PaymentPhase { idle, processing, success, failed }
 
-/// Simulated gateway handoff.
+/// Gateway handoff.
 ///
-/// No payment SDK is embedded (per the scope contract): this screen shows a
-/// short processing animation and then calls the backend's real
-/// `verify-payment` endpoint. Any failure it reports is shown honestly with a
-/// retry, rather than being papered over.
+/// Opens the Razorpay sheet with the parameters the backend minted at order
+/// creation, then hands the result to `verify-payment`. Nothing here decides
+/// whether the payment succeeded — the backend re-checks the signature and the
+/// captured amount before the order is marked paid.
 class PaymentScreen extends ConsumerStatefulWidget {
   const PaymentScreen({super.key, required this.placedOrder});
 
@@ -45,11 +45,18 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
   @override
   void initState() {
     super.initState();
-    // Cash and wallet orders are already settled server-side at creation.
-    if (!widget.placedOrder.needsGatewayPayment) {
-      Future.microtask(_complete);
-    } else {
+    if (widget.placedOrder.needsGatewayPayment) {
       Future.microtask(_pay);
+    } else if (widget.placedOrder.order.paymentMethod.isOnline) {
+      // An online order with no Razorpay parameters means the gateway is not
+      // configured on the backend. The order is sitting in pending_payment and
+      // was never charged — say so instead of showing a success screen.
+      _phase = PaymentPhase.failed;
+      _error = 'Online payment is unavailable right now. '
+          'Cancel and try Cash on Delivery.';
+    } else {
+      // Cash and wallet orders are already settled server-side at creation.
+      Future.microtask(_complete);
     }
   }
 
@@ -60,17 +67,27 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
     });
 
     try {
-      final order =
-          await ref.read(verifyPaymentUseCaseProvider)(widget.placedOrder);
+      final order = await ref.read(verifyPaymentUseCaseProvider)(
+        widget.placedOrder,
+        customer: ref.read(authProvider).user,
+      );
       if (!mounted) return;
       setState(() => _phase = PaymentPhase.success);
       await Future<void>.delayed(AppDurations.medium);
       if (mounted) _complete(order: order);
-    } on PaymentSimulationFailure catch (e) {
+    } on PaymentCancelledByUser {
+      // Not a failure: the sheet was dismissed. The order stays in
+      // pending_payment, so offer the same retry / cancel choice.
       if (!mounted) return;
       setState(() {
         _phase = PaymentPhase.failed;
-        _error = e.toString();
+        _error = 'Payment was cancelled. Your order is still waiting.';
+      });
+    } on PaymentDeclined catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _phase = PaymentPhase.failed;
+        _error = e.message;
       });
     } catch (e) {
       if (!mounted) return;

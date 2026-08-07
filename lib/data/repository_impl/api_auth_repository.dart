@@ -6,13 +6,19 @@ import '../../core/network/api_client.dart';
 import '../../core/network/dio_api_client.dart';
 import '../../domain/model/user.dart';
 import '../../domain/repository/auth_repository.dart';
+import '../../platform/notification/notification_service.dart';
 import '../dto/json_reader.dart';
 import '../dto/user_dto.dart';
 import '../mapper/user_mapper.dart';
 import 'api_paths.dart';
 
 class ApiAuthRepository implements AuthRepository {
-  ApiAuthRepository(this._client, this._storage, this._tokenStore) {
+  ApiAuthRepository(
+    this._client,
+    this._storage,
+    this._tokenStore,
+    this._push,
+  ) {
     // Installed here rather than in the client so the transport layer keeps no
     // knowledge of the auth endpoints.
     _tokenStore.onRefresh = _refresh;
@@ -21,6 +27,7 @@ class ApiAuthRepository implements AuthRepository {
   final ApiClient _client;
   final LocalStorage _storage;
   final LocalAuthTokenStore _tokenStore;
+  final NotificationService _push;
 
   @override
   bool get isSignedIn =>
@@ -81,6 +88,10 @@ class ApiAuthRepository implements AuthRepository {
     final user = UserMapper.toDomain(UserDto.fromJson(json.mapAt('user')));
     await _cacheUser(user);
 
+    // Must follow token persistence — the save call is authenticated. Push is
+    // not worth failing a sign-in over, so it never throws.
+    await _push.registerDevice();
+
     return AuthSession(user: user, isNewUser: json.boolean('isNewUser'));
   }
 
@@ -131,6 +142,9 @@ class ApiAuthRepository implements AuthRepository {
 
   @override
   Future<void> signOut() async {
+    // Before the tokens go: removing the device server-side needs the session.
+    await _push.unregisterDevice();
+
     final refresh = _storage.getString(StorageKeys.refreshToken);
     if (refresh != null && refresh.isNotEmpty) {
       // The backend invalidates the refresh token; a failure here still lets
@@ -146,6 +160,7 @@ class ApiAuthRepository implements AuthRepository {
 
   @override
   Future<void> deleteAccount() async {
+    await _push.unregisterDevice();
     await _client.delete(ApiPaths.profile, requiresAuth: true);
     await _tokenStore.clearSession();
   }

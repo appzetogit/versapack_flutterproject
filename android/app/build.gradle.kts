@@ -5,6 +5,8 @@ plugins {
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+    // Must come after the Android plugin; consumes app/google-services.json.
+    id("com.google.gms.google-services")
 }
 
 // The Google Maps key is needed at manifest-merge time, long before Dart runs,
@@ -37,7 +39,7 @@ android {
     }
 
     defaultConfig {
-        // Must match `package_name` in android/app/src/google-services.json and
+        // Must match `package_name` in android/app/google-services.json and
         // the package restriction on the Google Maps key.
         applicationId = "com.quick.commerce"
         // You can update the following values to match your application needs.

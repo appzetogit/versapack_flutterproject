@@ -41,7 +41,7 @@ class CartSummaryBar extends ConsumerWidget {
                     AppSpacing.md,
                   ),
                   child: GestureDetector(
-                    onTap: () => context.push(RoutePaths.cart),
+                    onTap: () => context.go(RoutePaths.cart),
                     child: Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: AppSpacing.lg,

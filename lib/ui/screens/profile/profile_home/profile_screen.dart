@@ -50,7 +50,7 @@ class ProfileScreen extends ConsumerWidget {
                 _MenuItem(
                   icon: Icons.receipt_long_rounded,
                   label: 'Your orders',
-                  onTap: () => context.push(RoutePaths.orders),
+                  onTap: () => context.go(RoutePaths.orders),
                 ),
                 _MenuItem(
                   icon: Icons.location_on_rounded,

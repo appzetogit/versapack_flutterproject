@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_radii.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/logger.dart';
 import '../../../../di/app_providers.dart';
 import '../../../../di/repository_providers.dart';
 import '../../../../domain/model/address.dart';
@@ -18,7 +19,6 @@ import '../../../common/widgets/buttons/secondary_button.dart';
 import '../../../common/widgets/feedback/app_snackbar.dart';
 import '../../../common/widgets/inputs/app_text_field.dart';
 import '../../../common/widgets/maps/address_picker_map.dart';
-import 'widgets/map_placeholder.dart';
 import 'widgets/place_search_field.dart';
 
 /// Add or edit a delivery address.
@@ -57,10 +57,6 @@ class _AddressSelectionScreenState
   bool _locating = false;
   bool _resolvingPin = false;
   String _pinAddress = '';
-
-  /// Guards against reverse-geocoding the programmatic recentre that follows a
-  /// search result or a "use my location" tap — we already have that address.
-  bool _skipNextCentreResolve = false;
 
   @override
   void initState() {
@@ -106,24 +102,65 @@ class _AddressSelectionScreenState
         isDefault: widget.existing?.isDefault ?? false,
       );
 
+  /// Explicit user action: take the GPS fix as the truth and refill the form
+  /// from it, overwriting anything a previous tap left behind. Fields Google
+  /// has nothing for are cleared rather than left stale, so what is on screen
+  /// always describes the pin — the user types the rest.
   Future<void> _useCurrentLocation() async {
     setState(() => _locating = true);
     try {
       final location = await ref.read(locationServiceProvider).currentLocation();
       if (!mounted) return;
+
       setState(() {
-        _skipNextCentreResolve = true;
         _latitude = location.latitude;
         _longitude = location.longitude;
         _pinAddress = location.formattedAddress;
-        if (_city.text.trim().isEmpty) _city.text = location.city;
-        if (_state.text.trim().isEmpty) _state.text = location.state;
-        if (_zip.text.trim().isEmpty) _zip.text = location.pincode;
-        if (_details.text.trim().isEmpty) _details.text = location.label;
+        _street.text = location.streetLine;
+        _details.text =
+            location.subLocality.isNotEmpty ? location.subLocality : location.label;
+        _city.text = location.city;
+        _state.text = location.state;
+        _zip.text = location.pincode;
         _errors = {..._errors}..remove('location');
       });
-    } on LocationPermissionDenied {
-      if (mounted) AppSnackbar.error(context, 'Location access was denied');
+
+      if (!location.isResolved) {
+        // Two different causes, two different fixes — say which one it is
+        // rather than making the user guess.
+        AppSnackbar.error(
+          context,
+          ref.read(appConfigProvider).hasMapsKey
+              ? 'We placed the pin but could not read the address. Please fill it in.'
+              : 'Address lookup is not configured in this build (MAPS_API_KEY). '
+                  'Please enter the address manually.',
+        );
+      } else if (_street.text.trim().isEmpty) {
+        AppSnackbar.show(context, 'Add your house / flat number to finish');
+      }
+    } on LocationPermissionDenied catch (e) {
+      if (!mounted) return;
+      if (e.isPermanent) {
+        AppSnackbar.show(
+          context,
+          'Location is turned off for Suvio Quick. Enable it in Settings.',
+          actionLabel: 'SETTINGS',
+          onAction: () => ref.read(permissionServiceProvider).openSettings(),
+        );
+      } else {
+        AppSnackbar.error(
+          context,
+          'Location access was denied — allow it or enter the address manually.',
+        );
+      }
+    } on LocationUnavailable catch (e) {
+      // GPS switched off, no fix within the timeout, or no last-known position.
+      if (mounted) AppSnackbar.error(context, e.message);
+    } catch (e) {
+      AppLogger.error('current location failed', error: e);
+      if (mounted) {
+        AppSnackbar.error(context, 'Could not get your location. Try again.');
+      }
     } finally {
       if (mounted) setState(() => _locating = false);
     }
@@ -131,11 +168,9 @@ class _AddressSelectionScreenState
 
   /// Fires when the map camera settles on a new centre.
   Future<void> _onCentreChanged(double latitude, double longitude) async {
-    if (_skipNextCentreResolve) {
-      _skipNextCentreResolve = false;
-      return;
-    }
     // Ignore sub-metre jitter so an idle map does not bill geocoding calls.
+    // This also absorbs the idle event from a programmatic recentre — the
+    // camera lands on coordinates we just set, so there is nothing to resolve.
     if (_latitude != null &&
         _longitude != null &&
         (_latitude! - latitude).abs() < 0.00002 &&
@@ -167,7 +202,6 @@ class _AddressSelectionScreenState
   /// Fires when a Places suggestion is chosen.
   void _onPlaceSelected(ResolvedPlace place) {
     setState(() {
-      _skipNextCentreResolve = true;
       _latitude = place.latitude;
       _longitude = place.longitude;
       _pinAddress = place.formattedAddress;
@@ -214,18 +248,10 @@ class _AddressSelectionScreenState
     }
   }
 
-  /// The real Google map, or the illustrated stand-in when no key is
-  /// configured — a blank grey tile would look like a bug.
+  /// The map SDK reads its own key from the manifest / Info.plist at build
+  /// time, so it is not gated on the Dart-side `MAPS_API_KEY` — that one only
+  /// pays for the Places REST calls.
   Widget _map(BuildContext context) {
-    if (!ref.watch(appConfigProvider).hasMapsKey) {
-      return MapPlaceholder(
-        latitude: _latitude,
-        longitude: _longitude,
-        onUseCurrentLocation: _useCurrentLocation,
-        isLocating: _locating,
-      );
-    }
-
     final centre = GeolocatorLocationService.fallbackCentre;
     return AddressPickerMap(
       latitude: _latitude ?? centre.latitude,

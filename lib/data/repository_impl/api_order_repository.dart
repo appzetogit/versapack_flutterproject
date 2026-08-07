@@ -48,7 +48,7 @@ class ApiOrderRepository implements OrderRepository {
           'deliveryInstructions': instructions.trim(),
         'deliveryMode': deliveryMode,
         'sendCutlery': sendCutlery,
-        'paymentMethod': method.wireValue,
+        'paymentMethod': method.orderWireValue,
         if (scheduledAt != null) 'scheduledAt': scheduledAt.toUtc().toIso8601String(),
       },
       requiresAuth: true,
@@ -63,6 +63,8 @@ class ApiOrderRepository implements OrderRepository {
       order: OrderMapper.toDomain(OrderDto.fromJson(json.mapAt('order'))),
       gatewayOrderId: razorpay?.str('orderId').nullIfEmpty,
       gatewayKey: razorpay?.str('key').nullIfEmpty,
+      gatewayAmountPaise: razorpay?.integer('amount') ?? 0,
+      gatewayCurrency: razorpay?.str('currency', 'INR') ?? 'INR',
     );
   }
 

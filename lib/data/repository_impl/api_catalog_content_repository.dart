@@ -1,5 +1,7 @@
 import '../../core/network/api_client.dart';
+import '../../core/utils/logger.dart';
 import '../../domain/model/banner.dart';
+import '../../domain/model/cms_page.dart';
 import '../../domain/repository/catalog_content_repository.dart';
 import '../dto/banner_dto.dart';
 import '../dto/json_reader.dart';
@@ -22,11 +24,55 @@ class ApiCatalogContentRepository implements CatalogContentRepository {
       _banners(ApiPaths.promotionBanners);
 
   Future<List<PromoBanner>> _banners(String path) async {
-    final json = await _client.get(path);
-    if (json is! Map<String, dynamic>) return const [];
-    return BannerMapper.toDomainList(
-      json.objects('banners').map(BannerDto.fromJson).toList(),
+    AppLogger.debug('GET $path', scope: 'banners');
+    try {
+      final json = await _client.get(path);
+      if (json is! Map<String, dynamic>) {
+        AppLogger.debug(
+          'GET $path — unexpected payload ${json.runtimeType}',
+          scope: 'banners',
+        );
+        return const [];
+      }
+
+      final raw = json.objects('banners');
+      final banners = BannerMapper.toDomainList(
+        raw.map(BannerDto.fromJson).toList(),
+      );
+      AppLogger.debug(
+        '$path → ${raw.length} raw, ${banners.length} usable '
+        '(${raw.length - banners.length} dropped for a missing image)',
+        scope: 'banners',
+      );
+      for (final banner in banners) {
+        AppLogger.debug('  ${banner.id} → ${banner.imageUrl}', scope: 'banners');
+      }
+      return banners;
+    } catch (e, stack) {
+      AppLogger.error('GET $path failed', error: e, stackTrace: stack);
+      rethrow;
+    }
+  }
+
+  @override
+  Future<CmsPage?> page(String key) async {
+    final json = await _client.get(ApiPaths.page(key));
+    if (json is! Map<String, dynamic>) return null;
+    // `about` uses appName/description, legal keys use title/content.
+    final title = json.str('title').isEmpty
+        ? json.str('appName')
+        : json.str('title');
+    final content = json.str('content').isEmpty
+        ? json.str('description')
+        : json.str('content');
+    final page = CmsPage(
+      title: title,
+      content: content,
+      version: json.str('version'),
+      email: json.str('email'),
+      mobile: json.str('mobile'),
     );
+    return page.isEmpty && page.version.isEmpty ? null : page;
   }
 
   @override

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_radii.dart';
+import '../../../../data/repository_impl/api_paths.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../di/app_providers.dart';
@@ -89,7 +90,7 @@ class _HelpScreenState extends ConsumerState<HelpScreen> {
 
     try {
       await ref.read(apiClientProvider).post(
-        '/food/user/support/ticket',
+        ApiPaths.supportTicket,
         body: {
           'type': 'other',
           'issueType': draft.subject,

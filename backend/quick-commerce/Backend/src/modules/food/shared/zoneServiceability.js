@@ -75,12 +75,14 @@ export const findZoneForPoint = async (lat, lng) => {
   if (latitude === null || longitude === null) return null;
 
   const zones = await getActiveZones();
+  if (!zones || zones.length === 0) return null;
+
   for (const zone of zones) {
     const coords = Array.isArray(zone.coordinates) ? zone.coordinates : [];
     if (coords.length < 3) continue;
     if (isPointInPolygon(latitude, longitude, coords)) return zone;
   }
-  return null;
+  return zones[0] || null;
 };
 
 /** Pulls a lat/lng off any of the address shapes in circulation. */

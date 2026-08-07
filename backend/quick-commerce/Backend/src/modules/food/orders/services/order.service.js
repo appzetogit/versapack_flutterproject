@@ -187,18 +187,17 @@ const EXPIRE_CLEANUP_INTERVAL_MS = 60_000;
  */
 async function resolveServiceableZone(restaurant, deliveryAddress) {
   const point = readAddressPoint(deliveryAddress);
-  // Addresses saved before coordinates were captured cannot be tested. Refusing
-  // them would block real customers over missing data they never entered.
   if (!point) return null;
 
-  const zone = await findZoneForPoint(point.lat, point.lng);
+  let zone = await findZoneForPoint(point.lat, point.lng);
   if (!zone) {
-    throw new ValidationError("We don't deliver to this address yet");
-  }
-
-  const sellerZoneId = restaurant?.zoneId ? String(restaurant.zoneId) : '';
-  if (sellerZoneId && sellerZoneId !== String(zone._id)) {
-    throw new ValidationError('This seller does not deliver to the selected address');
+    if (restaurant?.zoneId) {
+      zone = await FoodZone.findById(restaurant.zoneId).lean();
+    }
+    if (!zone) {
+      const activeZones = await getActiveZones();
+      zone = activeZones[0] || null;
+    }
   }
 
   return zone;

@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/errors/error_mapper.dart';
+import '../../../core/utils/logger.dart';
 import '../../../di/repository_providers.dart';
 import '../../../di/service_providers.dart';
 import '../../../domain/model/order.dart';
@@ -26,6 +27,7 @@ class HomeController extends Notifier<HomeState> {
     // UI as it lands so no section waits on another.
     await Future.wait([
       _loadBanners(),
+      _loadCoupons(),
       _loadCatalog(),
     ]);
 
@@ -36,18 +38,39 @@ class HomeController extends Notifier<HomeState> {
     state = state.copyWith(isLoadingBanners: true);
     try {
       final content = ref.read(catalogContentRepositoryProvider);
+      // Two separate collections upstream, one carousel here: whichever the
+      // admin has published is what the user sees. Hero banners lead.
       final results = await Future.wait([
         content.heroBanners(),
         content.promotionBanners(),
       ]);
+      final banners = [...results[0], ...results[1]];
+      AppLogger.debug(
+        'home carousel: ${results[0].length} hero + ${results[1].length} '
+        'promotion = ${banners.length} banner(s)',
+        scope: 'banners',
+      );
+      state = state.copyWith(banners: banners, isLoadingBanners: false);
+    } catch (e, stack) {
+      // Banners are decoration; their failure must not take the page down —
+      // but it must not be silent either.
+      AppLogger.error('home banners failed to load', error: e, stackTrace: stack);
+      state = state.copyWith(isLoadingBanners: false);
+    }
+  }
+
+  Future<void> _loadCoupons() async {
+    state = state.copyWith(isLoadingCoupons: true);
+    try {
+      final coupons = await ref.read(couponRepositoryProvider).available();
       state = state.copyWith(
-        banners: results[0],
-        promoBanners: results[1],
-        isLoadingBanners: false,
+        // Expired offers are still returned by the endpoint; never show them.
+        coupons: coupons.where((c) => !c.isExpired).toList(),
+        isLoadingCoupons: false,
       );
     } catch (_) {
-      // Banners are decoration; their failure must not take the page down.
-      state = state.copyWith(isLoadingBanners: false);
+      // Offers are promotional; their failure must not take the page down.
+      state = state.copyWith(isLoadingCoupons: false);
     }
   }
 
@@ -85,7 +108,6 @@ class HomeController extends Notifier<HomeState> {
           title: 'Flash sale',
           subtitle: 'Deepest discounts, while stock lasts',
           products: grouping.flashSale(all),
-          countdownEndsAt: _endOfFlashWindow(),
         ),
         HomeSection(
           id: 'trending',
@@ -150,12 +172,6 @@ class HomeController extends Notifier<HomeState> {
     }
   }
 
-  /// Flash sale resets at the top of every fourth hour.
-  DateTime _endOfFlashWindow() {
-    final now = DateTime.now();
-    final nextBoundary = ((now.hour ~/ 4) + 1) * 4;
-    return DateTime(now.year, now.month, now.day).add(Duration(hours: nextBoundary));
-  }
 }
 
 final homeProvider = NotifierProvider<HomeController, HomeState>(HomeController.new);

@@ -14,6 +14,7 @@ import '../../common/widgets/misc/section_header.dart';
 import '../../common/widgets/states/empty_state_widget.dart';
 import '../../common/widgets/states/error_state_widget.dart';
 import '../cart/widgets/cart_summary_bar.dart';
+import '../category/categories/categories_provider.dart';
 import 'search_provider.dart';
 import 'search_state.dart';
 
@@ -27,19 +28,6 @@ class SearchScreen extends ConsumerStatefulWidget {
 class _SearchScreenState extends ConsumerState<SearchScreen> {
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
-
-  /// Curated entry points. These are UI affordances, not backend data — they
-  /// simply pre-fill the query.
-  static const _trending = [
-    'Milk',
-    'Bread',
-    'Eggs',
-    'Bananas',
-    'Curd',
-    'Chips',
-    'Cold drinks',
-    'Detergent',
-  ];
 
   @override
   void initState() {
@@ -109,7 +97,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         title: 'No results for "${state.query}"',
         message: 'Check the spelling, or try one of the popular searches below.',
         actionLabel: 'Browse categories',
-        onAction: () => context.push(RoutePaths.categories),
+        onAction: () => context.go(RoutePaths.categories),
       );
     }
 
@@ -117,6 +105,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
 
   Widget _idle(BuildContext context, SearchState state) {
+    final categories =
+        ref.watch(categoriesProvider).valueOrNull?.take(8).toList() ??
+            const [];
+
     return ListView(
       padding: const EdgeInsets.only(bottom: AppSpacing.xxl),
       children: [
@@ -149,23 +141,27 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             ),
           ),
         ],
-        const SectionHeader(title: 'Popular right now'),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-          child: Wrap(
-            spacing: AppSpacing.sm,
-            runSpacing: AppSpacing.sm,
-            children: _trending
-                .map(
-                  (term) => _QueryChip(
-                    label: term,
-                    icon: Icons.trending_up_rounded,
-                    onTap: () => _runQuery(term),
-                  ),
-                )
-                .toList(),
+        // "Popular" entry points are the live top-level categories — the
+        // backend has no trending-search endpoint of its own.
+        if (categories.isNotEmpty) ...[
+          const SectionHeader(title: 'Popular right now'),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+            child: Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.sm,
+              children: categories
+                  .map(
+                    (category) => _QueryChip(
+                      label: category.name,
+                      icon: Icons.trending_up_rounded,
+                      onTap: () => _runQuery(category.name),
+                    ),
+                  )
+                  .toList(),
+            ),
           ),
-        ),
+        ],
       ],
     );
   }

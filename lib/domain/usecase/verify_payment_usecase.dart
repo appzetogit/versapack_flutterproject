@@ -1,49 +1,81 @@
-import 'dart:math';
-
+import '../../platform/payment/razorpay_checkout.dart';
 import '../model/order.dart';
+import '../model/user.dart';
 import '../repository/order_repository.dart';
 
-/// Completes a gateway payment.
+/// Takes a created order through the gateway and back.
 ///
-/// No payment SDK is embedded (see the master prompt's scope contract), so the
-/// gateway handshake is simulated: we wait, then call the backend's real
-/// `verify-payment` endpoint with the identifiers it handed us at creation.
-/// The signature the backend checks is produced by the gateway, so a simulated
-/// verification is expected to fail signature validation in a live
-/// environment — that failure is surfaced honestly rather than faked away.
+/// The app never decides whether a payment succeeded: it opens Razorpay with
+/// the parameters the backend minted, and hands the three identifiers Razorpay
+/// returns to `POST /food/orders/verify-payment`, which re-checks the
+/// signature, refetches the payment from Razorpay and compares the amount
+/// before it will mark the order paid.
 class VerifyPaymentUseCase {
-  const VerifyPaymentUseCase(this._repository, {this.simulatedFailureRate = 0.0});
+  const VerifyPaymentUseCase(this._repository, this._gateway);
 
   final OrderRepository _repository;
+  final PaymentGateway _gateway;
 
-  /// Lets the payment screen exercise its retry path in demos.
-  final double simulatedFailureRate;
+  Future<Order> call(PlacedOrder placed, {User? customer}) async {
+    final gatewayOrderId = placed.gatewayOrderId;
+    final key = placed.gatewayKey;
 
-  Future<Order> call(PlacedOrder placed) async {
-    await Future<void>.delayed(const Duration(milliseconds: 1600));
-
-    if (simulatedFailureRate > 0 && Random().nextDouble() < simulatedFailureRate) {
-      throw const PaymentSimulationFailure();
+    if (gatewayOrderId == null || key == null) {
+      // Cash and wallet orders are settled at creation; there is nothing to pay.
+      if (!placed.order.paymentMethod.isOnline) return placed.order;
+      // An online order without gateway parameters was never charged — the
+      // backend has no Razorpay credentials configured. Completing it here
+      // would hand the user a success screen for an unpaid order.
+      throw const PaymentDeclined('Online payment is unavailable right now.');
     }
 
-    final gatewayOrderId = placed.gatewayOrderId;
-    if (gatewayOrderId == null) return placed.order;
-
-    return _repository.verifyPayment(
-      orderId: placed.order.id,
+    final outcome = await _gateway.open(
+      key: key,
       gatewayOrderId: gatewayOrderId,
-      gatewayPaymentId: 'pay_sim_${DateTime.now().millisecondsSinceEpoch}',
-      signature: 'sig_simulated',
+      // The backend echoes Razorpay's own paise figure; falling back to the
+      // cart total is only for an older response that omits it.
+      amountPaise: placed.gatewayAmountPaise > 0
+          ? placed.gatewayAmountPaise
+          : (placed.order.pricing.total * 100).round(),
+      currency: placed.gatewayCurrency,
+      orderReference: placed.order.displayId,
+      customerName: customer?.name ?? '',
+      customerEmail: customer?.email ?? '',
+      customerPhone: customer?.phone ?? '',
+      preferredMethod: placed.order.paymentMethod.razorpayMethod,
     );
+
+    return switch (outcome) {
+      PaymentSucceeded(:final paymentId, :final signature) =>
+        await _repository.verifyPayment(
+          orderId: placed.order.id,
+          gatewayOrderId: gatewayOrderId,
+          gatewayPaymentId: paymentId,
+          signature: signature,
+        ),
+      PaymentCancelled() => throw const PaymentCancelledByUser(),
+      PaymentFailed(:final message) => throw PaymentDeclined(message),
+    };
   }
 
   Future<void> abandon(PlacedOrder placed) =>
       _repository.abandonPendingPayment(placed.order.id);
 }
 
-class PaymentSimulationFailure implements Exception {
-  const PaymentSimulationFailure();
+/// The user closed the payment sheet. The order is still recoverable.
+class PaymentCancelledByUser implements Exception {
+  const PaymentCancelledByUser();
 
   @override
-  String toString() => 'The payment could not be completed.';
+  String toString() => 'Payment was cancelled before it completed.';
+}
+
+/// The gateway refused the payment, with its own reason.
+class PaymentDeclined implements Exception {
+  const PaymentDeclined(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
 }

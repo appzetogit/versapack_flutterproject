@@ -46,7 +46,7 @@ class HomeScreen extends ConsumerWidget {
                 bottom: false,
                 child: Column(
                   children: [
-                    DeliveryHeader(etaMinutes: state.etaMinutes),
+                    const DeliveryHeader(),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(14, 2, 14, 14),
                       child: SearchBarWidget(
@@ -77,12 +77,16 @@ class HomeScreen extends ConsumerWidget {
       onRefresh: () => ref.read(homeProvider.notifier).load(refresh: true),
       child: CustomScrollView(
         slivers: [
-          // 1. Quick Categories Icon Strip (All, Rakhi, Electronics, Beauty, Home, Toys, More)
+          // 1. Quick category icon strip.
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.only(bottom: 4),
               child: QuickCategoryRow(
-                onCategoryTap: (catId) => context.push(RoutePaths.categories),
+                categories: state.categories,
+                isLoading: state.isLoadingCategories,
+                onAllTap: () => context.go(RoutePaths.categories),
+                onCategoryTap: (catId) =>
+                    context.push(RoutePaths.subCategoryOf(catId)),
               ),
             ),
           ),
@@ -99,41 +103,56 @@ class HomeScreen extends ConsumerWidget {
             ),
           ),
 
-          // 3. Offer & Coupon Cards Row (FLAT 50 OFF, FREE DELIVERY, EXTRA 5% OFF)
+          // 3. Live offer cards.
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.only(bottom: 4),
               child: OfferCouponsRow(
-                onOrderNowTap: (_) => context.push(RoutePaths.coupons),
+                coupons: state.coupons,
+                isLoading: state.isLoadingCoupons,
+                onOfferTap: (_) => context.push(RoutePaths.coupons),
               ),
             ),
           ),
 
-          // 4. Shop by Category Row
-          const SliverToBoxAdapter(
+          // 4. Shop by category.
+          SliverToBoxAdapter(
             child: Padding(
-              padding: EdgeInsets.only(bottom: 4),
-              child: ShopByCategoryRow(),
+              padding: const EdgeInsets.only(bottom: 4),
+              child: ShopByCategoryRow(
+                categories: state.categories,
+                isLoading: state.isLoadingCategories,
+                onSeeAll: () => context.go(RoutePaths.categories),
+                onCategoryTap: (catId) =>
+                    context.push(RoutePaths.subCategoryOf(catId)),
+              ),
             ),
           ),
 
-          // 5. Bestsellers Row (Amul Gold, Aashirvaad Atta, Lay's, Fortune Sunlite, Coca Cola)
+          // 5. Bestsellers, ranked from the live catalog.
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.only(bottom: 4),
               child: BestsellersRow(
-                onProductTap: (id) => context.push(RoutePaths.productDetailsOf(id)),
+                products: state.productsOf('best-sellers'),
+                isLoading: state.isLoadingSections,
+                onSeeAll: () => context.push(RoutePaths.productListing),
+                onProductTap: (id) =>
+                    context.push(RoutePaths.productDetailsOf(id)),
               ),
             ),
           ),
 
-          // 6. MEGA DEALS Section
+          // 6. Mega deals — the flash-sale (deepest discount) products.
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.only(bottom: 4),
               child: MegaDealsSection(
+                deals: state.productsOf('flash'),
+                isLoading: state.isLoadingSections,
                 onShopNowTap: () => context.push(RoutePaths.productListing),
-                onItemTap: (index) => context.push(RoutePaths.productListing),
+                onItemTap: (product) =>
+                    context.push(RoutePaths.productDetailsOf(product.id)),
               ),
             ),
           ),

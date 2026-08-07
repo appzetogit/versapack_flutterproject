@@ -22,17 +22,12 @@ class ProductInfoTabs extends StatelessWidget {
       data: context.theme.copyWith(dividerColor: Colors.transparent),
       child: Column(
         children: [
-          _Panel(
-            title: 'Description',
-            initiallyExpanded: true,
-            child: Text(
-              product.description.trim().isEmpty
-                  ? '${product.name} from ${product.brand.isEmpty ? 'our shelves' : product.brand}, '
-                      'packed and quality-checked before it leaves the store.'
-                  : product.description,
-              style: context.text.bodyLarge,
+          if (product.description.trim().isNotEmpty)
+            _Panel(
+              title: 'Description',
+              initiallyExpanded: true,
+              child: Text(product.description, style: context.text.bodyLarge),
             ),
-          ),
           _Panel(
             title: 'Product details',
             child: Column(
@@ -49,15 +44,6 @@ class ProductInfoTabs extends StatelessWidget {
                   value: product.sellerName,
                 ),
               ],
-            ),
-          ),
-          _Panel(
-            title: 'Storage & handling',
-            child: Text(
-              'Store in a cool, dry place away from direct sunlight. '
-              'Refrigerate perishables immediately on delivery and consume '
-              'before the date printed on the pack.',
-              style: context.text.bodyLarge,
             ),
           ),
         ],

@@ -24,7 +24,7 @@ class SubCategoryScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(subCategoryProvider(categoryId));
-    final title = category?.name ?? 'Chips & Namkeen';
+    final title = category?.name ?? '';
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -33,7 +33,7 @@ class SubCategoryScreen extends ConsumerWidget {
         child: Column(
           children: [
             // Top Quick-Commerce Header
-            _buildHeader(context, title),
+            _buildHeader(context, title, ref.watch(selectedAddressProvider)?.shortLine),
 
             // Horizontal Filter & Sort Chips Row
             _buildFilterBar(),
@@ -55,7 +55,7 @@ class SubCategoryScreen extends ConsumerWidget {
                     message:
                         'We are still stocking this category near you. Try another one.',
                     actionLabel: 'All categories',
-                    onAction: () => context.push(RoutePaths.categories),
+                    onAction: () => context.go(RoutePaths.categories),
                   ),
                 _ => Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -85,7 +85,6 @@ class SubCategoryScreen extends ConsumerWidget {
                               final product = state.visibleProducts[index];
                               return _BrowseProductCard(
                                 product: product,
-                                isAd: index == 0,
                                 heroTag: 'sub-$categoryId',
                                 onTap: () => context.push(
                                   RoutePaths.productDetailsOf(product.id),
@@ -106,7 +105,11 @@ class SubCategoryScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildHeader(BuildContext context, String categoryTitle) {
+  Widget _buildHeader(
+    BuildContext context,
+    String categoryTitle,
+    String? deliveryAddress,
+  ) {
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
       decoration: const BoxDecoration(
@@ -160,7 +163,7 @@ class SubCategoryScreen extends ConsumerWidget {
                     ),
                     Flexible(
                       child: Text(
-                        "New Palasia, Indore Divisi...",
+                        deliveryAddress ?? 'Select an address',
                         style: const TextStyle(
                           fontSize: 11.5,
                           fontWeight: FontWeight.w500,
@@ -380,13 +383,11 @@ class _BrowseProductCard extends ConsumerStatefulWidget {
     required this.product,
     required this.onTap,
     this.heroTag,
-    this.isAd = false,
   });
 
   final Product product;
   final VoidCallback onTap;
   final String? heroTag;
-  final bool isAd;
 
   @override
   ConsumerState<_BrowseProductCard> createState() => _BrowseProductCardState();
@@ -479,24 +480,6 @@ class _BrowseProductCardState extends ConsumerState<_BrowseProductCard> {
                   bottom: 6,
                   child: Row(
                     children: [
-                      if (widget.isAd || product.id.contains('1')) ...[
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1.5),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.65),
-                            borderRadius: BorderRadius.circular(3),
-                          ),
-                          child: const Text(
-                            'Ad',
-                            style: TextStyle(
-                              fontSize: 9,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                      ],
                       // Carousel Dots Indicator
                       Row(
                         children: [
@@ -638,39 +621,44 @@ class _BrowseProductCardState extends ConsumerState<_BrowseProductCard> {
 
             const SizedBox(height: 4),
 
-            // Ratings & Order Count
-            Row(
-              children: [
-                const Icon(Icons.star_rounded, size: 13, color: Color(0xFFFFB300)),
-                const SizedBox(width: 2),
-                const Icon(Icons.star_rounded, size: 13, color: Color(0xFFFFB300)),
-                const SizedBox(width: 2),
-                const Icon(Icons.star_rounded, size: 13, color: Color(0xFFFFB300)),
-                const SizedBox(width: 2),
-                const Icon(Icons.star_rounded, size: 13, color: Color(0xFFFFB300)),
-                const SizedBox(width: 2),
-                const Icon(Icons.star_half_rounded, size: 13, color: Color(0xFFFFB300)),
-                const SizedBox(width: 4),
-                Text(
-                  _formatRatingCount(product.ratingCount),
-                  style: const TextStyle(
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF757575),
+            // Ratings & Order Count — only once the catalog has ratings for it.
+            if (product.ratingCount > 0) ...[
+              Row(
+                children: [
+                  for (var i = 1; i <= 5; i++) ...[
+                    Icon(
+                      product.rating >= i
+                          ? Icons.star_rounded
+                          : product.rating >= i - 0.5
+                              ? Icons.star_half_rounded
+                              : Icons.star_outline_rounded,
+                      size: 13,
+                      color: const Color(0xFFFFB300),
+                    ),
+                    const SizedBox(width: 2),
+                  ],
+                  const SizedBox(width: 2),
+                  Text(
+                    _formatRatingCount(product.ratingCount),
+                    style: const TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF757575),
+                    ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ),
+              const SizedBox(height: 3),
+            ],
 
-            const SizedBox(height: 3),
-
-            // Delivery Time Row
+            // Delivery Time Row — hidden when the seller has no promise set.
+            if (product.deliveryMinutes != null)
             Row(
               children: [
                 const Icon(Icons.schedule_rounded, size: 12, color: Color(0xFF616161)),
                 const SizedBox(width: 3),
                 Text(
-                  '${product.deliveryMinutes ?? 11} mins',
+                  '${product.deliveryMinutes} mins',
                   style: const TextStyle(
                     fontSize: 10.5,
                     fontWeight: FontWeight.w600,
@@ -691,7 +679,7 @@ class _BrowseProductCardState extends ConsumerState<_BrowseProductCard> {
     } else if (count >= 1000) {
       return '${(count / 1000).toStringAsFixed(1)}k';
     }
-    return count > 0 ? '$count' : '1.8 lac';
+    return '$count';
   }
 
   Widget _buildAddButton(

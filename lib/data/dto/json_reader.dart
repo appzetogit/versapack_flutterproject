@@ -1,3 +1,5 @@
+import '../../core/network/media_url.dart';
+
 /// Defensive readers for backend JSON.
 ///
 /// The API is inconsistent in places (ids arrive as `id` or `_id`, numbers as
@@ -100,11 +102,12 @@ extension JsonReader on Map<String, dynamic> {
     return '';
   }
 
-  /// Images are sometimes a plain URL string, sometimes `{url, publicId}`.
+  /// Images are sometimes a plain URL string, sometimes `{url, publicId}`, and
+  /// are stored root-relative — `MediaUrl` makes them absolute.
   String imageUrl(String key) {
     final value = this[key];
-    if (value is String) return value;
-    if (value is Map) return (value['url'] ?? '').toString();
+    if (value is String) return MediaUrl.resolve(value);
+    if (value is Map) return MediaUrl.resolve((value['url'] ?? '').toString());
     return '';
   }
 }

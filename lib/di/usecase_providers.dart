@@ -40,5 +40,8 @@ final toggleWishlistUseCaseProvider = Provider<ToggleWishlistUseCase>(
 );
 
 final verifyPaymentUseCaseProvider = Provider<VerifyPaymentUseCase>(
-  (ref) => VerifyPaymentUseCase(ref.watch(orderRepositoryProvider)),
+  (ref) => VerifyPaymentUseCase(
+    ref.watch(orderRepositoryProvider),
+    ref.watch(paymentGatewayProvider),
+  ),
 );

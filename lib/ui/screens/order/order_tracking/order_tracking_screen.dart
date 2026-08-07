@@ -7,9 +7,7 @@ import '../../../../core/theme/app_radii.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../../di/repository_providers.dart';
 import '../../../../domain/model/order.dart';
-import '../../../../domain/model/order_status.dart';
 import '../../../../navigation/route_paths.dart';
 import '../../../common/widgets/buttons/secondary_button.dart';
 import '../../../common/widgets/feedback/app_snackbar.dart';
@@ -17,7 +15,6 @@ import '../../../common/widgets/loaders/full_page_loader.dart';
 import '../../../common/widgets/misc/rating_stars.dart';
 import '../../../common/widgets/maps/order_route_map.dart';
 import '../../../common/widgets/states/error_state_widget.dart';
-import '../../location/address_selection/widgets/map_placeholder.dart';
 import '../order_details/order_details_provider.dart';
 import '../widgets/order_status_chip.dart';
 import 'widgets/tracking_timeline.dart';
@@ -58,18 +55,12 @@ class OrderTrackingScreen extends ConsumerWidget {
             _LiveStatusBanner(order: order),
             Padding(
               padding: const EdgeInsets.all(AppSpacing.lg),
-              child: ref.watch(appConfigProvider).hasMapsKey
-                  // Real route, drawn from the polyline the backend returns.
-                  ? OrderRouteMap(
-                      route: state.route,
-                      riderLocation: order.riderLocation,
-                    )
-                  : RouteMapPlaceholder(
-                      originLabel:
-                          order.sellerName.isEmpty ? 'Store' : order.sellerName,
-                      destinationLabel: order.address?.label.wireValue ?? 'You',
-                      progress: _routeProgress(order),
-                    ),
+              // Real route, drawn from the polyline the backend returns. The
+              // map SDK carries its own native key.
+              child: OrderRouteMap(
+                route: state.route,
+                riderLocation: order.riderLocation,
+              ),
             ),
             if (order.status.isOutForDelivery && state.dropOtp.isNotEmpty)
               _DropOtpCard(otp: state.dropOtp),
@@ -105,14 +96,6 @@ class OrderTrackingScreen extends ConsumerWidget {
     );
   }
 
-  /// How far along the route illustration should draw the rider.
-  static double _routeProgress(Order order) => switch (order.status) {
-        OrderStatus.pickedUp => 0.55,
-        OrderStatus.reachedDrop => 0.92,
-        OrderStatus.delivered => 1,
-        OrderStatus.readyForPickup || OrderStatus.reachedPickup => 0.18,
-        _ => 0.06,
-      };
 }
 
 /// Pulsing scooter + live ETA at the top of the screen.

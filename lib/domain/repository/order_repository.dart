@@ -17,8 +17,9 @@ abstract interface class OrderRepository {
     DateTime? scheduledAt,
   });
 
-  /// Confirms a gateway payment. The stubbed checkout calls this with the
-  /// identifiers the create-order response handed back.
+  /// Confirms a gateway payment with the three identifiers Razorpay returned.
+  /// The backend re-verifies the signature and the captured amount; a mismatch
+  /// throws rather than marking the order paid.
   Future<Order> verifyPayment({
     required String orderId,
     required String gatewayOrderId,

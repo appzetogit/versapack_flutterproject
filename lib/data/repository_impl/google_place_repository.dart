@@ -28,6 +28,26 @@ class GooglePlaceRepository implements PlaceRepository {
   final AppConfig _config;
   final Dio _dio;
 
+  /// Logged once, not per call — a missing key fails on every keystroke.
+  bool _warnedAboutKey = false;
+
+  /// True when the Dart-side key is present. The map widget does not need it
+  /// (the SDK reads a native key from the manifest / Info.plist), so a build
+  /// without `--dart-define-from-file=config/keys.env` draws a perfectly good
+  /// map while every Places and Geocoding call here returns nothing.
+  bool get _hasKey {
+    if (_config.hasMapsKey) return true;
+    if (!_warnedAboutKey) {
+      _warnedAboutKey = true;
+      AppLogger.error(
+        'MAPS_API_KEY is empty on the Dart side — Places search and reverse '
+        'geocoding are disabled. Run with '
+        '--dart-define-from-file=config/keys.env.',
+      );
+    }
+    return false;
+  }
+
   /// Keeps autocomplete requests for one editing session on a single billing
   /// session token, which is materially cheaper than billing each keystroke.
   String? _sessionToken;
@@ -41,7 +61,7 @@ class GooglePlaceRepository implements PlaceRepository {
     double? latitude,
     double? longitude,
   }) async {
-    if (!_config.hasMapsKey || query.trim().length < 3) return const [];
+    if (!_hasKey || query.trim().length < 3) return const [];
 
     final json = await _get('/place/autocomplete/json', {
       'input': query.trim(),
@@ -67,7 +87,7 @@ class GooglePlaceRepository implements PlaceRepository {
 
   @override
   Future<ResolvedPlace?> details(String placeId) async {
-    if (!_config.hasMapsKey || placeId.isEmpty) return null;
+    if (!_hasKey || placeId.isEmpty) return null;
 
     final json = await _get('/place/details/json', {
       'place_id': placeId,
@@ -90,7 +110,7 @@ class GooglePlaceRepository implements PlaceRepository {
     required double latitude,
     required double longitude,
   }) async {
-    if (!_config.hasMapsKey) return null;
+    if (!_hasKey) return null;
 
     final json = await _get('/geocode/json', {
       'latlng': '$latitude,$longitude',
@@ -162,6 +182,7 @@ class GooglePlaceRepository implements PlaceRepository {
       state: component('administrative_area_level_1'),
       postalCode: component('postal_code'),
       streetLine: [streetNumber, route].where((p) => p.isNotEmpty).join(' '),
+      country: component('country'),
     );
   }
 }

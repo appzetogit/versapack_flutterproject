@@ -1,3 +1,4 @@
+import '../../core/network/media_url.dart';
 import 'json_reader.dart';
 
 /// Mirrors an item from `GET /food/search/products` (the richest catalog
@@ -64,7 +65,7 @@ class ProductDto {
       mrp: json.doubleOrNull('mrp'),
       description: json.str('description'),
       image: json.imageUrl('image'),
-      images: json.strings('images'),
+      images: json.strings('images').map(MediaUrl.resolve).toList(),
       categoryId: json.id(const ['categoryId']),
       categoryName: json.firstStr(['categoryName', 'category']),
       brand: json.str('brand'),

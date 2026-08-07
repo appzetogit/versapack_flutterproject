@@ -127,7 +127,7 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
         state: state,
         inCartQuantity: inCartQuantity,
         onAdd: () => _addToCart(state),
-        onViewCart: () => context.push(RoutePaths.cart),
+        onViewCart: () => context.go(RoutePaths.cart),
       ),
       body: CustomScrollView(
         slivers: [
@@ -483,7 +483,9 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Delivered in ~${product.deliveryMinutes ?? 10} mins',
+                        product.deliveryMinutes == null
+                            ? 'Delivery to'
+                            : 'Delivered in ~${product.deliveryMinutes} mins',
                         style: context.text.titleSmall,
                       ),
                       Text(

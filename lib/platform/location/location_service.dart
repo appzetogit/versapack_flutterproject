@@ -13,6 +13,9 @@ class DeviceLocation {
     this.city = '',
     this.state = '',
     this.pincode = '',
+    this.streetLine = '',
+    this.subLocality = '',
+    this.country = '',
   });
 
   final double latitude;
@@ -24,6 +27,17 @@ class DeviceLocation {
   final String city;
   final String state;
   final String pincode;
+
+  /// House number + road, when Google has one for this point.
+  final String streetLine;
+
+  /// Neighbourhood, offered as the landmark line.
+  final String subLocality;
+  final String country;
+
+  /// False when the point could not be reverse-geocoded — the pin is still
+  /// usable, but the form fields have to be typed by hand.
+  bool get isResolved => formattedAddress.isNotEmpty;
 }
 
 class LocationPermissionDenied implements Exception {
@@ -127,6 +141,9 @@ class GeolocatorLocationService implements LocationService {
         city: place.city,
         state: place.state,
         pincode: place.postalCode,
+        streetLine: place.streetLine,
+        subLocality: place.subLocality,
+        country: place.country,
       );
     } on Exception {
       // Geocoding is an enhancement: a failure must still leave the user with a

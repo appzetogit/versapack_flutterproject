@@ -53,6 +53,9 @@ class AuthController extends Notifier<AuthState> {
     // Render a signed-in shell immediately from cache, then refresh from /me.
     if (repository.isSignedIn) {
       scheduleMicrotask(refresh);
+      // FCM rotates tokens between launches; re-sync so the backend can still
+      // reach this device. No-op when the token has not changed.
+      scheduleMicrotask(ref.read(notificationServiceProvider).registerDevice);
       return AuthState(user: repository.cachedUser);
     }
     return const AuthState();

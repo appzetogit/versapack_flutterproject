@@ -7,7 +7,6 @@ enum PermissionStatus { granted, denied, permanentlyDenied }
 /// substitute a deterministic implementation.
 abstract interface class PermissionService {
   Future<PermissionStatus> requestLocation();
-  Future<PermissionStatus> requestNotifications();
   Future<PermissionStatus> checkLocation();
 
   /// Opens the OS settings page — the only route back from a permanent denial.
@@ -32,12 +31,6 @@ class GeolocatorPermissionService implements PermissionService {
     }
     return _map(permission);
   }
-
-  /// Notification permission is requested by the messaging SDK once one is
-  /// wired up; there is nothing to ask for today.
-  @override
-  Future<PermissionStatus> requestNotifications() async =>
-      PermissionStatus.granted;
 
   @override
   Future<void> openSettings() async {
