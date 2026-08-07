@@ -60,11 +60,11 @@ class ApiAnalyticsRepository {
 
     final items = current.fold<int>(
       0,
-      (sum, o) => sum +
-          _asList(o['items']).fold<int>(
-            0,
-            (n, i) => n + (_asNum(i['quantity'])?.toInt() ?? 0),
-          ),
+      (sum, o) =>
+          sum +
+          _asList(
+            o['items'],
+          ).fold<int>(0, (n, i) => n + (_asNum(i['quantity'])?.toInt() ?? 0)),
     );
 
     var newCustomers = 0;

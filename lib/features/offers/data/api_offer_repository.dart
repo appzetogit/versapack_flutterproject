@@ -12,7 +12,7 @@ class ApiOfferRepository implements OfferRepository {
   Future<List<CouponModel>> getCoupons() async {
     final response = await _dio.get<dynamic>('/food/restaurant/my-offers');
     final data = response.data;
-    final list = data is List ? data : _asList(_asMap(data)['offers']);
+    final list = _asList(data is List ? data : _asMap(data)['offers']);
 
     return list.map(_toCoupon).toList();
   }

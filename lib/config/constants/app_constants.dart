@@ -31,6 +31,34 @@ class AppConstants {
     defaultValue: 'https://quick.appzeto.com',
   );
 
+  /// Google Maps key for the Dart side (Maps SDK, Places, Geocoding).
+  ///
+  /// **This is the single source of truth for the Dart layer only.** The native
+  /// Maps SDKs read their key before any Dart code runs, so Android and iOS
+  /// each need their own copy — they cannot import this constant. Those live in:
+  ///
+  ///   * `android/gradle.properties` → `MAPS_API_KEY`, injected into
+  ///     `AndroidManifest.xml` as the `MAPS_API_KEY` manifest placeholder.
+  ///   * `ios/Runner/Info.plist` → `GoogleMapsApiKey`.
+  ///
+  /// Change the key in all three, or override every one at build time:
+  ///
+  ///   flutter build apk --dart-define=GOOGLE_MAPS_API_KEY=... \
+  ///     -Pmaps-api-key=...
+  ///
+  /// A Maps key shipped in an app binary is always extractable — that is
+  /// expected and is not what protects it. Restrict it in the Google Cloud
+  /// console by Android package name + SHA-1, iOS bundle id, and the specific
+  /// APIs it may call. An unrestricted key is billable by anyone who finds it.
+  static const String googleMapsApiKey = String.fromEnvironment(
+    'GOOGLE_MAPS_API_KEY',
+    defaultValue: 'AIzaSyArBbII2fgAuVaycfkEAm1GcuyvKPTSWyc',
+  );
+
+  /// Whether a Maps key is configured at all. Screens that would otherwise
+  /// render a blank grey tile can check this and show an explanation instead.
+  static bool get hasGoogleMapsKey => googleMapsApiKey.isNotEmpty;
+
   /// Origin used to resolve relative media paths.
   ///
   /// The backend's upload service deliberately refuses to persist absolute

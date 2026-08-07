@@ -28,6 +28,15 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        // The Maps key lives in gradle.properties (or -Pmaps-api-key=... on the
+        // command line) and is substituted into AndroidManifest.xml. Keeping it
+        // out of the manifest means there is exactly one place to change it and
+        // nothing to accidentally leave behind in a diff.
+        manifestPlaceholders["MAPS_API_KEY"] =
+            (project.findProperty("maps-api-key")
+                ?: project.findProperty("MAPS_API_KEY")
+                ?: "").toString()
     }
 
     buildTypes {

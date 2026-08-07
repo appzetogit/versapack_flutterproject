@@ -105,9 +105,7 @@ class ApiExploreRepository implements ExploreRepository {
 
   @override
   Future<DeliverySettingsModel> getDeliverySettings() async {
-    final response = await _dio.get<dynamic>(
-      '/food/admin/fee-settings/public',
-    );
+    final response = await _dio.get<dynamic>('/food/admin/fee-settings/public');
     final fees = _asMap(_asMap(response.data)['feeSettings'] ?? response.data);
     final store = await _currentStore();
 
@@ -138,14 +136,18 @@ class ApiExploreRepository implements ExploreRepository {
     return nested is Map ? Map<String, dynamic>.from(nested) : data;
   }
 
-  static String _formatAddress(Map<String, dynamic> s) => [
-    s['addressLine1'],
-    s['addressLine2'],
-    s['area'],
-    s['city'],
-    s['state'],
-    s['pincode'],
-  ].map((e) => (e ?? '').toString().trim()).where((e) => e.isNotEmpty).join(', ');
+  static String _formatAddress(Map<String, dynamic> s) =>
+      [
+            s['addressLine1'],
+            s['addressLine2'],
+            s['area'],
+            s['city'],
+            s['state'],
+            s['pincode'],
+          ]
+          .map((e) => (e ?? '').toString().trim())
+          .where((e) => e.isNotEmpty)
+          .join(', ');
 
   static Map<String, dynamic> _asMap(dynamic v) =>
       v is Map ? Map<String, dynamic>.from(v) : <String, dynamic>{};

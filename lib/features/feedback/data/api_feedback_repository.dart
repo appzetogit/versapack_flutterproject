@@ -42,9 +42,8 @@ class ApiFeedbackRepository implements FeedbackRepository {
             _asMap(order['deliveryAddress'])['fullName'],
           ], fallback: 'Customer'),
           rating: score,
-          reviewText:
-              (ratings['restaurantComment'] ?? ratings['comment'] ?? '')
-                  .toString(),
+          reviewText: (ratings['restaurantComment'] ?? ratings['comment'] ?? '')
+              .toString(),
           createdAt:
               _asDate(ratings['ratedAt'] ?? order['deliveredAt']) ??
               DateTime.now(),

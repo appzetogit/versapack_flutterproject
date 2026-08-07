@@ -59,6 +59,10 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<!-- Google Maps key for the iOS Maps SDK. AppDelegate reads it from here so
+	     the key exists in exactly one place on this platform. -->
+	<key>GoogleMapsApiKey</key>
+	<string>AIzaSyArBbII2fgAuVaycfkEAm1GcuyvKPTSWyc</string>
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>

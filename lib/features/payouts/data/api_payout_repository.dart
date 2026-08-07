@@ -24,7 +24,9 @@ class ApiPayoutRepository implements PayoutRepository {
     // zero, so a fresh store does not read as having earned nothing when it
     // has simply not been settled yet.
     double pick(String key) =>
-        _asNum(wallet[key])?.toDouble() ?? _asNum(current[key])?.toDouble() ?? 0;
+        _asNum(wallet[key])?.toDouble() ??
+        _asNum(current[key])?.toDouble() ??
+        0;
 
     final settled = _asList(past['orders']);
 
@@ -35,8 +37,9 @@ class ApiPayoutRepository implements PayoutRepository {
       pendingPayout: pick('estimatedPayout'),
       lastPayoutAmount: settled.isEmpty
           ? 0
-          : _asNum(settled.first['amount'] ?? settled.first['netAmount'])
-                    ?.toDouble() ??
+          : _asNum(
+                  settled.first['amount'] ?? settled.first['netAmount'],
+                )?.toDouble() ??
                 0,
       lastPayoutDate: settled.isEmpty
           ? null
@@ -57,8 +60,9 @@ class ApiPayoutRepository implements PayoutRepository {
 
     return rows.map((r) {
       final amount =
-          _asNum(r['netAmount'] ?? r['amount'] ?? r['payoutAmount'])
-              ?.toDouble() ??
+          _asNum(
+            r['netAmount'] ?? r['amount'] ?? r['payoutAmount'],
+          )?.toDouble() ??
           0;
       return PayoutTransactionModel(
         id: (r['_id'] ?? r['id'] ?? r['orderId'] ?? '').toString(),

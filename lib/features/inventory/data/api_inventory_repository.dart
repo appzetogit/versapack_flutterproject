@@ -96,7 +96,8 @@ class ApiInventoryRepository implements InventoryRepository {
     // The struck-through price is the printed MRP. `otherPrice` is a
     // compare-against-other-platforms figure and is not what a shopper is
     // shown, so it is only a fallback for products predating MRP.
-    originalPrice: _asNum(json['mrp'])?.toDouble() ??
+    originalPrice:
+        _asNum(json['mrp'])?.toDouble() ??
         _positiveOrNull(_asNum(json['otherPrice'])?.toDouble()),
     // A grocery line's "unit" is its pack size.
     unit: (json['packSize'] ?? '').toString(),
@@ -121,8 +122,7 @@ class ApiInventoryRepository implements InventoryRepository {
     if (p.imageUrl != null && p.imageUrl!.isNotEmpty) 'image': p.imageUrl,
   };
 
-  static double? _positiveOrNull(double? v) =>
-      (v == null || v <= 0) ? null : v;
+  static double? _positiveOrNull(double? v) => (v == null || v <= 0) ? null : v;
 
   static Map<String, dynamic> _asMap(dynamic v) =>
       v is Map ? Map<String, dynamic>.from(v) : <String, dynamic>{};

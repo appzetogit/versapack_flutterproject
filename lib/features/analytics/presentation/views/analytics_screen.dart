@@ -212,8 +212,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
   String _money(double v, {required bool isLoading}) =>
       isLoading ? '—' : '₹${v.toStringAsFixed(2)}';
 
-  String _count(int v, {required bool isLoading}) =>
-      isLoading ? '—' : '$v';
+  String _count(int v, {required bool isLoading}) => isLoading ? '—' : '$v';
 
   /// Null means there was no previous period to compare with, which is not the
   /// same as no change.

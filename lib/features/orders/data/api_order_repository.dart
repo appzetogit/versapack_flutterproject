@@ -29,7 +29,9 @@ class ApiOrderRepository implements OrderRepository {
 
   @override
   Future<OrderModel?> getOrderById(String orderId) async {
-    final response = await _dio.get<dynamic>('/food/restaurant/orders/$orderId');
+    final response = await _dio.get<dynamic>(
+      '/food/restaurant/orders/$orderId',
+    );
     final data = response.data;
     if (data is! Map) return null;
     // The single-order route wraps its payload one level deeper than the list.
@@ -96,7 +98,8 @@ class ApiOrderRepository implements OrderRepository {
               price: _asNum(e['price'])?.toDouble() ?? 0,
               // Pack size reads as the variant on a grocery line; a genuine
               // variant name wins when the product has one.
-              variant: _nullIfEmpty(e['variantName']) ?? _nullIfEmpty(e['packSize']),
+              variant:
+                  _nullIfEmpty(e['variantName']) ?? _nullIfEmpty(e['packSize']),
               addons: _asList(e['addons'])
                   .map((a) => (a['name'] ?? '').toString())
                   .where((s) => s.isNotEmpty)
@@ -104,11 +107,14 @@ class ApiOrderRepository implements OrderRepository {
             ),
           )
           .toList(),
-      status: _fromWireStatus((json['orderStatus'] ?? json['status'] ?? '').toString()),
+      status: _fromWireStatus(
+        (json['orderStatus'] ?? json['status'] ?? '').toString(),
+      ),
       createdAt: _asDate(json['createdAt']),
       subtotal: _asNum(pricing['subtotal'])?.toDouble() ?? 0,
       // Both tax lines are the seller's tax; showing only one under-reports it.
-      tax: (_asNum(pricing['tax'])?.toDouble() ?? 0) +
+      tax:
+          (_asNum(pricing['tax'])?.toDouble() ?? 0) +
           (_asNum(pricing['deliveryFeeGst'])?.toDouble() ?? 0),
       deliveryFee: _asNum(pricing['deliveryFee'])?.toDouble() ?? 0,
       discount: _asNum(pricing['discount'])?.toDouble() ?? 0,
@@ -162,13 +168,11 @@ class ApiOrderRepository implements OrderRepository {
     }
   }
 
-  static String _formatAddress(Map<String, dynamic> a) => [
-    a['street'],
-    a['additionalDetails'],
-    a['city'],
-    a['state'],
-    a['zipCode'],
-  ].map((e) => (e ?? '').toString().trim()).where((s) => s.isNotEmpty).join(', ');
+  static String _formatAddress(Map<String, dynamic> a) =>
+      [a['street'], a['additionalDetails'], a['city'], a['state'], a['zipCode']]
+          .map((e) => (e ?? '').toString().trim())
+          .where((s) => s.isNotEmpty)
+          .join(', ');
 
   static Map<String, dynamic> _asMap(dynamic v) =>
       v is Map ? Map<String, dynamic>.from(v) : <String, dynamic>{};

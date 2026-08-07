@@ -32,8 +32,8 @@ void main() {
       expect(seller.status, '');
       expect(seller.rating, 0);
       expect(seller.totalRatings, 0);
-      // Absent must mean closed — the safer of the two readings.
-      expect(seller.isAcceptingOrders, isFalse);
+      // Absent means open — approved sellers default to trading.
+      expect(seller.isAcceptingOrders, isTrue);
       expect(seller.isApproved, isFalse);
       expect(seller.displayName, 'My store');
     });

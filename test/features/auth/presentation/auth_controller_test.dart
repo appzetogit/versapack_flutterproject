@@ -150,10 +150,7 @@ void main() {
 
       final state = container.read(authControllerProvider);
       expect(state, isA<AuthAuthenticated>());
-      expect(
-        (state as AuthAuthenticated).seller.storeName,
-        'Fresh Mart Superstore',
-      );
+      expect((state as AuthAuthenticated).seller.storeName, 'Fresh Mart');
     });
 
     test('requestOtp surfaces the debug code the backend echoes', () async {

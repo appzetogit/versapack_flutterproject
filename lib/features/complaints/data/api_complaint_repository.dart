@@ -44,8 +44,9 @@ class ApiComplaintRepository implements ComplaintRepository {
         createdAt: _asDate(c['createdAt']) ?? DateTime.now(),
         status: _toStatus((c['status'] ?? '').toString()),
         refundAmountRequested:
-            _asNum(c['refundAmount'] ?? c['refundAmountRequested'])
-                ?.toDouble() ??
+            _asNum(
+              c['refundAmount'] ?? c['refundAmountRequested'],
+            )?.toDouble() ??
             0,
         sellerResponse: _nullIfEmpty(
           c['restaurantResponse'] ?? c['sellerResponse'] ?? c['response'],
