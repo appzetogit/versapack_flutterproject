@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:quick_commerce_seller/config/theme/app_palette.dart';
 import 'package:quick_commerce_seller/core/widgets/app_toast.dart';
+import 'package:quick_commerce_seller/features/inventory/domain/product_model.dart';
+import 'package:quick_commerce_seller/features/inventory/presentation/controllers/inventory_controller.dart';
 
 class ProductsScreen extends ConsumerStatefulWidget {
   const ProductsScreen({super.key});
@@ -24,10 +26,48 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
     );
   }
 
+  /// The seller's real catalogue, in the map shape this screen was written
+  /// against, so the cards and sheets below are untouched.
+  List<Map<String, dynamic>> get _products {
+    final products = ref.watch(inventoryControllerProvider).value ?? const [];
+    return products.map(_cardFor).toList();
+  }
+
+  Map<String, dynamic> _cardFor(ProductModel p) {
+    // Out of stock is a different state from switched off: one is a count, the
+    // other a decision. Only the seller's decision reads as Inactive.
+    final outOfStock = p.stockQuantity <= 0;
+    return {
+      'id': p.id,
+      'name': p.name,
+      'sku': p.unit.isEmpty ? p.categoryName : p.unit,
+      'category': p.categoryName,
+      'price': '₹${p.price.toStringAsFixed(2)}',
+      'mrp': p.originalPrice == null
+          ? ''
+          : '₹${p.originalPrice!.toStringAsFixed(2)}',
+      'stock': '${p.stockQuantity}',
+      'image': p.imageUrl ?? '',
+      'isInactive': !p.isAvailable,
+      'status': !p.isAvailable
+          ? 'Inactive'
+          : (outOfStock ? 'Out of stock' : 'Active'),
+    };
+  }
+
   /// Search term plus the selected category chip.
   List<Map<String, dynamic>> get _visibleProducts {
     final query = _query.toLowerCase();
-    final category = _categories[_selectedCategoryIndex]['label'].toString();
+    final categories = _categories;
+    // The chip list is derived from live products now, so a selection made
+    // when there were more categories can point past the end of a shorter
+    // one -- which throws rather than merely showing the wrong chip.
+    final index = _selectedCategoryIndex < categories.length
+        ? _selectedCategoryIndex
+        : 0;
+    final category = categories.isEmpty
+        ? 'All'
+        : categories[index]['label'].toString();
     return _products.where((p) {
       if (query.isNotEmpty) {
         final haystack = '${p['name']} ${p['sku']} ${p['category']}'
@@ -84,10 +124,9 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
               title: Text(isActive ? 'Mark inactive' : 'Mark active'),
               onTap: () {
                 Navigator.of(sheetContext).pop();
-                setState(() {
-                  p['isInactive'] = isActive;
-                  p['status'] = isActive ? 'Inactive' : 'Active';
-                });
+                ref
+                    .read(inventoryControllerProvider.notifier)
+                    .toggleStock(p['id'].toString(), !isActive);
                 AppToast.show(
                   context,
                   '"${p['name']}" is now ${isActive ? 'inactive' : 'active'}',
@@ -138,8 +177,13 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
     ).then((confirmed) {
       if (confirmed != true || !mounted) return;
       final name = p['name'].toString();
-      setState(() => _products.remove(p));
-      AppToast.show(context, '"$name" deleted');
+      // No seller-facing delete endpoint exists; hiding the product is the
+      // honest equivalent and is reversible, unlike a delete that silently
+      // did nothing.
+      ref
+          .read(inventoryControllerProvider.notifier)
+          .toggleStock(p['id'].toString(), false);
+      AppToast.show(context, '"$name" hidden from customers');
     });
   }
 
@@ -226,100 +270,27 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
     );
   }
 
-  final List<Map<String, dynamic>> _categories = [
-    {'label': 'All', 'count': '128'},
-    {'label': 'Fruits & Vegetables', 'count': '24'},
-    {'label': 'Dairy', 'count': '16'},
-    {'label': 'Snacks', 'count': '18'},
-    {'label': 'Beverages', 'count': '12'},
-  ];
+  /// The seller's own categories, with All pinned first because the filter
+  /// logic treats index 0 as "no filter". Counts are of products actually
+  /// loaded, not of what a category claims to hold.
+  List<Map<String, dynamic>> get _categories {
+    final products = ref.watch(inventoryControllerProvider).value ?? const [];
+    final names = <String>{
+      for (final p in products)
+        if (p.categoryName.isNotEmpty) p.categoryName,
+    }.toList()..sort();
 
-  final List<Map<String, dynamic>> _products = [
-    {
-      'name': 'Banana (1 kg)',
-      'sku': 'FRU001',
-      'category': 'Fruits & Vegetables',
-      'status': 'Active',
-      'stock': 'In Stock (45 kg)',
-      'price': '₹45.00',
-      'mrp': '₹50.00',
-      'isInactive': false,
-      'isOutOfStock': false,
-      'icon': Icons.lunch_dining_rounded,
-    },
-    {
-      'name': 'Amul Taaza Milk 500 ml',
-      'sku': 'DAIRY001',
-      'category': 'Dairy & Eggs',
-      'status': 'Active',
-      'stock': 'In Stock (120 pcs)',
-      'price': '₹28.00',
-      'mrp': '₹30.00',
-      'isInactive': false,
-      'isOutOfStock': false,
-      'icon': Icons.local_cafe_rounded,
-    },
-    {
-      'name': 'Britannia Brown Bread 400g',
-      'sku': 'GROC001',
-      'category': 'Grocery & Staples',
-      'status': 'Active',
-      'stock': 'In Stock (60 pcs)',
-      'price': '₹38.00',
-      'mrp': '₹40.00',
-      'isInactive': false,
-      'isOutOfStock': false,
-      'icon': Icons.bakery_dining_rounded,
-    },
-    {
-      'name': 'Lay\'s Classic Salted 52g',
-      'sku': 'SNK001',
-      'category': 'Snacks & Munchies',
-      'status': 'Active',
-      'stock': 'In Stock (85 pcs)',
-      'price': '₹20.00',
-      'mrp': '₹20.00',
-      'isInactive': false,
-      'isOutOfStock': false,
-      'icon': Icons.fastfood_rounded,
-    },
-    {
-      'name': 'Coca Cola 750 ml',
-      'sku': 'BEV001',
-      'category': 'Beverages',
-      'status': 'Active',
-      'stock': 'In Stock (48 pcs)',
-      'price': '₹42.00',
-      'mrp': '₹45.00',
-      'isInactive': false,
-      'isOutOfStock': false,
-      'icon': Icons.local_drink_rounded,
-    },
-    {
-      'name': 'Dove Beauty Bar 100g',
-      'sku': 'PC001',
-      'category': 'Personal Care',
-      'status': 'Active',
-      'stock': 'In Stock (70 pcs)',
-      'price': '₹32.00',
-      'mrp': '₹35.00',
-      'isInactive': false,
-      'isOutOfStock': false,
-      'icon': Icons.sanitizer_rounded,
-    },
-    {
-      'name': 'Surf Excel Matic 1 kg',
-      'sku': 'HH001',
-      'category': 'Household Essentials',
-      'status': 'Inactive',
-      'stock': 'Out of Stock',
-      'price': '₹110.00',
-      'mrp': '₹120.00',
-      'isInactive': true,
-      'isOutOfStock': true,
-      'icon': Icons.cleaning_services_rounded,
-    },
-  ];
+    return [
+      {'label': 'All', 'count': '${products.length}'},
+      for (final name in names)
+        {
+          'label': name,
+          'count':
+              '${products.where((p) => p.categoryName == name).length}',
+        },
+    ];
+  }
+
 
   @override
   void dispose() {
