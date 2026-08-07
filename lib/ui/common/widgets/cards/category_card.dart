@@ -48,7 +48,7 @@ class _CategoryCardState extends State<CategoryCard> {
                 width: widget.size + 14,
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF1F5F9),
+                  color: context.semantic.surfaceAlt,
                   borderRadius: BorderRadius.circular(16),
                 ),
                 clipBehavior: Clip.antiAlias,
@@ -65,17 +65,12 @@ class _CategoryCardState extends State<CategoryCard> {
                 maxLines: 2,
                 textAlign: TextAlign.center,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.black,
-                  height: 1.1,
-                ),
+                style: context.text.labelSmall!.copyWith(fontWeight: FontWeight.w700, color: context.colors.onSurface),
               ),
               if (widget.showCount && widget.category.itemCount > 0)
                 Text(
                   '${widget.category.itemCount} items',
-                  style: context.text.bodySmall!.copyWith(fontSize: 10),
+                  style: context.text.bodySmall!,
                 ),
             ],
           ),

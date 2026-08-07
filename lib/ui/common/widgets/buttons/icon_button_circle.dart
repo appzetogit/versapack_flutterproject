@@ -114,7 +114,7 @@ class _CountBadge extends StatelessWidget {
         alignment: Alignment.center,
         child: Text(
           count > 99 ? '99+' : '$count',
-          style: context.text.labelSmall!.copyWith(color: Colors.black),
+          style: context.text.labelSmall!.copyWith(color: context.colors.onSurface),
         ),
       ),
     );

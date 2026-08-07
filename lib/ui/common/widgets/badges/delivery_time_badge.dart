@@ -52,7 +52,7 @@ class VegIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = isVeg ? const Color(0xFF158A45) : const Color(0xFFB3261E);
+    final color = isVeg ? context.semantic.success : context.semantic.danger;
     return Semantics(
       label: isVeg ? 'Vegetarian' : 'Non-vegetarian',
       child: Container(

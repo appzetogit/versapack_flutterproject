@@ -244,7 +244,7 @@ class _CouponCard extends StatelessWidget {
               const SizedBox(height: AppSpacing.xs),
               Text(
                 'Valid until ${_date(coupon.expiresAt!)}',
-                style: context.text.bodySmall!.copyWith(fontSize: 11),
+                style: context.text.bodySmall!,
               ),
             ],
           ],

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../domain/model/category.dart';
 import '../../../common/widgets/loaders/shimmer_box.dart';
 import '../../../common/widgets/misc/app_network_image.dart';
+import '../../../../core/theme/app_theme.dart';
 
 /// The icon strip at the very top of home.
 ///
@@ -106,7 +107,7 @@ class _Tile extends StatelessWidget {
             height: 56,
             padding: hasImage ? const EdgeInsets.all(3) : EdgeInsets.zero,
             decoration: BoxDecoration(
-              color: isAll ? const Color(0xFFFFD400) : const Color(0xFFF3F4F6),
+              color: isAll ? context.semantic.brandSurface : context.semantic.surfaceAlt,
               borderRadius:
                   isPill ? BorderRadius.circular(28) : BorderRadius.circular(16),
             ),
@@ -121,7 +122,7 @@ class _Tile extends StatelessWidget {
                 : Icon(
                     icon,
                     size: 26,
-                    color: isAll ? Colors.black : const Color(0xFF333333),
+                    color: isAll ? context.colors.onSurface : context.colors.onSurface,
                   ),
           ),
           const SizedBox(height: 4),
@@ -132,11 +133,7 @@ class _Tile extends StatelessWidget {
               maxLines: 1,
               textAlign: TextAlign.center,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 11.5,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF111111),
-              ),
+              style: context.text.bodySmall!.copyWith(fontWeight: FontWeight.w700, color: context.colors.onSurface),
             ),
           ),
         ],

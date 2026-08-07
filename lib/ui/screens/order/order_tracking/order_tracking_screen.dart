@@ -155,7 +155,7 @@ class _LiveStatusBannerState extends State<_LiveStatusBanner>
                 child: Icon(
                   live ? Icons.delivery_dining_rounded : Icons.check_rounded,
                   size: 26,
-                  color: Colors.white,
+                  color: context.colors.surface,
                 ),
               ),
             ),
@@ -167,7 +167,7 @@ class _LiveStatusBannerState extends State<_LiveStatusBanner>
               children: [
                 Text(
                   order.status.label,
-                  style: context.text.titleLarge!.copyWith(color: Colors.white),
+                  style: context.text.titleLarge!.copyWith(color: context.colors.surface),
                 ),
                 const SizedBox(height: AppSpacing.xxs),
                 Text(

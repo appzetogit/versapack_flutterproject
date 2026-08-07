@@ -5,6 +5,7 @@ import '../../../../domain/model/product.dart';
 import '../../../common/widgets/loaders/shimmer_box.dart';
 import '../../../common/widgets/misc/app_network_image.dart';
 import '../../../common/widgets/misc/section_header.dart';
+import '../../../../core/theme/app_theme.dart';
 
 /// Bestsellers strip. Products are ranked from the live catalog by
 /// `CatalogGroupingService`; ids are real, so the tap-through resolves.
@@ -79,9 +80,9 @@ class _Card extends StatelessWidget {
       width: 140,
       padding: const EdgeInsets.all(9),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.colors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: context.semantic.surfaceAlt),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
@@ -100,7 +101,7 @@ class _Card extends StatelessWidget {
                 height: 96,
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
+                  color: context.semantic.surfaceAlt,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 alignment: Alignment.center,
@@ -121,8 +122,8 @@ class _Card extends StatelessWidget {
                       horizontal: 7,
                       vertical: 2.5,
                     ),
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFFFD400),
+                    decoration: BoxDecoration(
+                      color: context.semantic.brandSurface,
                       borderRadius: BorderRadius.only(
                         topLeft: Radius.circular(12),
                         bottomRight: Radius.circular(8),
@@ -130,11 +131,7 @@ class _Card extends StatelessWidget {
                     ),
                     child: Text(
                       '${product.discountPercent}% OFF',
-                      style: const TextStyle(
-                        fontSize: 8.5,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.black,
-                      ),
+                      style: context.text.labelSmall!.copyWith(fontWeight: FontWeight.w900, color: context.colors.onSurface),
                     ),
                   ),
                 ),
@@ -145,11 +142,7 @@ class _Card extends StatelessWidget {
             product.name,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 12.5,
-              fontWeight: FontWeight.w800,
-              color: Colors.black,
-            ),
+            style: context.text.bodySmall!.copyWith(fontWeight: FontWeight.w800, color: context.colors.onSurface),
           ),
           Text(
             // Brand is optional upstream; the unit label always renders.
@@ -158,12 +151,7 @@ class _Card extends StatelessWidget {
                 : '${product.brand}\n${product.unitLabel}',
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w500,
-              color: Colors.grey.shade700,
-              height: 1.1,
-            ),
+            style: context.text.labelSmall!.copyWith(fontWeight: FontWeight.w500, color: context.semantic.textSecondary),
           ),
           const Spacer(),
           Row(
@@ -175,20 +163,12 @@ class _Card extends StatelessWidget {
                   children: [
                     Text(
                       product.price.asCurrency,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.black,
-                      ),
+                      style: context.text.titleSmall!.copyWith(fontWeight: FontWeight.w900, color: context.colors.onSurface),
                     ),
                     if (strike != null)
                       Text(
                         strike.asCurrency,
-                        style: TextStyle(
-                          fontSize: 10,
-                          decoration: TextDecoration.lineThrough,
-                          color: Colors.grey.shade600,
-                        ),
+                        style: context.text.labelSmall!.copyWith(decoration: TextDecoration.lineThrough, color: context.semantic.textSecondary),
                       ),
                   ],
                 ),
@@ -200,14 +180,14 @@ class _Card extends StatelessWidget {
                   height: 28,
                   decoration: BoxDecoration(
                     color: purchasable
-                        ? const Color(0xFF16A34A)
-                        : Colors.grey.shade400,
+                        ? context.semantic.success
+                        : context.semantic.border,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.add_rounded,
                     size: 18,
-                    color: Colors.white,
+                    color: context.colors.surface,
                   ),
                 ),
               ),

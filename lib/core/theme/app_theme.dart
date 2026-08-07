@@ -12,19 +12,28 @@ abstract final class AppTheme {
 
   static ThemeData _build(AppThemeFlavor flavor, Brightness brightness) {
     final isDark = brightness == Brightness.dark;
-    final primaryColor = flavor == AppThemeFlavor.appzeto
+
+    // The brand colour is the yellow. Green is a *status* colour (success,
+    // veg, active) and reaches the UI through `semantic.success`, never through
+    // `colorScheme.primary` — having it as primary is what put green on the
+    // splash, the buttons, the progress indicators and the focus rings.
+    final primaryColor =
+        flavor == AppThemeFlavor.appzeto ? AppColors.appzetoYellow : flavor.seed;
+    final secondaryColor = flavor == AppThemeFlavor.appzeto
         ? AppColors.appzetoGreen
         : flavor.accent;
-    final secondaryColor = flavor == AppThemeFlavor.appzeto
-        ? AppColors.appzetoYellow
-        : flavor.seed;
 
     final scheme = ColorScheme.fromSeed(
       seedColor: primaryColor,
       brightness: brightness,
     ).copyWith(
-      primary: isDark ? AppColors.appzetoYellow : primaryColor,
+      primary: primaryColor,
+      // Yellow is a light colour: anything painted on it has to be dark or it
+      // is unreadable. Every on-primary foreground reads this, so the pairing
+      // is decided once here.
+      onPrimary: AppColors.lightTextPrimary,
       secondary: secondaryColor,
+      onSecondary: AppColors.lightSurface,
       tertiary: AppColors.orangeBadge,
       surface: isDark ? AppColors.darkSurface : AppColors.lightSurface,
       onSurface: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,

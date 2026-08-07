@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/extensions/num_extensions.dart';
 import '../../../../domain/model/coupon.dart';
 import '../../../common/widgets/loaders/shimmer_box.dart';
+import '../../../../core/theme/app_theme.dart';
 
 /// The three offer cards under the hero banner, built from live offers.
 class OfferCouponsRow extends StatelessWidget {
@@ -66,9 +67,9 @@ class _OfferCard extends StatelessWidget {
         height: 108,
         padding: const EdgeInsets.fromLTRB(8, 7, 8, 7),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.colors.surface,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.grey.shade200),
+          border: Border.all(color: context.semantic.surfaceAlt),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.04),
@@ -83,8 +84,8 @@ class _OfferCard extends StatelessWidget {
             Container(
               width: 32,
               height: 32,
-              decoration: const BoxDecoration(
-                color: Color(0xFFFFF3B3),
+              decoration: BoxDecoration(
+                color: context.semantic.brandSurfaceSoft,
                 shape: BoxShape.circle,
               ),
               alignment: Alignment.center,
@@ -92,18 +93,14 @@ class _OfferCard extends StatelessWidget {
                   ? Container(
                       width: 24,
                       height: 24,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFFFD400),
+                      decoration: BoxDecoration(
+                        color: context.semantic.brandSurface,
                         shape: BoxShape.circle,
                       ),
                       alignment: Alignment.center,
-                      child: const Text(
+                      child: Text(
                         '%',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.black,
-                        ),
+                        style: context.text.titleSmall!.copyWith(fontWeight: FontWeight.w900, color: context.colors.onSurface),
                       ),
                     )
                   : Icon(
@@ -112,8 +109,8 @@ class _OfferCard extends StatelessWidget {
                           : Icons.credit_card_rounded,
                       size: 18,
                       color: index == 1
-                          ? const Color(0xFF16A34A)
-                          : Colors.black,
+                          ? context.semantic.success
+                          : context.colors.onSurface,
                     ),
             ),
             const SizedBox(height: 5),
@@ -121,12 +118,7 @@ class _OfferCard extends StatelessWidget {
               _headline,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 10.5,
-                fontWeight: FontWeight.w900,
-                color: Colors.black,
-                height: 1.1,
-              ),
+              style: context.text.labelSmall!.copyWith(fontWeight: FontWeight.w900, color: context.colors.onSurface),
             ),
             const SizedBox(height: 2),
             Expanded(
@@ -134,29 +126,20 @@ class _OfferCard extends StatelessWidget {
                 _subtitle,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 8.5,
-                  fontWeight: FontWeight.w500,
-                  color: Color(0xFF666666),
-                  height: 1.15,
-                ),
+                style: context.text.labelSmall!.copyWith(fontWeight: FontWeight.w500, color: context.semantic.textSecondary),
               ),
             ),
-            const Row(
+            Row(
               children: [
                 Text(
                   'ORDER NOW',
-                  style: TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w900,
-                    color: Color(0xFF16A34A),
-                  ),
+                  style: context.text.labelSmall!.copyWith(fontWeight: FontWeight.w900, color: context.semantic.success),
                 ),
                 SizedBox(width: 2),
                 Icon(
                   Icons.arrow_forward_rounded,
                   size: 10,
-                  color: Color(0xFF16A34A),
+                  color: context.semantic.success,
                 ),
               ],
             ),

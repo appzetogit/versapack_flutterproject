@@ -4,6 +4,7 @@ import '../../../../domain/model/category.dart';
 import '../../../common/widgets/loaders/shimmer_box.dart';
 import '../../../common/widgets/misc/app_network_image.dart';
 import '../../../common/widgets/misc/section_header.dart';
+import '../../../../core/theme/app_theme.dart';
 
 /// "Shop by Category" tiles, backed by the real top-level category list.
 class ShopByCategoryRow extends StatelessWidget {
@@ -63,7 +64,7 @@ class ShopByCategoryRow extends StatelessWidget {
                               width: 96,
                               padding: const EdgeInsets.all(6),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFF2F4F7),
+                                color: context.semantic.surfaceAlt,
                                 borderRadius: BorderRadius.circular(18),
                               ),
                               clipBehavior: Clip.antiAlias,
@@ -79,12 +80,7 @@ class ShopByCategoryRow extends StatelessWidget {
                               maxLines: 2,
                               textAlign: TextAlign.center,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 11.5,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.black,
-                                height: 1.1,
-                              ),
+                              style: context.text.bodySmall!.copyWith(fontWeight: FontWeight.w800, color: context.colors.onSurface),
                             ),
                           ],
                         ),

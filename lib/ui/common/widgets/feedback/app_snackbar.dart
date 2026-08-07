@@ -39,12 +39,12 @@ abstract final class AppSnackbar {
           shape: const RoundedRectangleBorder(borderRadius: AppRadii.rMd),
           content: Row(
             children: [
-              Icon(icon, color: Colors.white, size: 18),
+              Icon(icon, color: context.colors.surface, size: 18),
               const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: Text(
                   message,
-                  style: context.text.titleSmall!.copyWith(color: Colors.white),
+                  style: context.text.titleSmall!.copyWith(color: context.colors.surface),
                 ),
               ),
             ],
@@ -53,7 +53,7 @@ abstract final class AppSnackbar {
               ? null
               : SnackBarAction(
                   label: actionLabel,
-                  textColor: Colors.white,
+                  textColor: context.colors.surface,
                   onPressed: onAction ?? () {},
                 ),
         ),

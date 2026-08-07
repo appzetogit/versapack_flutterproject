@@ -4,6 +4,7 @@ import '../../../../core/extensions/num_extensions.dart';
 import '../../../../domain/model/product.dart';
 import '../../../common/widgets/loaders/shimmer_box.dart';
 import '../../../common/widgets/misc/app_network_image.dart';
+import '../../../../core/theme/app_theme.dart';
 
 /// The deepest-discount products from the live catalog, in the promo card.
 class MegaDealsSection extends StatelessWidget {
@@ -28,13 +29,13 @@ class MegaDealsSection extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFFFFF9E6), Color(0xFFFFF1C5)],
+        gradient: LinearGradient(
+          colors: [context.semantic.brandSurfaceSoft, context.semantic.brandSurfaceSoft],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFFFE082), width: 1.2),
+        border: Border.all(color: context.semantic.brandSurfaceSoft, width: 1.2),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
@@ -51,31 +52,21 @@ class MegaDealsSection extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'MEGA DEALS',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.black,
-                    letterSpacing: 0.5,
-                  ),
+                  style: context.text.titleMedium!.copyWith(fontWeight: FontWeight.w900, color: context.colors.onSurface),
                 ),
                 const SizedBox(height: 3),
-                const Text(
+                Text(
                   'Big savings on\ndaily essentials',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF333333),
-                    height: 1.15,
-                  ),
+                  style: context.text.bodySmall!.copyWith(fontWeight: FontWeight.w800, color: context.colors.onSurface),
                 ),
                 const SizedBox(height: 10),
                 Container(
                   height: 52,
                   width: 52,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFD400),
+                    color: context.semantic.brandSurface,
                     borderRadius: BorderRadius.circular(14),
                     boxShadow: [
                       BoxShadow(
@@ -85,24 +76,20 @@ class MegaDealsSection extends StatelessWidget {
                       ),
                     ],
                   ),
-                  child: const Stack(
+                  child: Stack(
                     alignment: Alignment.center,
                     children: [
                       Icon(Icons.card_giftcard_rounded,
-                          size: 30, color: Colors.black),
+                          size: 30, color: context.colors.onSurface),
                       Positioned(
                         right: 3,
                         top: 3,
                         child: CircleAvatar(
                           radius: 8,
-                          backgroundColor: Colors.black,
+                          backgroundColor: context.colors.onSurface,
                           child: Text(
                             '%',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 9.5,
-                              fontWeight: FontWeight.w900,
-                            ),
+                            style: context.text.labelSmall!.copyWith(color: context.colors.surface, fontWeight: FontWeight.w900),
                           ),
                         ),
                       ),
@@ -116,23 +103,19 @@ class MegaDealsSection extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 14, vertical: 7.5),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF111111),
+                      color: context.colors.onSurface,
                       borderRadius: BorderRadius.circular(18),
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
                           'Shop Now',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style: context.text.labelSmall!.copyWith(color: context.colors.surface, fontWeight: FontWeight.bold),
                         ),
                         SizedBox(width: 4),
                         Icon(Icons.arrow_forward_rounded,
-                            size: 11, color: Colors.white),
+                            size: 11, color: context.colors.surface),
                       ],
                     ),
                   ),
@@ -185,9 +168,9 @@ class _DealCard extends StatelessWidget {
         width: 98,
         padding: const EdgeInsets.all(7),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.colors.surface,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.grey.shade200),
+          border: Border.all(color: context.semantic.surfaceAlt),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.03),
@@ -203,7 +186,7 @@ class _DealCard extends StatelessWidget {
               child: Container(
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
+                  color: context.semantic.surfaceAlt,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 clipBehavior: Clip.antiAlias,
@@ -223,22 +206,14 @@ class _DealCard extends StatelessWidget {
               product.name,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 10.5,
-                fontWeight: FontWeight.w800,
-                color: Colors.black,
-              ),
+              style: context.text.labelSmall!.copyWith(fontWeight: FontWeight.w800, color: context.colors.onSurface),
             ),
             const SizedBox(height: 2),
             Row(
               children: [
                 Text(
                   product.price.asCurrency,
-                  style: const TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.black,
-                  ),
+                  style: context.text.bodySmall!.copyWith(fontWeight: FontWeight.w900, color: context.colors.onSurface),
                 ),
                 if (strike != null) ...[
                   const SizedBox(width: 3),
@@ -247,11 +222,7 @@ class _DealCard extends StatelessWidget {
                       strike.asCurrency,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 9,
-                        decoration: TextDecoration.lineThrough,
-                        color: Colors.grey.shade600,
-                      ),
+                      style: context.text.labelSmall!.copyWith(decoration: TextDecoration.lineThrough, color: context.semantic.textSecondary),
                     ),
                   ),
                 ],
@@ -263,16 +234,12 @@ class _DealCard extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFFD400),
+                  color: context.semantic.brandSurface,
                   borderRadius: BorderRadius.circular(5),
                 ),
                 child: Text(
                   '${product.discountPercent}% OFF',
-                  style: const TextStyle(
-                    fontSize: 8.5,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.black,
-                  ),
+                  style: context.text.labelSmall!.copyWith(fontWeight: FontWeight.w900, color: context.colors.onSurface),
                 ),
               ),
           ],

@@ -424,11 +424,11 @@ class _PayBar extends StatelessWidget {
           children: [
             Text(
               AppStrings.grandTotal,
-              style: context.text.labelMedium!.copyWith(color: Colors.white70),
+              style: context.text.labelMedium!.copyWith(color: context.colors.surface.withValues(alpha: 0.7)),
             ),
             Text(
               total.asCurrency,
-              style: context.text.price.copyWith(color: Colors.white),
+              style: context.text.price.copyWith(color: context.colors.surface),
             ),
           ],
         ),

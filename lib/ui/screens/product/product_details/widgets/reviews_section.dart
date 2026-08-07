@@ -185,7 +185,7 @@ class _ReviewTile extends StatelessWidget {
                 ),
                 Text(
                   _relative(review.createdAt),
-                  style: context.text.bodySmall!.copyWith(fontSize: 11),
+                  style: context.text.bodySmall!,
                 ),
                 if (review.comment.isNotEmpty) ...[
                   const SizedBox(height: AppSpacing.xs),

@@ -48,23 +48,19 @@ class SectionHeader extends StatelessWidget {
             GestureDetector(
               onTap: onSeeAll,
               behavior: HitTestBehavior.opaque,
-              child: const Padding(
+              child: Padding(
                 padding: EdgeInsets.symmetric(vertical: AppSpacing.xs),
                 child: Row(
                   children: [
                     Text(
                       'See all',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF16A34A),
-                      ),
+                      style: context.text.titleSmall!.copyWith(fontWeight: FontWeight.w700, color: context.semantic.success),
                     ),
                     SizedBox(width: 2),
                     Icon(
                       Icons.arrow_forward_rounded,
                       size: 13,
-                      color: Color(0xFF16A34A),
+                      color: context.semantic.success,
                     ),
                   ],
                 ),

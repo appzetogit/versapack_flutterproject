@@ -104,7 +104,7 @@ class _NavItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color =
-        selected ? const Color(0xFFE6A100) : context.semantic.textSecondary;
+        selected ? context.colors.primary : context.semantic.textSecondary;
 
     return Semantics(
       button: true,
@@ -122,12 +122,7 @@ class _NavItem extends StatelessWidget {
               spec.$4,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: color,
-                fontSize: 11,
-                fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-                letterSpacing: 0,
-              ),
+              style: context.text.labelSmall!.copyWith(color: color, fontWeight: selected ? FontWeight.w800 : FontWeight.w600),
             ),
           ],
         ),
@@ -163,9 +158,9 @@ class _CentreBadge extends StatelessWidget {
                   height: 62,
                   width: 62,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFD400),
+                    color: context.semantic.brandSurface,
                     shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 4.5),
+                    border: Border.all(color: context.colors.surface, width: 4.5),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.12),
@@ -175,16 +170,10 @@ class _CentreBadge extends StatelessWidget {
                     ],
                   ),
                   alignment: Alignment.center,
-                  child: const Text(
+                  child: Text(
                     '10\nmins',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.black,
-                      height: 1.05,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 0,
-                    ),
+                    style: context.text.bodySmall!.copyWith(color: context.colors.onSurface, fontWeight: FontWeight.w900),
                   ),
                 ),
                 if (count > 0)
@@ -205,7 +194,10 @@ class _CentreBadge extends StatelessWidget {
                         ),
                         constraints: const BoxConstraints(minWidth: 20),
                         decoration: BoxDecoration(
-                          color: context.colors.primary,
+                          // A count badge is an alert, and it sits on the
+                          // yellow brand disc — the brand colour would vanish
+                          // into it.
+                          color: context.semantic.danger,
                           borderRadius: AppRadii.rPill,
                           border: Border.all(
                             color: context.colors.surface,
@@ -216,7 +208,7 @@ class _CentreBadge extends StatelessWidget {
                         child: Text(
                           count > 99 ? '99+' : '$count',
                           style: context.text.labelSmall!
-                              .copyWith(color: Colors.white),
+                              .copyWith(color: context.colors.surface),
                         ),
                       ),
                     ),

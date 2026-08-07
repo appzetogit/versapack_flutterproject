@@ -36,12 +36,12 @@ class HomeScreen extends ConsumerWidget {
         statusBarBrightness: Brightness.light,
       ),
       child: Scaffold(
-        backgroundColor: const Color(0xFFFAFAFA),
+        backgroundColor: context.colors.surface,
         body: Column(
           children: [
             const OfflineBanner(),
             Container(
-              color: const Color(0xFFFFD400),
+              color: context.semantic.brandSurface,
               child: SafeArea(
                 bottom: false,
                 child: Column(
@@ -51,6 +51,7 @@ class HomeScreen extends ConsumerWidget {
                       padding: const EdgeInsets.fromLTRB(14, 2, 14, 14),
                       child: SearchBarWidget(
                         readOnly: true,
+                        categories: state.categories.map((c) => c.name).toList(),
                         onTap: () => context.push(RoutePaths.search),
                       ),
                     ),

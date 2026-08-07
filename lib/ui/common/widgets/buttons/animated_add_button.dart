@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_durations.dart';
 import '../misc/quantity_stepper.dart';
+import '../../../../core/theme/app_theme.dart';
 
 /// "ADD" that morphs into a quantity stepper once the item is in the cart.
 ///
@@ -117,13 +118,13 @@ class _AddPillState extends State<_AddPill> {
             width: 30,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: enabled ? const Color(0xFF0F9D28) : Colors.grey.shade400,
+              color: enabled ? context.semantic.success : context.semantic.border,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.add_rounded,
               size: 20,
-              color: Colors.white,
+              color: context.colors.surface,
             ),
           ),
         ),

@@ -15,6 +15,7 @@ import '../../common/widgets/states/empty_state_widget.dart';
 import '../../common/widgets/states/error_state_widget.dart';
 import '../cart/widgets/cart_summary_bar.dart';
 import '../category/categories/categories_provider.dart';
+import '../home/home_provider.dart';
 import 'search_provider.dart';
 import 'search_state.dart';
 
@@ -59,6 +60,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(searchProvider);
+    final homeState = ref.watch(homeProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -68,6 +70,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           child: SearchBarWidget(
             controller: _controller,
             autofocus: true,
+            categories: homeState.categories.map((c) => c.name).toList(),
             onChanged: ref.read(searchProvider.notifier).onQueryChanged,
             onSubmitted: (value) =>
                 ref.read(searchProvider.notifier).commitSearch(value),

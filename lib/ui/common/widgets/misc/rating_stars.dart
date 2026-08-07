@@ -27,7 +27,7 @@ class RatingStars extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.star_rounded, size: size + 2, color: const Color(0xFFF5A623)),
+          Icon(Icons.star_rounded, size: size + 2, color: context.semantic.warning),
           if (showValue) ...[
             const SizedBox(width: 2),
             Text(
@@ -79,7 +79,7 @@ class RatingInput extends StatelessWidget {
               value <= rating ? Icons.star_rounded : Icons.star_border_rounded,
               size: size,
               color: value <= rating
-                  ? const Color(0xFFF5A623)
+                  ? context.semantic.warning
                   : context.semantic.border,
             ),
           ),

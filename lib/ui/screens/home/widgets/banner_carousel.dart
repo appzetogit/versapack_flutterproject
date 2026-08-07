@@ -9,6 +9,7 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../domain/model/banner.dart';
 import '../../../common/widgets/misc/app_network_image.dart';
 import '../../../common/widgets/loaders/shimmer_box.dart';
+import '../../../../core/theme/app_theme.dart';
 
 /// Auto-scrolling promo carousel with width-animating pagination dots.
 class BannerCarousel extends StatefulWidget {
@@ -116,7 +117,7 @@ class _BannerCarouselState extends State<BannerCarousel> {
               height: 6,
               width: i == _index ? 18 : 6,
               decoration: BoxDecoration(
-                color: i == _index ? const Color(0xFFFFD400) : Colors.grey.shade300,
+                color: i == _index ? context.semantic.brandSurface : context.semantic.border,
                 borderRadius: BorderRadius.circular(999),
               ),
             ),

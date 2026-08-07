@@ -74,7 +74,7 @@ class _Step extends StatelessWidget {
                   ),
                 ),
                 child: reached
-                    ? const Icon(Icons.check_rounded, size: 15, color: Colors.white)
+                    ? Icon(Icons.check_rounded, size: 15, color: context.colors.surface)
                     : null,
               ),
               if (!isLast)

@@ -235,9 +235,9 @@ class _WalletCard extends ConsumerWidget {
       ),
       child: Row(
         children: [
-          const Icon(
+          Icon(
             Icons.account_balance_wallet_rounded,
-            color: Colors.white,
+            color: context.colors.surface,
             size: 26,
           ),
           const SizedBox(width: AppSpacing.lg),
@@ -248,7 +248,7 @@ class _WalletCard extends ConsumerWidget {
                 Text(
                   'Suvio Wallet',
                   style: context.text.labelMedium!
-                      .copyWith(color: Colors.white70),
+                      .copyWith(color: context.colors.surface.withValues(alpha: 0.7)),
                 ),
                 wallet.when(
                   loading: () => const Padding(
@@ -258,11 +258,11 @@ class _WalletCard extends ConsumerWidget {
                   error: (_, _) => Text(
                     'Balance unavailable',
                     style: context.text.titleMedium!
-                        .copyWith(color: Colors.white),
+                        .copyWith(color: context.colors.surface),
                   ),
                   data: (data) => Text(
                     data.balance.asCurrency,
-                    style: context.text.priceLarge.copyWith(color: Colors.white),
+                    style: context.text.priceLarge.copyWith(color: context.colors.surface),
                   ),
                 ),
               ],
@@ -276,12 +276,12 @@ class _WalletCard extends ConsumerWidget {
                       Text(
                         'Referral earnings',
                         style: context.text.labelSmall!
-                            .copyWith(color: Colors.white70),
+                            .copyWith(color: context.colors.surface.withValues(alpha: 0.7)),
                       ),
                       Text(
                         data.referralEarnings.asCurrency,
                         style: context.text.titleSmall!
-                            .copyWith(color: Colors.white),
+                            .copyWith(color: context.colors.surface),
                       ),
                     ],
                   )

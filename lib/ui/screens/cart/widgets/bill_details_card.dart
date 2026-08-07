@@ -120,7 +120,7 @@ class _BillRow extends StatelessWidget {
               if (line.note.isNotEmpty)
                 Text(
                   line.note,
-                  style: context.text.bodySmall!.copyWith(fontSize: 11),
+                  style: context.text.bodySmall!,
                 ),
             ],
           ),

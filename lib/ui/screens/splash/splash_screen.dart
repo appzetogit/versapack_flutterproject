@@ -83,13 +83,14 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                 const SizedBox(height: AppSpacing.xl),
                 Text(
                   AppStrings.appName,
-                  style: context.text.displaySmall!.copyWith(color: Colors.white),
+                  style: context.text.displaySmall!
+                      .copyWith(color: context.colors.onPrimary),
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
                   AppStrings.tagline,
                   style: context.text.bodyLarge!.copyWith(
-                    color: Colors.white.withValues(alpha: 0.82),
+                    color: context.colors.onPrimary.withValues(alpha: 0.75),
                   ),
                 ),
               ],
@@ -110,10 +111,11 @@ class SuvioMark extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final foreground = onPrimary ? Colors.white : context.colors.primary;
-    final background = onPrimary
-        ? Colors.white.withValues(alpha: 0.16)
-        : context.colors.primary.withValues(alpha: 0.10);
+    // On the brand plate the mark is drawn in the on-primary ink; off it, in
+    // the brand colour itself.
+    final foreground =
+        onPrimary ? context.colors.onPrimary : context.colors.primary;
+    final background = foreground.withValues(alpha: onPrimary ? 0.12 : 0.10);
 
     return Container(
       height: size,
@@ -146,7 +148,11 @@ class SuvioWordmark extends StatelessWidget {
             color: context.colors.primary,
             borderRadius: AppRadii.rSm,
           ),
-          child: const Icon(Icons.bolt_rounded, size: 15, color: Colors.white),
+          child: Icon(
+            Icons.bolt_rounded,
+            size: 15,
+            color: context.colors.onPrimary,
+          ),
         ),
         if (!compact) ...[
           const SizedBox(width: AppSpacing.sm),

@@ -49,7 +49,8 @@ class QuantityStepper extends StatelessWidget {
             child: Text(
               '$quantity',
               key: ValueKey(quantity),
-              style: context.text.labelLarge!.copyWith(color: Colors.white),
+              style: context.text.labelLarge!
+                  .copyWith(color: context.colors.onPrimary),
             ),
           ),
           _StepButton(
@@ -90,7 +91,8 @@ class _StepButton extends StatelessWidget {
           child: Icon(
             icon,
             size: compact ? 15 : 17,
-            color: Colors.white.withValues(alpha: onTap == null ? 0.4 : 1),
+            color: context.colors.onPrimary
+                .withValues(alpha: onTap == null ? 0.4 : 1),
           ),
         ),
       ),

@@ -68,7 +68,7 @@ class _BrandCardState extends State<BrandCard> {
               ),
               Text(
                 '${widget.brand.productCount} items',
-                style: context.text.bodySmall!.copyWith(fontSize: 10.5),
+                style: context.text.bodySmall!,
               ),
             ],
           ),

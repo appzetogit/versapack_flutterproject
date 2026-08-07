@@ -63,7 +63,10 @@ class CartSummaryBar extends ConsumerWidget {
                                   '${cart.itemCount} '
                                   '${cart.itemCount == 1 ? 'item' : 'items'}',
                                   style: context.text.labelMedium!
-                                      .copyWith(color: Colors.white70),
+                                      .copyWith(
+                                        color: context.colors.onPrimary
+                                            .withValues(alpha: 0.7),
+                                      ),
                                 ),
                                 Text(
                                   (cart.pricing.total > 0
@@ -71,7 +74,7 @@ class CartSummaryBar extends ConsumerWidget {
                                           : cart.provisionalSubtotal)
                                       .asCurrency,
                                   style: context.text.price
-                                      .copyWith(color: Colors.white),
+                                      .copyWith(color: context.colors.onPrimary),
                                 ),
                               ],
                             ),
@@ -79,13 +82,13 @@ class CartSummaryBar extends ConsumerWidget {
                           Text(
                             label,
                             style: context.text.labelLarge!
-                                .copyWith(color: Colors.white),
+                                .copyWith(color: context.colors.onPrimary),
                           ),
                           const SizedBox(width: AppSpacing.xs),
-                          const Icon(
+                          Icon(
                             Icons.arrow_forward_rounded,
                             size: 18,
-                            color: Colors.white,
+                            color: context.colors.onPrimary,
                           ),
                         ],
                       ),

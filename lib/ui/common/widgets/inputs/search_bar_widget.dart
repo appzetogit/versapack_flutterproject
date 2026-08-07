@@ -1,10 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme.dart';
 
-/// The search field. On Home it is a tappable, non-editable facade that routes
-/// to the search screen; on Search it is a live field.
+/// The search field. Features vertical page-up changing text animation for
+/// top categories / products.
 class SearchBarWidget extends StatefulWidget {
   const SearchBarWidget({
     super.key,
@@ -14,7 +15,17 @@ class SearchBarWidget extends StatefulWidget {
     this.onSubmitted,
     this.readOnly = false,
     this.autofocus = false,
-    this.hintRotation = const ['Search for milk', 'Search for bread', 'Search for eggs'],
+    this.categories = const [],
+    this.hintRotation = const [
+      'Milk',
+      'Curd & Yogurt',
+      'Fresh Vegetables',
+      'Fresh Fruits',
+      'Atta & Flour',
+      'Biscuits & Chips',
+      'Tea & Coffee',
+      'Soft Drinks',
+    ],
   });
 
   final TextEditingController? controller;
@@ -24,7 +35,10 @@ class SearchBarWidget extends StatefulWidget {
   final bool readOnly;
   final bool autofocus;
 
-  /// Rotating placeholder, only used in the read-only Home variant.
+  /// Top category names to cycle through.
+  final List<String> categories;
+
+  /// Default rotating placeholders when categories list is empty.
   final List<String> hintRotation;
 
   @override
@@ -32,28 +46,113 @@ class SearchBarWidget extends StatefulWidget {
 }
 
 class _SearchBarWidgetState extends State<SearchBarWidget> {
-  int _hintIndex = 0;
+  int _currentIndex = 0;
+  Timer? _timer;
+
+  List<String> get _items {
+    if (widget.categories.isNotEmpty) {
+      return widget.categories;
+    }
+    return widget.hintRotation;
+  }
 
   @override
   void initState() {
     super.initState();
-    if (widget.readOnly && widget.hintRotation.length > 1) _scheduleHintRotation();
+    _startTimer();
+    widget.controller?.addListener(_onControllerChanged);
   }
 
-  void _scheduleHintRotation() {
-    Future.delayed(const Duration(seconds: 3), () {
+  void _onControllerChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void didUpdateWidget(SearchBarWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.categories != oldWidget.categories ||
+        widget.hintRotation != oldWidget.hintRotation) {
+      if (_currentIndex >= _items.length) {
+        _currentIndex = 0;
+      }
+      _startTimer();
+    }
+  }
+
+  void _startTimer() {
+    _timer?.cancel();
+    if (_items.isEmpty) return;
+    _timer = Timer.periodic(const Duration(seconds: 3), (timer) {
       if (!mounted) return;
-      setState(() => _hintIndex = (_hintIndex + 1) % widget.hintRotation.length);
-      _scheduleHintRotation();
+      final items = _items;
+      if (items.isEmpty) return;
+      setState(() {
+        _currentIndex = (_currentIndex + 1) % items.length;
+      });
     });
+  }
+
+  @override
+  void dispose() {
+    widget.controller?.removeListener(_onControllerChanged);
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  Widget _buildAnimatedHintText({required TextStyle style}) {
+    final items = _items;
+    final currentItem = items.isEmpty
+        ? 'products, brands…'
+        : items[_currentIndex % items.length];
+    final displayText = 'Search "$currentItem"';
+
+    return ClipRect(
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 500),
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeInCubic,
+        transitionBuilder: (Widget child, Animation<double> animation) {
+          final isIncoming =
+              (child.key as ValueKey<int>?)?.value == _currentIndex;
+
+          final inAnimation = Tween<Offset>(
+            begin: const Offset(0.0, 1.2),
+            end: Offset.zero,
+          ).animate(animation);
+
+          final outAnimation = Tween<Offset>(
+            begin: const Offset(0.0, -1.2),
+            end: Offset.zero,
+          ).animate(animation);
+
+          return SlideTransition(
+            position: isIncoming ? inAnimation : outAnimation,
+            child: FadeTransition(
+              opacity: animation,
+              child: child,
+            ),
+          );
+        },
+        child: Align(
+          key: ValueKey<int>(_currentIndex),
+          alignment: Alignment.centerLeft,
+          child: Text(
+            displayText,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: style,
+          ),
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final decoration = BoxDecoration(
-      color: Colors.white,
+      color: context.colors.surface,
       borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: Colors.grey.shade300, width: 1),
+      border: Border.all(color: context.semantic.border, width: 1),
       boxShadow: [
         BoxShadow(
           color: Colors.black.withValues(alpha: 0.05),
@@ -62,6 +161,8 @@ class _SearchBarWidgetState extends State<SearchBarWidget> {
         ),
       ],
     );
+
+    final hintStyle = context.text.titleMedium!.copyWith(fontWeight: FontWeight.w500, color: context.semantic.textSecondary);
 
     if (widget.readOnly) {
       return GestureDetector(
@@ -73,32 +174,27 @@ class _SearchBarWidgetState extends State<SearchBarWidget> {
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
             children: [
-              const Icon(
+              Icon(
                 Icons.search_rounded,
                 size: 24,
-                color: Color(0xFF616161),
+                color: context.semantic.textSecondary,
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: Text(
-                  'Search for "milk, eggs, bread"',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.grey.shade600,
-                  ),
-                ),
+                child: _buildAnimatedHintText(style: hintStyle),
               ),
-              const Icon(
+              Icon(
                 Icons.qr_code_scanner_rounded,
                 size: 24,
-                color: Color(0xFFE6A100),
+                color: context.colors.primary,
               ),
             ],
           ),
         ),
       );
     }
+
+    final hasText = (widget.controller?.text ?? '').isNotEmpty;
 
     return Container(
       height: 48,
@@ -109,25 +205,34 @@ class _SearchBarWidgetState extends State<SearchBarWidget> {
           Icon(Icons.search_rounded, size: 20, color: context.semantic.textSecondary),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
-            child: TextField(
-              controller: widget.controller,
-              autofocus: widget.autofocus,
-              textInputAction: TextInputAction.search,
-              onChanged: widget.onChanged,
-              onSubmitted: widget.onSubmitted,
-              style: context.text.bodyLarge,
-              decoration: InputDecoration(
-                hintText: 'Search for products, brands…',
-                border: InputBorder.none,
-                filled: false,
-                isDense: true,
-                contentPadding: EdgeInsets.zero,
-                hintStyle: context.text.bodyLarge!
-                    .copyWith(color: context.semantic.textSecondary),
-              ),
+            child: Stack(
+              alignment: Alignment.centerLeft,
+              children: [
+                if (!hasText)
+                  IgnorePointer(
+                    child: _buildAnimatedHintText(
+                      style: context.text.bodyLarge!
+                          .copyWith(color: context.semantic.textSecondary),
+                    ),
+                  ),
+                TextField(
+                  controller: widget.controller,
+                  autofocus: widget.autofocus,
+                  textInputAction: TextInputAction.search,
+                  onChanged: widget.onChanged,
+                  onSubmitted: widget.onSubmitted,
+                  style: context.text.bodyLarge,
+                  decoration: const InputDecoration(
+                    border: InputBorder.none,
+                    filled: false,
+                    isDense: true,
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+              ],
             ),
           ),
-          if ((widget.controller?.text ?? '').isNotEmpty)
+          if (hasText)
             IconButton(
               onPressed: () {
                 widget.controller?.clear();

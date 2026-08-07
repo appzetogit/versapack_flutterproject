@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/theme/app_theme.dart';
 
 /// "20% OFF" flag on a product card. Rendered only when there is a discount.
 class DiscountBadge extends StatelessWidget {
@@ -16,8 +17,8 @@ class DiscountBadge extends StatelessWidget {
         horizontal: compact ? 6 : 8,
         vertical: compact ? 2 : 3,
       ),
-      decoration: const BoxDecoration(
-        color: Color(0xFFFFD600),
+      decoration: BoxDecoration(
+        color: context.semantic.brandSurface,
         borderRadius: BorderRadius.only(
           topLeft: Radius.circular(8),
           bottomRight: Radius.circular(8),
@@ -25,12 +26,7 @@ class DiscountBadge extends StatelessWidget {
       ),
       child: Text(
         '$percent% OFF',
-        style: const TextStyle(
-          color: Colors.black,
-          fontSize: 9,
-          fontWeight: FontWeight.w900,
-          letterSpacing: -0.2,
-        ),
+        style: context.text.labelSmall!.copyWith(color: context.semantic.onBrandSurface, fontWeight: FontWeight.w900),
       ),
     );
   }

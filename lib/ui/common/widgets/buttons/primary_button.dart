@@ -80,10 +80,13 @@ class _PrimaryButtonState extends State<PrimaryButton> {
 
   Widget _content(BuildContext context) {
     if (widget.isLoading) {
-      return const SizedBox(
+      return SizedBox(
         height: 20,
         width: 20,
-        child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white),
+        child: CircularProgressIndicator(
+          strokeWidth: 2.4,
+          color: context.colors.onPrimary,
+        ),
       );
     }
 
@@ -91,7 +94,7 @@ class _PrimaryButtonState extends State<PrimaryButton> {
       mainAxisSize: MainAxisSize.min,
       children: [
         if (widget.icon != null) ...[
-          Icon(widget.icon, size: 18, color: Colors.white),
+          Icon(widget.icon, size: 18, color: context.colors.onPrimary),
           const SizedBox(width: AppSpacing.sm),
         ],
         Flexible(
@@ -99,7 +102,8 @@ class _PrimaryButtonState extends State<PrimaryButton> {
             widget.label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: context.text.labelLarge!.copyWith(color: Colors.white),
+            style: context.text.labelLarge!
+                .copyWith(color: context.colors.onPrimary),
           ),
         ),
       ],

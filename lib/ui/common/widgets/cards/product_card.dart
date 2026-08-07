@@ -223,7 +223,7 @@ class _ProductCardState extends ConsumerState<ProductCard> {
               if (_product.strikePrice != null)
                 Text(
                   _product.strikePrice!.asCurrency,
-                  style: context.text.mrp.copyWith(fontSize: 10.5),
+                  style: context.text.mrp,
                 ),
               Text(_product.price.asCurrency, style: context.text.price),
             ],

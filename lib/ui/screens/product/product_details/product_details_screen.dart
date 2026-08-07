@@ -288,7 +288,7 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
               if (state.effectiveStrikePrice != null) ...[
                 Text(
                   state.effectiveStrikePrice!.asCurrency,
-                  style: context.text.mrp.copyWith(fontSize: 15),
+                  style: context.text.mrp,
                 ),
                 const SizedBox(width: AppSpacing.md),
                 DiscountBadge(
@@ -380,7 +380,7 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
                       if (variant.isDiscounted)
                         Text(
                           variant.comparePrice!.asCurrency,
-                          style: context.text.mrp.copyWith(fontSize: 10.5),
+                          style: context.text.mrp,
                         ),
                     ],
                   ),

@@ -117,10 +117,10 @@ class _LocationIllustration extends StatelessWidget {
               borderRadius: AppRadii.rXl,
               boxShadow: context.semantic.floatingShadow,
             ),
-            child: const Icon(
+            child: Icon(
               Icons.location_on_rounded,
               size: 40,
-              color: Colors.white,
+              color: context.colors.surface,
             ),
           ),
         ],
