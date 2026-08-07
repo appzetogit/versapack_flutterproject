@@ -131,7 +131,11 @@ class RegistrationSuccessScreen extends ConsumerWidget {
                 height: 52,
                 child: ElevatedButton(
                   onPressed: () =>
-                      ref.read(authControllerProvider.notifier).refreshSession(),
+                      // Same reason as the documents step: no token exists
+                      // yet, so asking the server who we are would fail. The
+                      // store signs in, and that login carries its approval
+                      // state.
+                      ref.read(authControllerProvider.notifier).logout(),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFFFC400),
                     foregroundColor: const Color(0xFF181C2E),

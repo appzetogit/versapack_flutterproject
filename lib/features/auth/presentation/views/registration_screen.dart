@@ -4,6 +4,9 @@ import 'package:go_router/go_router.dart';
 import 'package:quick_commerce_seller/config/theme/app_text_styles.dart';
 import 'package:quick_commerce_seller/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:quick_commerce_seller/config/theme/app_palette.dart';
+import 'package:quick_commerce_seller/core/widgets/app_toast.dart';
+import 'package:quick_commerce_seller/features/auth/presentation/controllers/auth_state.dart';
+import 'package:quick_commerce_seller/features/auth/presentation/controllers/registration_draft.dart';
 
 class RegistrationScreen extends ConsumerStatefulWidget {
   const RegistrationScreen({super.key});
@@ -15,6 +18,10 @@ class RegistrationScreen extends ConsumerStatefulWidget {
 class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _licenseController = TextEditingController();
+  // The register endpoint requires both, and neither was collected anywhere in
+  // the wizard, so an application could never have been accepted.
+  final TextEditingController _ownerController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
   String? _selectedStoreCategory;
   String? _selectedBusinessType;
 
@@ -41,6 +48,8 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
   void dispose() {
     _nameController.dispose();
     _licenseController.dispose();
+    _ownerController.dispose();
+    _emailController.dispose();
     super.dispose();
   }
 
@@ -222,6 +231,32 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                     ),
                     const SizedBox(height: 20),
 
+                    // Owner's name
+                    _buildLabel('Owner Name'),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _ownerController,
+                      textCapitalization: TextCapitalization.words,
+                      decoration: _buildInputDecoration(
+                        hintText: 'Enter the owner's full name',
+                        prefixIcon: Icons.person_outline_rounded,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Owner's email
+                    _buildLabel('Email Address'),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: _buildInputDecoration(
+                        hintText: 'you@example.com',
+                        prefixIcon: Icons.mail_outline_rounded,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
                     // FSSAI / GSTIN License Number
                     _buildLabel('FSSAI / GSTIN License Number'),
                     const SizedBox(height: 8),
@@ -302,7 +337,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                     width: double.infinity,
                     height: 50,
                     child: ElevatedButton(
-                      onPressed: () => context.push('/registration-documents'),
+                      onPressed: _continue,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFFFC400),
                         foregroundColor: const Color(0xFF181C2E),
@@ -326,8 +361,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                     width: double.infinity,
                     height: 50,
                     child: OutlinedButton(
-                      onPressed: () =>
-                          ref.read(authControllerProvider.notifier).refreshSession(),
+                      onPressed: _continue,
                       style: OutlinedButton.styleFrom(
                         side: const BorderSide(
                           color: Color(0xFFFFC400),
@@ -354,6 +388,47 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
         ),
       ),
     );
+  }
+
+
+  /// Holds what was typed so the documents step can submit it, and refuses to
+  /// advance without the three fields the backend will not register a store
+  /// without.
+  void _continue() {
+    final storeName = _nameController.text.trim();
+    final ownerName = _ownerController.text.trim();
+    final email = _emailController.text.trim();
+
+    if (storeName.isEmpty) {
+      AppToast.showError(context, 'Please enter your store name');
+      return;
+    }
+    if (ownerName.isEmpty) {
+      AppToast.showError(context, 'Please enter the owner name');
+      return;
+    }
+    if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email)) {
+      AppToast.showError(context, 'Please enter a valid email address');
+      return;
+    }
+
+    // The phone is the one the OTP was sent to; it is not asked for twice.
+    final authState = ref.read(authControllerProvider);
+    final phone = authState is AuthNeedsRegistration ? authState.phone : '';
+
+    ref.read(registrationDraftProvider.notifier).update(
+          (d) => d.copyWith(
+            storeName: storeName,
+            ownerName: ownerName,
+            ownerEmail: email,
+            phone: phone,
+            storeCategory: _selectedStoreCategory,
+            businessType: _selectedBusinessType,
+            licenseNumber: _licenseController.text.trim(),
+          ),
+        );
+
+    context.push('/registration-documents');
   }
 
   Widget _buildLabel(String labelText) {

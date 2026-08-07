@@ -6,6 +6,7 @@ import 'package:quick_commerce_seller/config/theme/app_palette.dart';
 import 'package:quick_commerce_seller/core/widgets/app_toast.dart';
 import 'package:quick_commerce_seller/features/auth/data/registration_api.dart';
 import 'package:quick_commerce_seller/features/auth/presentation/controllers/auth_controller.dart';
+import 'package:quick_commerce_seller/features/auth/presentation/controllers/registration_draft.dart';
 
 /// Step 4: the papers a store is verified against.
 ///
@@ -30,6 +31,11 @@ class _RegistrationDocumentsScreenState
   /// Document → the URL the backend stored it at. Present means uploaded, not
   /// merely chosen.
   final Map<StoreDocument, String> _uploaded = {};
+
+  /// The same documents as local paths. `register` posts the files themselves
+  /// rather than URLs, so the earlier upload serves only to fail fast on a file
+  /// the server will not take.
+  final Map<StoreDocument, String> _paths = {};
   StoreDocument? _busy;
   bool _submitting = false;
 
@@ -58,7 +64,10 @@ class _RegistrationDocumentsScreenState
           .read(registrationApiProvider)
           .uploadAttachment(filePath: file.path);
       if (!mounted) return;
-      setState(() => _uploaded[doc] = url);
+      setState(() {
+        _uploaded[doc] = url;
+        _paths[doc] = file.path;
+      });
       AppToast.showSuccess(context, '${doc.label} uploaded');
     } catch (e) {
       if (mounted) AppToast.showError(context, '${doc.label} failed to upload');
@@ -80,9 +89,18 @@ class _RegistrationDocumentsScreenState
 
     setState(() => _submitting = true);
     try {
-      // Re-reads the store from the server, which is what routes a freshly
-      // submitted application to the pending-approval screen.
-      await ref.read(authControllerProvider.notifier).refreshSession();
+      // This is the call that actually creates the store. Without it the
+      // wizard collected everything, uploaded the papers, and registered
+      // nothing.
+      final draft = ref.read(registrationDraftProvider);
+      await ref
+          .read(registrationApiProvider)
+          .register(fields: draft.toRegisterFields(), documents: _paths);
+
+      // No session is re-read here: registering does not issue a token, so
+      // asking who we are would 401 and report a failure for an application
+      // that was in fact accepted. The store signs in again afterwards, and
+      // the backend answers that login with its approval state.
       if (mounted) context.go('/registration-success');
     } catch (e) {
       if (mounted) {
