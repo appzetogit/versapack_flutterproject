@@ -174,6 +174,16 @@ class AuthController extends Notifier<AuthState> {
       final seller = SellerModel.fromJson(
         user is Map ? Map<String, dynamic>.from(user) : const {},
       );
+
+      // Approval mismatches are almost always the app and the admin panel
+      // looking at different store records, so log which record answered.
+      startupLog(
+        'auth.login response',
+        'id=${seller.id} store="${seller.storeName}" '
+            'phone=${seller.phone} field=status '
+            'value=${seller.status.isEmpty ? "(absent)" : seller.status} '
+            'approved=${seller.isApproved}',
+      );
       await storage.saveSeller(
         id: seller.id,
         status: seller.status,
@@ -183,7 +193,26 @@ class AuthController extends Notifier<AuthState> {
       ref.read(authSessionProvider).reset();
       // A previous seller's data must not survive into this session.
       resetSessionScopedProviders(ref);
-      state = _stateForSeller(seller);
+
+      // Requirement: never trust the login payload's copy of the status. Re-read
+      // the record so an approval made seconds ago is picked up, and so a stale
+      // cached value can never decide navigation.
+      try {
+        final fresh = SellerModel.fromJson(await _api.me());
+        startupLog(
+          'auth.profile response',
+          'id=${fresh.id} store="${fresh.storeName}" field=status '
+              'value=${fresh.status.isEmpty ? "(absent)" : fresh.status} '
+              'approved=${fresh.isApproved}',
+        );
+        state = _stateForSeller(fresh);
+      } on DioException catch (e) {
+        // The token is valid — login just succeeded — so a failure here is
+        // transient. Fall back to the login payload rather than blocking entry.
+        startupLog('auth.profile FAILED, using login payload', e.message);
+        state = _stateForSeller(seller);
+      }
+      startupLog('auth.navigation decision', state.runtimeType);
     } on DioException catch (e) {
       // The backend reports approval state as a login failure rather than a
       // field, so these two messages are the only way to reach those screens.
@@ -225,7 +254,27 @@ class AuthController extends Notifier<AuthState> {
   /// Returns to the phone-entry step from the OTP screen.
   void cancelOtp() => state = const AuthLoggedOut();
 
+  /// Sends a blocked seller back to sign-in **without** wiping storage.
+  ///
+  /// A pending or rejected seller has no session to end, and `logout()` would
+  /// clear the store name, application id and submission date that the status
+  /// screen is built from — leaving them with a screen full of "Not available"
+  /// the moment they tapped back.
+  ///
+  /// Re-authenticating is also the only way to re-read the decision: the status
+  /// is delivered as the verify-otp error, and no endpoint exposes it to a
+  /// caller without a token.
+  void returnToLogin() {
+    ref.read(authSessionProvider).reset();
+    state = const AuthLoggedOut();
+  }
+
   AuthState _stateForSeller(SellerModel seller) {
+    startupLog(
+      'auth.status evaluate',
+      'field=status value="${seller.status}" isApproved=${seller.isApproved} '
+          'isPending=${seller.isPending} isRejected=${seller.isRejected}',
+    );
     if (seller.isRejected) {
       return AuthRejected(
         message:

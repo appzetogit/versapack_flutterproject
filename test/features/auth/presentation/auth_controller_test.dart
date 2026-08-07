@@ -65,6 +65,12 @@ class _FakeTokenStorage implements TokenStorage {
   Future<String?> get sellerPhone async => seller['phone'];
 
   @override
+  Future<String?> get sellerStoreName async => seller['storeName'];
+
+  @override
+  Future<String?> get sellerSubmittedAt async => seller['submittedAt'];
+
+  @override
   Future<bool> get hasSession async => (access ?? '').isNotEmpty;
 
   @override
@@ -81,10 +87,18 @@ class _FakeTokenStorage implements TokenStorage {
       access = accessToken;
 
   @override
-  Future<void> saveSeller({String? id, String? status, String? phone}) async {
+  Future<void> saveSeller({
+    String? id,
+    String? status,
+    String? phone,
+    String? storeName,
+    String? submittedAt,
+  }) async {
     if (id != null) seller['id'] = id;
     if (status != null) seller['status'] = status;
     if (phone != null) seller['phone'] = phone;
+    if (storeName != null) seller['storeName'] = storeName;
+    if (submittedAt != null) seller['submittedAt'] = submittedAt;
   }
 
   @override

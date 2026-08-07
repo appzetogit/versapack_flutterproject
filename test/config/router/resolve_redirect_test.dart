@@ -14,6 +14,7 @@ const SellerModel _seller = SellerModel(
   isAcceptingOrders: true,
   rating: 0,
   totalRatings: 0,
+  createdAt: '',
 );
 
 String? redirect(
@@ -172,6 +173,37 @@ void main() {
         redirect(const AuthLoggedOut(), first!, hasSeenOnboarding: false),
         isNull,
       );
+    });
+  });
+
+  group('an unregistered phone reaches the form', () {
+    // The reported bug: verify-otp returned needsRegistration, but the redirect
+    // saw '/login' in the public set and answered "stay put", so the seller
+    // never left the sign-in screen.
+    test('AuthNeedsRegistration on /login goes to /registration', () {
+      expect(
+        redirect(const AuthNeedsRegistration(phone: '9876543210'), '/login'),
+        '/registration',
+      );
+    });
+
+    test('it rests on /registration and /registration-success', () {
+      const auth = AuthNeedsRegistration(phone: '9876543210');
+      expect(redirect(auth, '/registration'), isNull);
+      expect(redirect(auth, '/registration-success'), isNull);
+    });
+
+    test('it cannot wander into the app', () {
+      const auth = AuthNeedsRegistration(phone: '9876543210');
+      expect(redirect(auth, '/home'), '/registration');
+      expect(redirect(auth, '/orders'), '/registration');
+      expect(redirect(auth, splashRoute), '/registration');
+    });
+
+    test('the destination is a fixed point, so there is no loop', () {
+      const auth = AuthNeedsRegistration(phone: '9876543210');
+      final first = redirect(auth, '/login');
+      expect(redirect(auth, first!), isNull);
     });
   });
 }

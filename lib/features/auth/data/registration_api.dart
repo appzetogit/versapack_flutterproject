@@ -57,6 +57,36 @@ class RegistrationApi {
     return url.toString();
   }
 
+  /// The platform's category list.
+  ///
+  /// Public and cached server-side for 10 minutes, which matters because the
+  /// seller has no token during onboarding — every authenticated category route
+  /// is closed to them at this point.
+  ///
+  /// Returns names only: the registration payload sends `cuisines` as a
+  /// comma-separated string, not ids.
+  Future<List<String>> publicCategories() async {
+    final response = await _dio.get<dynamic>(
+      '/food/restaurant/categories/public',
+      queryParameters: const {'limit': 100},
+    );
+
+    final data = response.data;
+    final raw = data is Map ? data['categories'] : null;
+    if (raw is! List) return const [];
+
+    final names = <String>[];
+    final seen = <String>{};
+    for (final item in raw) {
+      if (item is! Map) continue;
+      final name = (item['name'] ?? '').toString().trim();
+      // The seed data contains near-duplicates across zones; the seller only
+      // needs to pick a label once.
+      if (name.isNotEmpty && seen.add(name.toLowerCase())) names.add(name);
+    }
+    return names;
+  }
+
   /// Submits the application.
   ///
   /// [documents] maps each document to a local file path. They are sent in the
@@ -102,4 +132,13 @@ class RegistrationApi {
 
 final registrationApiProvider = Provider<RegistrationApi>(
   (ref) => RegistrationApi(ref.watch(dioProvider)),
+);
+
+/// Categories offered during onboarding, from the backend.
+///
+/// A failure here must not block registration — `cuisines` is optional in the
+/// register schema — so the screen falls back to letting the seller continue
+/// without a category rather than trapping them behind a dead list.
+final registrationCategoriesProvider = FutureProvider<List<String>>(
+  (ref) => ref.watch(registrationApiProvider).publicCategories(),
 );

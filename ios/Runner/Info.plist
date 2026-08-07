@@ -61,6 +61,10 @@
 	</array>
 	<!-- Google Maps key for the iOS Maps SDK. AppDelegate reads it from here so
 	     the key exists in exactly one place on this platform. -->
+	<!-- Shown verbatim in the iOS permission prompt. App Review rejects a build
+	     whose purpose string does not explain the actual use. -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Your location is used to place your store on the map so customers and delivery partners can find it.</string>
 	<key>GoogleMapsApiKey</key>
 	<string>AIzaSyArBbII2fgAuVaycfkEAm1GcuyvKPTSWyc</string>
 	<key>UISupportedInterfaceOrientations~ipad</key>

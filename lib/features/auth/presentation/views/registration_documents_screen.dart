@@ -79,7 +79,9 @@ class _RegistrationDocumentsScreenState
     // Store photo is the only optional one; the three legal papers are what the
     // review actually checks.
     final missing = _documents
-        .where((d) => d != StoreDocument.storePhoto && !_uploaded.containsKey(d))
+        .where(
+          (d) => d != StoreDocument.storePhoto && !_uploaded.containsKey(d),
+        )
         .toList();
     if (missing.isNotEmpty) {
       AppToast.showError(context, 'Please attach your ${missing.first.label}');

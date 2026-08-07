@@ -16,6 +16,8 @@ class TokenStorage {
   static const String _sellerIdKey = 'seller_id';
   static const String _sellerStatusKey = 'seller_status';
   static const String _sellerPhoneKey = 'seller_phone';
+  static const String _sellerStoreNameKey = 'seller_store_name';
+  static const String _sellerSubmittedAtKey = 'seller_submitted_at';
 
   static const String _hasSeenOnboardingKey = 'has_seen_onboarding';
 
@@ -24,6 +26,16 @@ class TokenStorage {
   Future<String?> get sellerId => _storage.read(key: _sellerIdKey);
   Future<String?> get sellerStatus => _storage.read(key: _sellerStatusKey);
   Future<String?> get sellerPhone => _storage.read(key: _sellerPhoneKey);
+
+  /// Store name and application date, kept so the pending-approval screen has
+  /// something real to show. A seller awaiting approval has no access token, so
+  /// there is no endpoint to re-read these from — they are captured at
+  /// registration and at every successful sign-in.
+  Future<String?> get sellerStoreName =>
+      _storage.read(key: _sellerStoreNameKey);
+
+  Future<String?> get sellerSubmittedAt =>
+      _storage.read(key: _sellerSubmittedAtKey);
 
   Future<void> saveTokens({
     required String accessToken,
@@ -36,12 +48,24 @@ class TokenStorage {
   Future<void> saveAccessToken(String accessToken) =>
       _storage.write(key: _accessTokenKey, value: accessToken);
 
-  Future<void> saveSeller({String? id, String? status, String? phone}) async {
+  Future<void> saveSeller({
+    String? id,
+    String? status,
+    String? phone,
+    String? storeName,
+    String? submittedAt,
+  }) async {
     if (id != null) await _storage.write(key: _sellerIdKey, value: id);
     if (status != null) {
       await _storage.write(key: _sellerStatusKey, value: status);
     }
     if (phone != null) await _storage.write(key: _sellerPhoneKey, value: phone);
+    if (storeName != null && storeName.isNotEmpty) {
+      await _storage.write(key: _sellerStoreNameKey, value: storeName);
+    }
+    if (submittedAt != null && submittedAt.isNotEmpty) {
+      await _storage.write(key: _sellerSubmittedAtKey, value: submittedAt);
+    }
   }
 
   /// True when there is a stored access token to attempt a session with. The
@@ -60,6 +84,8 @@ class TokenStorage {
       _storage.delete(key: _sellerIdKey),
       _storage.delete(key: _sellerStatusKey),
       _storage.delete(key: _sellerPhoneKey),
+      _storage.delete(key: _sellerStoreNameKey),
+      _storage.delete(key: _sellerSubmittedAtKey),
     ]);
   }
 

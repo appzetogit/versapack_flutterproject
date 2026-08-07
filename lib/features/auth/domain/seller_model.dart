@@ -15,6 +15,7 @@ class SellerModel {
     required this.isAcceptingOrders,
     required this.rating,
     required this.totalRatings,
+    required this.createdAt,
   });
 
   factory SellerModel.fromJson(Map<String, dynamic> json) {
@@ -51,6 +52,9 @@ class SellerModel {
           : true,
       rating: asNum(json['rating'])?.toDouble() ?? 0,
       totalRatings: asNum(json['totalRatings'])?.toInt() ?? 0,
+      // Mongo timestamps. Kept as the raw string; the UI formats it, and an
+      // unparseable value simply renders as unknown rather than throwing.
+      createdAt: (json['createdAt'] ?? '').toString(),
     );
   }
 
@@ -66,6 +70,9 @@ class SellerModel {
   final bool isAcceptingOrders;
   final double rating;
   final int totalRatings;
+
+  /// ISO-8601 creation timestamp, or empty when the payload omits it.
+  final String createdAt;
 
   bool get isApproved => status == 'approved';
   bool get isPending => status == 'pending';

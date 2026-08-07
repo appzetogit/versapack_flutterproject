@@ -3,6 +3,12 @@
          debug manifest declares this too, but release builds do not inherit it. -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+
+    <!-- Store location during onboarding. Coarse is declared alongside fine so
+         a seller who grants only approximate location still gets a usable pin
+         they can drag, rather than a hard failure. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <!-- Picking registration documents from the gallery. Android 13 split the
          old storage permission per media type; the legacy one is kept with a
          maxSdkVersion so older devices still work. -->

@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:quick_commerce_seller/config/theme/app_text_styles.dart';
+import 'package:quick_commerce_seller/features/auth/presentation/controllers/application_status.dart';
 import 'package:quick_commerce_seller/features/auth/presentation/controllers/auth_controller.dart';
+import 'package:quick_commerce_seller/features/auth/presentation/controllers/auth_state.dart';
 import 'package:quick_commerce_seller/config/theme/app_palette.dart';
 
 class AccountStatusScreen extends ConsumerWidget {
@@ -10,6 +12,19 @@ class AccountStatusScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final auth = ref.watch(authControllerProvider);
+    final summary = ref.watch(applicationSummaryProvider).value;
+
+    // The decision comes from the auth state, which carries whatever the
+    // backend said at the last sign-in attempt. There is no status endpoint a
+    // seller without a token can call.
+    final isRejected = auth is AuthRejected;
+    final serverMessage = switch (auth) {
+      AuthRejected(:final message) => message,
+      AuthPendingApproval(:final message) => message,
+      _ => '',
+    };
+
     return Scaffold(
       backgroundColor: context.pageBg,
       appBar: AppBar(
@@ -22,7 +37,7 @@ class AccountStatusScreen extends ConsumerWidget {
             size: 28,
           ),
           onPressed: () {
-            ref.read(authControllerProvider.notifier).logout();
+            ref.read(authControllerProvider.notifier).returnToLogin();
             context.go('/login');
           },
         ),
@@ -37,6 +52,22 @@ class AccountStatusScreen extends ConsumerWidget {
         centerTitle: true,
         actions: [
           IconButton(
+            tooltip: 'Check status again',
+            icon: Icon(
+              Icons.refresh_rounded,
+              color: context.textPrimary,
+              size: 22,
+            ),
+            // Signing in again is the only way to re-read the decision, so this
+            // hands the seller back to the OTP screen rather than pretending a
+            // refresh endpoint exists.
+            onPressed: () {
+              ref.read(authControllerProvider.notifier).returnToLogin();
+              context.go('/login');
+            },
+          ),
+          IconButton(
+            tooltip: 'Contact support',
             icon: Icon(
               Icons.headset_mic_outlined,
               color: context.textPrimary,
@@ -57,9 +88,15 @@ class AccountStatusScreen extends ConsumerWidget {
                 width: double.infinity,
                 padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFFFBEB),
+                  color: isRejected
+                      ? const Color(0xFFFEF2F2)
+                      : const Color(0xFFFFFBEB),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFFEF08A)),
+                  border: Border.all(
+                    color: isRejected
+                        ? const Color(0xFFFECACA)
+                        : const Color(0xFFFEF08A),
+                  ),
                 ),
                 child: Row(
                   children: [
@@ -77,16 +114,20 @@ class AccountStatusScreen extends ConsumerWidget {
                           ),
                           SizedBox(height: 2),
                           Text(
-                            'Pending',
+                            isRejected ? 'Rejected' : 'Pending',
                             style: TextStyle(
                               fontSize: 28,
                               fontWeight: FontWeight.w900,
-                              color: Color(0xFFF59E0B),
+                              color: isRejected
+                                  ? const Color(0xFFDC2626)
+                                  : const Color(0xFFF59E0B),
                             ),
                           ),
-                          SizedBox(height: 6),
+                          const SizedBox(height: 6),
                           Text(
-                            'We are reviewing your details.\nThis may take 1-2 business days.',
+                            isRejected
+                                ? 'Your application was not approved. Contact support to find out what to fix.'
+                                : 'We are reviewing your details.\nThis may take 1-2 business days.',
                             style: TextStyle(
                               fontSize: 13,
                               color: context.textSecondary,
@@ -130,21 +171,27 @@ class AccountStatusScreen extends ConsumerWidget {
                     _buildDetailRow(
                       icon: Icons.storefront_rounded,
                       label: 'Store Name',
-                      value: 'Spice Hub Restaurant',
+                      value: summary?.hasStoreName == true
+                          ? summary!.storeName
+                          : 'Not available',
                     ),
                     const Divider(height: 24, color: Color(0xFFF3F4F6)),
 
                     _buildDetailRow(
                       icon: Icons.calendar_today_rounded,
                       label: 'Submitted On',
-                      value: '20 May 2024, 10:30 AM',
+                      value: (summary?.submittedOnLabel ?? '').isNotEmpty
+                          ? summary!.submittedOnLabel
+                          : 'Not available',
                     ),
                     const Divider(height: 24, color: Color(0xFFF3F4F6)),
 
                     _buildDetailRow(
                       icon: Icons.assignment_outlined,
                       label: 'Application ID',
-                      value: 'APPZ123456789',
+                      value: summary?.hasApplicationId == true
+                          ? summary!.referenceCode
+                          : 'Not available',
                     ),
                   ],
                 ),
@@ -191,23 +238,29 @@ class AccountStatusScreen extends ConsumerWidget {
                           isActive: false,
                           isLast: false,
                           title: 'Application Submitted',
-                          subtitle: '20 May 2024, 10:30 AM',
+                          subtitle: (summary?.submittedOnLabel ?? '').isNotEmpty
+                              ? summary!.submittedOnLabel
+                              : 'Submitted',
                         ),
                         _buildTimelineStep(
                           context,
-                          isCompleted: false,
-                          isActive: true,
+                          isCompleted: isRejected,
+                          isActive: !isRejected,
                           isLast: false,
                           title: 'Under Review',
-                          subtitle: 'Our team is verifying your details',
+                          subtitle: isRejected
+                              ? 'Review complete'
+                              : 'Our team is verifying your details',
                         ),
                         _buildTimelineStep(
                           context,
                           isCompleted: false,
                           isActive: false,
                           isLast: false,
-                          title: 'Approved',
-                          subtitle: 'You will be notified once approved',
+                          title: isRejected ? 'Not approved' : 'Approved',
+                          subtitle: isRejected
+                              ? 'Contact support for the reason'
+                              : 'You will be notified once approved',
                         ),
                         _buildTimelineStep(
                           context,
@@ -252,8 +305,8 @@ class AccountStatusScreen extends ConsumerWidget {
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const [
-                          Text(
+                        children: [
+                          const Text(
                             'Note from Admin',
                             style: TextStyle(
                               fontSize: 15,
@@ -261,9 +314,11 @@ class AccountStatusScreen extends ConsumerWidget {
                               color: Color(0xFF1E3A8A),
                             ),
                           ),
-                          SizedBox(height: 4),
+                          const SizedBox(height: 4),
                           Text(
-                            'Please ensure all documents are clear and valid. We will notify you via email and app.',
+                            serverMessage.isNotEmpty
+                                ? serverMessage
+                                : 'Please ensure all documents are clear and valid. We will notify you via email and app.',
                             style: TextStyle(
                               fontSize: 13,
                               color: Color(0xFF1E40AF),

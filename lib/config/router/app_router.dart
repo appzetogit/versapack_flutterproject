@@ -103,7 +103,16 @@ String? resolveRedirect({
     return null;
   }
 
-  // Logged out, mid-OTP, or needing registration.
+  // The phone verified but no store is attached to it. Without this branch the
+  // seller fell through to the public-route check below, which sees `/login` in
+  // the public set and answers "stay put" — leaving them on the sign-in screen
+  // with nothing to advance them.
+  if (auth is AuthNeedsRegistration) {
+    const allowed = {'/registration', '/registration-success'};
+    return allowed.contains(location) ? null : '/registration';
+  }
+
+  // Logged out or mid-OTP.
   if (!hasSeenOnboarding && auth is AuthLoggedOut) {
     return location == '/onboarding' ? null : '/onboarding';
   }

@@ -87,27 +87,36 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       });
     }
 
+    // The skyline is pinned to the bottom of the Stack, so with the keyboard
+    // open it sat on top of the Send OTP button and the Register link.
+    final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
+
     return Scaffold(
       backgroundColor: context.surface,
       body: Stack(
         children: [
           // Bottom City Skyline Background Illustration
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            height: 120,
-            child: CustomPaint(painter: _CitySkylinePainter()),
-          ),
+          if (!keyboardOpen)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: 120,
+              child: CustomPaint(painter: _CitySkylinePainter()),
+            ),
 
           SafeArea(
             child: Column(
               children: [
                 Expanded(
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 16,
+                    // Bottom padding clears the skyline so the last control is
+                    // never underneath it.
+                    padding: EdgeInsets.fromLTRB(
+                      24,
+                      16,
+                      24,
+                      keyboardOpen ? 16 : 132,
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.center,
@@ -136,9 +145,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ),
                         const SizedBox(height: 20),
 
-                        // 3D Store & Scooter Illustration
-                        _buildStoreAndScooterIllustration(),
-                        const SizedBox(height: 24),
+                        // 3D Store & Scooter Illustration.
+                        //
+                        // Hidden while typing: with the keyboard up it and the
+                        // logo filled the whole viewport, leaving the Send OTP
+                        // button scrolled off the bottom as a thin sliver.
+                        if (!keyboardOpen) ...[
+                          _buildStoreAndScooterIllustration(),
+                          const SizedBox(height: 24),
+                        ],
 
                         // Interactive Form Step
                         if (state is AuthOtpSent)

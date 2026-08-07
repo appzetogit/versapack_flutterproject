@@ -285,12 +285,10 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
       for (final name in names)
         {
           'label': name,
-          'count':
-              '${products.where((p) => p.categoryName == name).length}',
+          'count': '${products.where((p) => p.categoryName == name).length}',
         },
     ];
   }
-
 
   @override
   void dispose() {

@@ -1,14 +1,100 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:quick_commerce_seller/config/theme/app_text_styles.dart';
+import 'package:quick_commerce_seller/core/logging/startup_log.dart';
+import 'package:quick_commerce_seller/core/network/api_exception.dart';
+import 'package:quick_commerce_seller/core/providers/core_providers.dart';
+import 'package:quick_commerce_seller/core/widgets/app_toast.dart';
+import 'package:quick_commerce_seller/features/auth/data/auth_api.dart';
+import 'package:quick_commerce_seller/features/auth/domain/seller_model.dart';
 import 'package:quick_commerce_seller/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:quick_commerce_seller/config/theme/app_palette.dart';
 
-class RegistrationSuccessScreen extends ConsumerWidget {
+class RegistrationSuccessScreen extends ConsumerStatefulWidget {
   const RegistrationSuccessScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<RegistrationSuccessScreen> createState() =>
+      _RegistrationSuccessScreenState();
+}
+
+class _RegistrationSuccessScreenState
+    extends ConsumerState<RegistrationSuccessScreen> {
+  static const String _notApprovedMessage =
+      'Your seller account has not been approved yet. Please wait until your '
+      'application is reviewed.';
+
+  bool _checking = false;
+
+  /// Re-reads the seller from the server and only lets an approved store in.
+  ///
+  /// Previously this called `logout()`, which sets `AuthLoggedOut` — and
+  /// `/registration-success` is a public route, so the router answered "stay
+  /// put" and the button appeared dead.
+  Future<void> _goToHome() async {
+    // Requirement 5: a second tap while a check is in flight is ignored.
+    if (_checking) return;
+    setState(() => _checking = true);
+
+    try {
+      final storage = ref.read(tokenStorageProvider);
+
+      // Registration is a public endpoint and returns no tokens, so a seller
+      // who just applied has no session. `/food/auth/me` would 401 with
+      // "Authentication token missing" — there is no unauthenticated endpoint
+      // that exposes approval status, so a store in this position is pending
+      // by definition and is told so rather than shown a false error.
+      if (!await storage.hasSession) {
+        startupLog('approval.check skipped — no session yet (pending)');
+        if (mounted) AppToast.showError(context, _notApprovedMessage);
+        return;
+      }
+
+      startupLog('approval.check request — GET /food/auth/me');
+      final payload = await ref.read(authApiProvider).me();
+      final seller = SellerModel.fromJson(payload);
+      startupLog(
+        'approval.check response',
+        'status=${seller.status.isEmpty ? "(none)" : seller.status} '
+            'id=${seller.id}',
+      );
+
+      if (!mounted) return;
+
+      if (seller.isApproved) {
+        startupLog('approval.decision', 'approved -> /home');
+        // Adopt the session so the router lets the store through, then replace
+        // the stack: registration must not be reachable with Back.
+        await ref.read(authControllerProvider.notifier).refreshSession();
+        if (!mounted) return;
+        context.go('/home');
+        return;
+      }
+
+      // Everything else — pending, rejected, suspended, or a status this build
+      // has never seen — is "not approved" and stays put.
+      startupLog(
+        'approval.decision',
+        'not approved (${seller.status.isEmpty ? "unknown" : seller.status}) -> stay',
+      );
+      AppToast.showError(context, _notApprovedMessage);
+    } catch (e) {
+      startupLog('approval.check FAILED', e);
+      if (!mounted) return;
+      // The server's own wording where there is one — never a raw exception.
+      final message = e is DioException && e.error is ApiException
+          ? (e.error as ApiException).message
+          : 'Could not check your application status. Please try again.';
+      AppToast.showError(context, message);
+    } finally {
+      if (mounted) setState(() => _checking = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: context.surface,
       body: SafeArea(
@@ -130,12 +216,7 @@ class RegistrationSuccessScreen extends ConsumerWidget {
                 width: double.infinity,
                 height: 52,
                 child: ElevatedButton(
-                  onPressed: () =>
-                      // Same reason as the documents step: no token exists
-                      // yet, so asking the server who we are would fail. The
-                      // store signs in, and that login carries its approval
-                      // state.
-                      ref.read(authControllerProvider.notifier).logout(),
+                  onPressed: _checking ? null : _goToHome,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFFFC400),
                     foregroundColor: const Color(0xFF181C2E),
@@ -147,15 +228,25 @@ class RegistrationSuccessScreen extends ConsumerWidget {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
-                        Icons.home_outlined,
-                        size: 20,
-                        color: context.textPrimary,
-                      ),
+                      if (_checking)
+                        SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            color: context.textPrimary,
+                          ),
+                        )
+                      else
+                        Icon(
+                          Icons.home_outlined,
+                          size: 20,
+                          color: context.textPrimary,
+                        ),
                       SizedBox(width: 8),
                       Flexible(
                         child: Text(
-                          'Go to Home',
+                          _checking ? 'Checking status…' : 'Go to Home',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(

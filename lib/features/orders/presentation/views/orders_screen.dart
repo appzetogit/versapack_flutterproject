@@ -45,8 +45,6 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
         .toList();
   }
 
-
-
   @override
   void dispose() {
     _searchController.dispose();
@@ -169,56 +167,57 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                         ref.watch(ordersControllerProvider).value ?? const [];
                     final filters = _filtersFor(orders);
                     return List.generate(filters.length, (index) {
-                    final isSelected = _selectedFilterIndex == index;
-                    final f = filters[index];
+                      final isSelected = _selectedFilterIndex == index;
+                      final f = filters[index];
 
-                    return GestureDetector(
-                      onTap: () => setState(() => _selectedFilterIndex = index),
-                      child: Container(
-                        margin: const EdgeInsets.only(right: 8),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? const Color(0xFFFEF3C7)
-                              : context.surface,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
+                      return GestureDetector(
+                        onTap: () =>
+                            setState(() => _selectedFilterIndex = index),
+                        child: Container(
+                          margin: const EdgeInsets.only(right: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
                             color: isSelected
-                                ? const Color(0xFFFFC400)
-                                : context.borderColor,
-                            width: isSelected ? 1.5 : 1.0,
+                                ? const Color(0xFFFEF3C7)
+                                : context.surface,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: isSelected
+                                  ? const Color(0xFFFFC400)
+                                  : context.borderColor,
+                              width: isSelected ? 1.5 : 1.0,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Text(
+                                f['label'].toString(),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: isSelected
+                                      ? FontWeight.bold
+                                      : FontWeight.w500,
+                                  color: context.textPrimary,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                f['count'].toString(),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: isSelected
+                                      ? const Color(0xFFD97706)
+                                      : context.textSecondary,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        child: Row(
-                          children: [
-                            Text(
-                              f['label'].toString(),
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: isSelected
-                                    ? FontWeight.bold
-                                    : FontWeight.w500,
-                                color: context.textPrimary,
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              f['count'].toString(),
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: isSelected
-                                    ? const Color(0xFFD97706)
-                                    : context.textSecondary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
+                      );
                     });
                   })(),
                 ),
@@ -304,7 +303,8 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
               ),
               const SizedBox(height: 10),
               ...(() {
-                final all = ref.watch(ordersControllerProvider).value ?? const [];
+                final all =
+                    ref.watch(ordersControllerProvider).value ?? const [];
                 final now = DateTime.now();
                 final today = all.where(
                   (o) =>
@@ -312,7 +312,9 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                       o.createdAt.month == now.month &&
                       o.createdAt.day == now.day,
                 );
-                if (today.isEmpty) return [_buildEmptySection('No orders yet today')];
+                if (today.isEmpty) {
+                  return [_buildEmptySection('No orders yet today')];
+                }
                 return today.map((o) => _buildOrderCard(_cardFor(o))).toList();
               })(),
 
@@ -328,15 +330,19 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
               ),
               const SizedBox(height: 10),
               ...(() {
-                final all = ref.watch(ordersControllerProvider).value ?? const [];
+                final all =
+                    ref.watch(ordersControllerProvider).value ?? const [];
                 final now = DateTime.now();
                 final earlier = all.where(
-                  (o) => !(o.createdAt.year == now.year &&
-                      o.createdAt.month == now.month &&
-                      o.createdAt.day == now.day),
+                  (o) =>
+                      !(o.createdAt.year == now.year &&
+                          o.createdAt.month == now.month &&
+                          o.createdAt.day == now.day),
                 );
                 if (earlier.isEmpty) return <Widget>[];
-                return earlier.map((o) => _buildOrderCard(_cardFor(o))).toList();
+                return earlier
+                    .map((o) => _buildOrderCard(_cardFor(o)))
+                    .toList();
               })(),
 
               const SizedBox(height: 24),
@@ -346,8 +352,6 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
       ),
     );
   }
-
-
 
   /// Shown where cards would be when there is genuinely nothing to show. Uses
   /// the same card metrics as an order row so the list does not jump.
