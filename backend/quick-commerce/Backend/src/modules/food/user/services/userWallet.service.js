@@ -73,21 +73,38 @@ export const createWalletTopupOrder = async (userId, amountInr) => {
 
     const amountPaise = Math.round(amount * 100);
 
+    // No fabricated order id here. The old dev fallback handed the client
+    // `order_dev_<ts>` and the key `rzp_test_dummy`, which Razorpay rejects the
+    // moment the sheet opens — so the failure surfaced inside the checkout as an
+    // unexplained error instead of here, where the cause actually is.
     if (!isRazorpayConfigured()) {
-        // Dev fallback: return a compatible shape without writing to DB.
-        const orderId = `order_dev_${Date.now()}`;
-        return {
-            razorpay: {
-                key: getRazorpayKeyId() || 'rzp_test_dummy',
-                orderId,
-                amount: amountPaise,
-                currency: 'INR'
-            }
-        };
+        console.error(
+            '[RAZORPAY][DEBUG] wallet topup aborted: gateway not configured ' +
+            `(keyId=${getRazorpayKeyId() ? 'set' : 'MISSING'}, ` +
+            `keySecret=${process.env.RAZORPAY_KEY_SECRET ? 'set' : 'MISSING'})`
+        );
+        throw new ValidationError('Online payment is not available right now.');
     }
 
     const receipt = `wallet_topup_${String(userId).slice(-8)}_${Date.now()}`;
-    const order = await createRazorpayOrder(amountPaise, 'INR', receipt);
+    console.info(
+        `[RAZORPAY][DEBUG] creating wallet topup order: amountPaise=${amountPaise} receipt=${receipt}`
+    );
+
+    let order;
+    try {
+        order = await createRazorpayOrder(amountPaise, 'INR', receipt);
+    } catch (err) {
+        const detail = err?.error || {};
+        const reason = detail.description || err?.message || 'Unknown gateway error';
+        console.error(
+            `[RAZORPAY][DEBUG] wallet topup order FAILED: status=${err?.statusCode} ` +
+            `code=${detail.code} reason=${reason}`
+        );
+        throw new ValidationError(`Payment gateway error: ${reason}`);
+    }
+
+    console.info(`[RAZORPAY][DEBUG] wallet topup order created: rzOrderId=${order.id}`);
 
     return {
         razorpay: {

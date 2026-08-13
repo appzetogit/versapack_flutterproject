@@ -96,6 +96,20 @@ async function getOrderAcceptanceWindowSeconds() {
 
 const PENDING_PAYMENT_TTL_MS = 30 * 60 * 1000;
 
+/**
+ * Stringify for a log line without ever throwing.
+ *
+ * Gateway error objects can carry circular references, and a logger that dies
+ * while reporting a failure loses the only record of why it failed.
+ */
+function safeJson(value) {
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
 function isAwaitingOnlinePaymentMethod(paymentMethod) {
   const method = String(paymentMethod || "").toLowerCase();
   return method === "razorpay" || method === "card";
@@ -648,12 +662,37 @@ export async function createOrder(userId, dto) {
 
     let razorpayPayload = null;
 
-    if (paymentMethod === "razorpay" && isRazorpayConfigured()) {
+    if (paymentMethod === "razorpay") {
+      // An online order with no gateway behind it used to fall straight through
+      // this block: the order was created in pending_payment with no Razorpay
+      // parameters, the client had nothing to open, and the customer was left
+      // holding an order that could never be paid. Fail the request instead.
+      if (!isRazorpayConfigured()) {
+        logger.error(
+          "[RAZORPAY][DEBUG] createOrder aborted: gateway not configured " +
+            `(keyId=${getRazorpayKeyId() ? "set" : "MISSING"}, ` +
+            `keySecret=${process.env.RAZORPAY_KEY_SECRET ? "set" : "MISSING"})`,
+        );
+        throw new ValidationError(
+          "Online payment is not available right now. Please choose Cash on Delivery.",
+        );
+      }
+
       const amountPaise = Math.round((normalizedPricing.total || 0) * 100);
       if (amountPaise < 100)
         throw new ValidationError("Amount too low for online payment");
+
+      logger.info(
+        `[RAZORPAY][DEBUG] creating gateway order: orderId=${order._id} ` +
+          `amountPaise=${amountPaise} currency=INR keyId=${getRazorpayKeyId()}`,
+      );
+
       try {
         const rzOrder = await createRazorpayOrder(amountPaise, "INR", order._id.toString());
+        logger.info(
+          `[RAZORPAY][DEBUG] gateway order created: rzOrderId=${rzOrder.id} ` +
+            `amount=${rzOrder.amount} status=${rzOrder.status}`,
+        );
         razorpayPayload = {
           key: getRazorpayKeyId(),
           orderId: rzOrder.id,
@@ -665,8 +704,19 @@ export async function createOrder(userId, dto) {
         // Update order payment state before saving
         order.payment = payment;
       } catch (err) {
-        logger.error(`Razorpay order creation failed: ${err.message}`);
-        throw new ValidationError(err?.message || "Payment gateway error");
+        // The Razorpay SDK puts the real reason in `err.error.description`, not
+        // `err.message` — which is usually empty. Reading only `err.message` is
+        // why every gateway failure surfaced as the useless string "Payment
+        // gateway error" with nothing in the logs to act on.
+        const detail = err?.error || {};
+        const reason =
+          detail.description || err?.message || "Unknown gateway error";
+        logger.error(
+          `[RAZORPAY][DEBUG] gateway order FAILED: status=${err?.statusCode} ` +
+            `code=${detail.code} reason=${reason} ` +
+            `raw=${safeJson(err?.error ?? err)}`,
+        );
+        throw new ValidationError(`Payment gateway error: ${reason}`);
       }
     }
 
@@ -789,10 +839,23 @@ export async function verifyPayment(userId, dto) {
     userId: new mongoose.Types.ObjectId(userId),
   });
   if (!order) throw new NotFoundError("Order not found");
-  if (order.payment.status === "paid")
+
+  logger.info(
+    `[RAZORPAY][DEBUG] verify start: orderId=${order._id} ` +
+      `rzOrderId=${dto.razorpayOrderId} rzPaymentId=${dto.razorpayPaymentId} ` +
+      `currentPaymentStatus=${order.payment?.status}`,
+  );
+
+  if (order.payment.status === "paid") {
+    logger.info(`[RAZORPAY][DEBUG] verify short-circuit: order ${order._id} already paid`);
     return { order: normalizeOrderForClient(order), payment: order.payment };
+  }
 
   if (String(dto.razorpayOrderId) !== String(order.payment?.razorpay?.orderId || "")) {
+    logger.error(
+      `[RAZORPAY][DEBUG] verify FAILED: razorpay order mismatch for ${order._id} ` +
+        `(sent=${dto.razorpayOrderId} stored=${order.payment?.razorpay?.orderId})`,
+    );
     throw new ValidationError("Payment verification failed");
   }
 
@@ -801,7 +864,13 @@ export async function verifyPayment(userId, dto) {
     dto.razorpayPaymentId,
     dto.razorpaySignature,
   );
-  if (!valid) throw new ValidationError("Payment verification failed");
+  if (!valid) {
+    logger.error(
+      `[RAZORPAY][DEBUG] verify FAILED: HMAC signature mismatch for order ${order._id}`,
+    );
+    throw new ValidationError("Payment verification failed");
+  }
+  logger.info(`[RAZORPAY][DEBUG] signature OK for order ${order._id}`);
 
   // Cross-check the actual captured payment against the order: correct Razorpay
   // order linkage, an acceptable status, and the exact amount in paise.
@@ -837,10 +906,15 @@ export async function verifyPayment(userId, dto) {
     throw new ValidationError("Payment verification failed");
   }
 
+  logger.info(
+    `[RAZORPAY][DEBUG] gateway cross-check OK for order ${order._id}: ` +
+      `paid=${paidPaise} paise expected=${expectedPaise} paise status=${rzStatus}`,
+  );
+
   order.payment.status = "paid";
   order.payment.razorpay.paymentId = dto.razorpayPaymentId;
   order.payment.razorpay.signature = dto.razorpaySignature;
-  
+
   const from = order.orderStatus;
   const acceptanceWindowSeconds = await getOrderAcceptanceWindowSeconds();
   order.orderStatus = "created";
@@ -855,6 +929,10 @@ export async function verifyPayment(userId, dto) {
     note: "Payment verified, order confirmed",
   });
   await order.save();
+  logger.info(
+    `[RAZORPAY][DEBUG] order CONFIRMED after payment: orderId=${order._id} ` +
+      `paymentStatus=paid orderStatus=created`,
+  );
   void addOrderJob(
     {
       action: "ORDER_ACCEPTANCE_TIMEOUT_CHECK",
