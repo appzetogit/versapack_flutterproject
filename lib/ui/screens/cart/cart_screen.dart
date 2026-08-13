@@ -127,7 +127,7 @@ class CartScreen extends ConsumerWidget {
                 subtitle: 'People often buy these together',
               ),
               SizedBox(
-                height: 262,
+                height: 285,
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
@@ -218,7 +218,7 @@ class _SellerHeader extends StatelessWidget {
           ),
           if (etaMinutes != null)
             Text(
-              'Arrives in $etaMinutes mins',
+              'Arrives in ${etaMinutes!.asDurationLabel}',
               style: context.text.labelMedium!
                   .copyWith(color: context.semantic.success),
             ),

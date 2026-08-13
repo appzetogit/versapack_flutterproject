@@ -19,12 +19,16 @@ class OfflineBanner extends ConsumerWidget {
       duration: AppDurations.medium,
       curve: Curves.easeOut,
       child: offline
+          // Screens place this above their own SafeArea, so it has to inset
+          // itself — without this the text sits under the status bar clock.
           ? Container(
               width: double.infinity,
               color: context.semantic.warningSoft,
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.lg,
-                vertical: AppSpacing.sm,
+              padding: EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                AppSpacing.sm + MediaQuery.paddingOf(context).top,
+                AppSpacing.lg,
+                AppSpacing.sm,
               ),
               child: Row(
                 children: [

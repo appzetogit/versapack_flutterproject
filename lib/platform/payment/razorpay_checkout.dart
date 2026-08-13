@@ -90,6 +90,13 @@ class RazorpayCheckout implements PaymentGateway {
       ..on(Razorpay.EVENT_PAYMENT_ERROR, _onError)
       ..on(Razorpay.EVENT_EXTERNAL_WALLET, _onExternalWallet);
 
+    AppLogger.debug(
+      'opening Razorpay checkout: key=$key order_id=$gatewayOrderId '
+      'amount=$amountPaise $currency reference=$orderReference '
+      'method=${preferredMethod.isEmpty ? 'any' : preferredMethod}',
+      scope: 'payment',
+    );
+
     try {
       razorpay.open({
         'key': key,
@@ -120,6 +127,11 @@ class RazorpayCheckout implements PaymentGateway {
   void _onSuccess(PaymentSuccessResponse response) {
     final paymentId = response.paymentId ?? '';
     final signature = response.signature ?? '';
+    AppLogger.debug(
+      'Razorpay success callback: order_id=${response.orderId} '
+      'payment_id=$paymentId signature=${signature.isEmpty ? 'MISSING' : 'present'}',
+      scope: 'payment',
+    );
     // Razorpay only omits these on a flow the backend cannot verify anyway —
     // treating it as success would strand a paid order as unpaid.
     if (paymentId.isEmpty || signature.isEmpty) {
@@ -138,10 +150,11 @@ class RazorpayCheckout implements PaymentGateway {
 
   void _onError(PaymentFailureResponse response) {
     AppLogger.debug(
-      'Razorpay error ${response.code}: ${response.message}',
+      'Razorpay error callback: code=${response.code} message=${response.message}',
       scope: 'payment',
     );
     if (response.code == Razorpay.PAYMENT_CANCELLED) {
+      AppLogger.debug('Razorpay sheet dismissed by user', scope: 'payment');
       _finish(const PaymentCancelled());
       return;
     }

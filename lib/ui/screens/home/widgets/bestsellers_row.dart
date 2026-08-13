@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/extensions/num_extensions.dart';
 import '../../../../domain/model/product.dart';
+import '../../../common/widgets/cards/product_card.dart';
 import '../../../common/widgets/loaders/shimmer_box.dart';
-import '../../../common/widgets/misc/app_network_image.dart';
 import '../../../common/widgets/misc/section_header.dart';
-import '../../../../core/theme/app_theme.dart';
 
 /// Bestsellers strip. Products are ranked from the live catalog by
 /// `CatalogGroupingService`; ids are real, so the tap-through resolves.
@@ -14,7 +12,7 @@ class BestsellersRow extends StatelessWidget {
     super.key,
     this.products = const [],
     this.isLoading = false,
-    this.title = 'Bestsellers',
+    this.title = 'Best Selling',
     this.onProductTap,
     this.onSeeAll,
     this.onAddTap,
@@ -36,165 +34,33 @@ class BestsellersRow extends StatelessWidget {
       children: [
         SectionHeader(title: title, onSeeAll: onSeeAll),
         SizedBox(
-          height: 215,
+          height: 240,
           child: products.isEmpty
               ? ListView.separated(
                   scrollDirection: Axis.horizontal,
                   physics: const NeverScrollableScrollPhysics(),
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
                   itemCount: 4,
-                  separatorBuilder: (_, _) => const SizedBox(width: 12),
-                  itemBuilder: (_, _) => const ShimmerBox(width: 140, height: 205),
+                  separatorBuilder: (_, _) => const SizedBox(width: 8),
+                  itemBuilder: (_, _) => const ShimmerBox(width: 135, height: 220),
                 )
               : ListView.separated(
                   scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
                   itemCount: products.length,
-                  separatorBuilder: (_, _) => const SizedBox(width: 12),
+                  separatorBuilder: (_, _) => const SizedBox(width: 8),
                   itemBuilder: (context, index) {
                     final product = products[index];
-                    return GestureDetector(
+                    return ProductCard(
+                      product: product,
+                      width: 135,
+                      heroTag: 'bestseller-${product.id}',
                       onTap: () => onProductTap?.call(product.id),
-                      child: _Card(product: product, onAddTap: onAddTap),
                     );
                   },
                 ),
         ),
       ],
-    );
-  }
-}
-
-class _Card extends StatelessWidget {
-  const _Card({required this.product, this.onAddTap});
-
-  final Product product;
-  final ValueChanged<Product>? onAddTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final strike = product.strikePrice;
-    final purchasable = product.isPurchasable;
-
-    return Container(
-      width: 140,
-      padding: const EdgeInsets.all(9),
-      decoration: BoxDecoration(
-        color: context.colors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: context.semantic.surfaceAlt),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Top image box with the yellow discount tag.
-          Stack(
-            children: [
-              Container(
-                height: 96,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: context.semantic.surfaceAlt,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                alignment: Alignment.center,
-                padding: const EdgeInsets.all(4),
-                clipBehavior: Clip.antiAlias,
-                child: AppNetworkImage(
-                  url: product.imageUrl,
-                  fit: BoxFit.contain,
-                  desaturated: !purchasable,
-                ),
-              ),
-              if (product.isDiscounted)
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 7,
-                      vertical: 2.5,
-                    ),
-                    decoration: BoxDecoration(
-                      color: context.semantic.brandSurface,
-                      borderRadius: BorderRadius.only(
-                        topLeft: Radius.circular(12),
-                        bottomRight: Radius.circular(8),
-                      ),
-                    ),
-                    child: Text(
-                      '${product.discountPercent}% OFF',
-                      style: context.text.labelSmall!.copyWith(fontWeight: FontWeight.w900, color: context.colors.onSurface),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            product.name,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: context.text.bodySmall!.copyWith(fontWeight: FontWeight.w800, color: context.colors.onSurface),
-          ),
-          Text(
-            // Brand is optional upstream; the unit label always renders.
-            product.brand.trim().isEmpty
-                ? product.unitLabel
-                : '${product.brand}\n${product.unitLabel}',
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: context.text.labelSmall!.copyWith(fontWeight: FontWeight.w500, color: context.semantic.textSecondary),
-          ),
-          const Spacer(),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      product.price.asCurrency,
-                      style: context.text.titleSmall!.copyWith(fontWeight: FontWeight.w900, color: context.colors.onSurface),
-                    ),
-                    if (strike != null)
-                      Text(
-                        strike.asCurrency,
-                        style: context.text.labelSmall!.copyWith(decoration: TextDecoration.lineThrough, color: context.semantic.textSecondary),
-                      ),
-                  ],
-                ),
-              ),
-              GestureDetector(
-                onTap: purchasable ? () => onAddTap?.call(product) : null,
-                child: Container(
-                  width: 28,
-                  height: 28,
-                  decoration: BoxDecoration(
-                    color: purchasable
-                        ? context.semantic.success
-                        : context.semantic.border,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    Icons.add_rounded,
-                    size: 18,
-                    color: context.colors.surface,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
     );
   }
 }

@@ -90,6 +90,11 @@ abstract interface class ProductRepository {
     int pageSize,
   });
 
+  /// Everything one seller carries, from `GET /food/restaurant/restaurants/
+  /// :id/menu`. Backs the "Explore all products" store view; unpaginated
+  /// because the menu endpoint returns the whole catalogue in one response.
+  Future<List<Product>> bySeller(String sellerId);
+
   /// Add-on groups a seller offers for an item.
   Future<List<AddonGroup>> addonsFor({required String sellerId, String? productId});
 

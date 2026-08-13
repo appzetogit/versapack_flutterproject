@@ -87,18 +87,29 @@ class ApiProductRepository implements ProductRepository {
   }
 
   Future<Product?> _fromSellerMenu(String sellerId, String productId) async {
-    final json = await _client.get(ApiPaths.sellerMenu(sellerId));
-    if (json is! Map<String, dynamic>) return null;
-
-    final sections = json.mapAt('menu').objects('sections');
-    for (final section in sections) {
-      for (final item in section.objects('items')) {
-        if (item.id() != productId) continue;
-        final dto = ProductDto.fromJson({...item, 'restaurantId': sellerId});
-        return ProductMapper.toDomain(dto);
-      }
+    final items = await bySeller(sellerId);
+    for (final product in items) {
+      if (product.id == productId) return product;
     }
     return null;
+  }
+
+  @override
+  Future<List<Product>> bySeller(String sellerId) async {
+    if (sellerId.isEmpty) return const [];
+    final json = await _client.get(ApiPaths.sellerMenu(sellerId));
+    if (json is! Map<String, dynamic>) return const [];
+
+    // The menu is the only endpoint that lists one seller's catalogue —
+    // `/search/products` has no seller filter. It returns everything at once,
+    // so there is no page to follow.
+    return [
+      for (final section in json.mapAt('menu').objects('sections'))
+        for (final item in section.objects('items'))
+          ProductMapper.toDomain(
+            ProductDto.fromJson({...item, 'restaurantId': sellerId}),
+          ),
+    ];
   }
 
   @override

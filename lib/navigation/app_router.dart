@@ -39,6 +39,7 @@ import '../ui/screens/profile/settings/settings_screen.dart';
 import '../ui/screens/profile/terms/terms_screen.dart';
 import '../ui/screens/search/search_screen.dart';
 import '../ui/screens/splash/splash_screen.dart';
+import '../ui/screens/wallet/wallet_screen.dart';
 import '../ui/screens/wishlist/wishlist_screen.dart';
 import '../ui/shell/app_shell.dart';
 import 'route_paths.dart';
@@ -207,6 +208,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         name: RouteNames.wishlist,
         parentNavigatorKey: _rootKey,
         builder: (context, state) => const WishlistScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.wallet,
+        name: RouteNames.wallet,
+        parentNavigatorKey: _rootKey,
+        builder: (context, state) => const WalletScreen(),
       ),
       GoRoute(
         path: RoutePaths.checkout,

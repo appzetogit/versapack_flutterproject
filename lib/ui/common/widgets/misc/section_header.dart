@@ -12,7 +12,7 @@ class SectionHeader extends StatelessWidget {
     this.subtitle,
     this.onSeeAll,
     this.trailing,
-    this.padding = const EdgeInsets.fromLTRB(14, 10, 14, 4),
+    this.padding = const EdgeInsets.fromLTRB(12, 6, 12, 2),
   });
 
   final String title;

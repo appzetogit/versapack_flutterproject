@@ -135,7 +135,7 @@ class _ProductListingScreenState extends ConsumerState<ProductListingScreen> {
           crossAxisCount: context.productGridColumns,
           mainAxisSpacing: AppSpacing.md,
           crossAxisSpacing: AppSpacing.md,
-          childAspectRatio: 0.60,
+          childAspectRatio: 0.46,
         ),
         itemBuilder: (context, index) {
           if (index >= state.products.length) {

@@ -41,12 +41,12 @@ class QuickCategoryRow extends StatelessWidget {
     final itemCount = shown.length + (hasMore ? 2 : 1);
 
     return SizedBox(
-      height: 96,
+      height: 82,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
         itemCount: itemCount,
-        separatorBuilder: (_, _) => const SizedBox(width: 14),
+        separatorBuilder: (_, _) => const SizedBox(width: 10),
         itemBuilder: (context, index) {
           if (index == 0) {
             return _Tile(
@@ -103,37 +103,53 @@ class _Tile extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 56,
-            height: 56,
+            width: 50,
+            height: 50,
             padding: hasImage ? const EdgeInsets.all(3) : EdgeInsets.zero,
             decoration: BoxDecoration(
-              color: isAll ? context.semantic.brandSurface : context.semantic.surfaceAlt,
-              borderRadius:
-                  isPill ? BorderRadius.circular(28) : BorderRadius.circular(16),
+              color: isAll ? const Color(0xFFFFC107) : Colors.white,
+              shape: isAll || isPill ? BoxShape.rectangle : BoxShape.circle,
+              borderRadius: isAll
+                  ? BorderRadius.circular(14)
+                  : (isPill ? BorderRadius.circular(25) : null),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 5,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
             clipBehavior: Clip.antiAlias,
+            alignment: Alignment.center,
             child: hasImage
-                ? AppNetworkImage(
-                    url: imageUrl,
-                    width: 48,
-                    height: 48,
-                    fallbackIcon: icon,
+                ? ClipOval(
+                    child: AppNetworkImage(
+                      url: imageUrl,
+                      width: 44,
+                      height: 44,
+                      fallbackIcon: icon,
+                    ),
                   )
                 : Icon(
                     icon,
-                    size: 26,
-                    color: isAll ? context.colors.onSurface : context.colors.onSurface,
+                    size: 24,
+                    color: const Color(0xFF1F2937),
                   ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 3),
           SizedBox(
-            width: 60,
+            width: 58,
             child: Text(
               label,
               maxLines: 1,
               textAlign: TextAlign.center,
               overflow: TextOverflow.ellipsis,
-              style: context.text.bodySmall!.copyWith(fontWeight: FontWeight.w700, color: context.colors.onSurface),
+              style: context.text.bodySmall!.copyWith(
+                fontWeight: FontWeight.w700,
+                fontSize: 10.5,
+                color: context.colors.onSurface,
+              ),
             ),
           ),
         ],

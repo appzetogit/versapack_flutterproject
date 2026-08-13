@@ -38,16 +38,18 @@ class HomeController extends Notifier<HomeState> {
     state = state.copyWith(isLoadingBanners: true);
     try {
       final content = ref.read(catalogContentRepositoryProvider);
-      // Two separate collections upstream, one carousel here: whichever the
-      // admin has published is what the user sees. Hero banners lead.
+      // Three separate collections upstream, one carousel here: whichever the
+      // admin has published is what the user sees. `topBanners` was fetchable
+      // but nothing ever called it.
       final results = await Future.wait([
         content.heroBanners(),
+        content.topBanners(),
         content.promotionBanners(),
       ]);
-      final banners = [...results[0], ...results[1]];
+      final banners = [...results[0], ...results[1], ...results[2]];
       AppLogger.debug(
-        'home carousel: ${results[0].length} hero + ${results[1].length} '
-        'promotion = ${banners.length} banner(s)',
+        'home carousel: ${results[0].length} hero + ${results[1].length} top + '
+        '${results[2].length} promotion = ${banners.length} banner(s)',
         scope: 'banners',
       );
       state = state.copyWith(banners: banners, isLoadingBanners: false);
@@ -74,6 +76,17 @@ class HomeController extends Notifier<HomeState> {
     }
   }
 
+  static const _catalogPageSize = 50;
+
+  /// These pages are fetched one after another, so each one is a round trip the
+  /// user waits through before the first row paints. They only feed the derived
+  /// rankings (flash sale / best sellers / recommended), and those are stable
+  /// well before 150 items — ten pages cost eight extra serial requests and
+  /// changed the top twelve of each row by nothing.
+  static const _maxCatalogPages = 3;
+
+  static const _maxCategoryRows = 20;
+
   Future<void> _loadCatalog() async {
     state = state.copyWith(
       isLoadingCategories: true,
@@ -88,11 +101,22 @@ class HomeController extends Notifier<HomeState> {
       final products = ref.read(productRepositoryProvider);
       final grouping = ref.read(catalogGroupingServiceProvider);
 
-      final catalog = await products.list(pageSize: 50);
-      final all = catalog.items;
+      // Every home section is ranked from this list, so a single page meant the
+      // rankings only ever saw the first 50 items in the catalogue.
+      var catalog = await products.list(pageSize: _catalogPageSize);
+      var all = catalog.items;
+      while (catalog.hasMore && catalog.page < _maxCatalogPages) {
+        catalog = await products.list(
+          page: catalog.page + 1,
+          pageSize: _catalogPageSize,
+        );
+        all = [...all, ...catalog.items];
+      }
 
-      // One request per visible category row, in parallel.
-      final rowCategories = categories.take(8).toList();
+      // One request per category the backend returned, in parallel — every
+      // category gets a row, not just the first eight. Capped only so an admin
+      // adding fifty categories cannot fire fifty requests at once.
+      final rowCategories = categories.take(_maxCategoryRows).toList();
       final rows = await Future.wait(
         rowCategories.map(
           (c) => products
@@ -143,6 +167,7 @@ class HomeController extends Notifier<HomeState> {
       state = state.copyWith(
         sections: sections,
         brands: grouping.brandsFrom(all).take(12).toList(),
+        sellers: grouping.sellersFrom(all),
         isLoadingSections: false,
       );
     } catch (e) {

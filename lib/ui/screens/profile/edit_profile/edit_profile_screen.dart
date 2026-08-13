@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/errors/error_mapper.dart';
 import '../../../../core/extensions/string_extensions.dart';
 import '../../../../core/theme/app_radii.dart';
 import '../../../../core/theme/app_spacing.dart';
@@ -68,7 +69,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       AppSnackbar.success(context, 'Profile updated');
       context.pop();
     } catch (e) {
-      if (mounted) AppSnackbar.error(context, 'Could not save your profile');
+      // Surface what the server actually rejected — "email already in use" is
+      // something the user can act on; "Could not save your profile" is not.
+      if (mounted) AppSnackbar.error(context, ErrorMapper.toFailure(e).message);
     } finally {
       if (mounted) setState(() => _saving = false);
     }

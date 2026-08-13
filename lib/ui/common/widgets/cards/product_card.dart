@@ -83,9 +83,19 @@ class _ProductCardState extends ConsumerState<ProductCard> {
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
             children: [
-              _image(context, isWishlisted: isWishlisted, outOfStock: outOfStock),
+              // The image absorbs whatever height the cell has left over. With
+              // a fixed image height instead, any card that also had to fit a
+              // strike-through price or a stock label overflowed its grid cell
+              // by a few pixels — and each grid uses a different aspect ratio,
+              // so tuning them one by one never held.
+              Expanded(
+                child: _image(
+                  context,
+                  isWishlisted: isWishlisted,
+                  outOfStock: outOfStock,
+                ),
+              ),
               const SizedBox(height: 4),
               _meta(context),
               const SizedBox(height: 2),
@@ -136,7 +146,7 @@ class _ProductCardState extends ConsumerState<ProductCard> {
             child: AppNetworkImage(
               key: _imageKey,
               url: _product.imageUrl,
-              height: AppDimens.productImageHeight,
+              height: double.infinity,
               width: double.infinity,
               desaturated: outOfStock,
             ),

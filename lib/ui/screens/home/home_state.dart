@@ -4,6 +4,7 @@ import '../../../domain/model/brand.dart';
 import '../../../domain/model/category.dart';
 import '../../../domain/model/coupon.dart';
 import '../../../domain/model/product.dart';
+import '../../../domain/model/seller.dart';
 
 /// A horizontally-scrolling product row on the home screen.
 class HomeSection {
@@ -37,6 +38,7 @@ class HomeState {
     this.banners = const [],
     this.categories = const [],
     this.brands = const [],
+    this.sellers = const [],
     this.sections = const [],
     this.coupons = const [],
     this.isLoadingBanners = true,
@@ -50,6 +52,7 @@ class HomeState {
   final List<PromoBanner> banners;
   final List<Category> categories;
   final List<Brand> brands;
+  final List<Seller> sellers;
   final List<HomeSection> sections;
 
   /// Live offers from `/food/restaurant/offers`, shown as the offer cards.
@@ -68,6 +71,13 @@ class HomeState {
       !isLoadingSections && sections.isEmpty && categories.isEmpty;
 
   /// Products of a derived section, or empty when it was dropped for having none.
+  /// Sections that are not pinned to a bespoke widget above — rendered as
+  /// generic product rows so nothing the catalog returned is dropped.
+  static const _pinnedSectionIds = {'best-sellers', 'flash'};
+
+  List<HomeSection> get rows =>
+      sections.where((s) => !_pinnedSectionIds.contains(s.id)).toList();
+
   List<Product> productsOf(String sectionId) {
     for (final section in sections) {
       if (section.id == sectionId) return section.products;
@@ -79,6 +89,7 @@ class HomeState {
     List<PromoBanner>? banners,
     List<Category>? categories,
     List<Brand>? brands,
+    List<Seller>? sellers,
     List<HomeSection>? sections,
     List<Coupon>? coupons,
     bool? isLoadingBanners,
@@ -93,6 +104,7 @@ class HomeState {
         banners: banners ?? this.banners,
         categories: categories ?? this.categories,
         brands: brands ?? this.brands,
+        sellers: sellers ?? this.sellers,
         sections: sections ?? this.sections,
         coupons: coupons ?? this.coupons,
         isLoadingBanners: isLoadingBanners ?? this.isLoadingBanners,

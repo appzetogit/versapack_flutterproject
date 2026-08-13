@@ -25,23 +25,26 @@ class ProductCardSkeleton extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ShimmerBox(
-            height: AppDimens.productImageHeight,
-            width: double.infinity,
-            radius: AppRadii.rMd,
+          Expanded(
+            child: ShimmerBox(
+              height: double.infinity,
+              width: double.infinity,
+              radius: AppRadii.rMd,
+            ),
           ),
-          const SizedBox(height: AppSpacing.md),
-          const ShimmerBox(width: 52, height: 10),
           const SizedBox(height: AppSpacing.sm),
-          const ShimmerBox(width: double.infinity, height: 11),
-          const SizedBox(height: AppSpacing.xs),
-          const ShimmerBox(width: 90, height: 11),
-          const SizedBox(height: AppSpacing.md),
+          const ShimmerBox(width: 44, height: 9),
+          const SizedBox(height: 4),
+          const ShimmerBox(width: double.infinity, height: 10),
+          const SizedBox(height: 4),
+          const ShimmerBox(width: 70, height: 10),
+          const SizedBox(height: AppSpacing.sm),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const ShimmerBox(width: 46, height: 14),
-              ShimmerBox(width: 60, height: 30, radius: AppRadii.rSm),
+              const Flexible(child: ShimmerBox(width: 38, height: 14)),
+              const SizedBox(width: 4),
+              ShimmerBox(width: 50, height: 28, radius: AppRadii.rSm),
             ],
           ),
         ],
@@ -89,7 +92,7 @@ class ProductGridSkeleton extends StatelessWidget {
         crossAxisCount: columns,
         mainAxisSpacing: AppSpacing.md,
         crossAxisSpacing: AppSpacing.md,
-        childAspectRatio: 0.60,
+        childAspectRatio: 0.46,
       ),
       itemBuilder: (_, _) => const ProductCardSkeleton(width: double.infinity),
     );

@@ -14,6 +14,7 @@ class ProductListingArgs {
     this.categoryId,
     this.brandName,
     this.query,
+    this.sellerId,
     this.seedProducts = const [],
     this.initialSort = ProductSort.relevance,
   });
@@ -22,6 +23,10 @@ class ProductListingArgs {
   final String? categoryId;
   final String? brandName;
   final String? query;
+
+  /// Set when the screen is a seller's store, which is loaded from that
+  /// seller's menu rather than the catalog search.
+  final String? sellerId;
 
   /// Pre-fetched products for "see all" on a derived home row, where there is
   /// no server-side filter that reproduces the section.
@@ -40,6 +45,8 @@ class ProductListingArgs {
   /// True when the list is fixed client-side and cannot paginate.
   bool get isSeeded => seedProducts.isNotEmpty;
 
+  bool get isSellerStore => (sellerId ?? '').isNotEmpty;
+
   // Value identity: this type is a Riverpod family key, so two structurally
   // identical arguments must resolve to the same provider instance.
   @override
@@ -49,6 +56,7 @@ class ProductListingArgs {
       other.categoryId == categoryId &&
       other.brandName == brandName &&
       other.query == query &&
+      other.sellerId == sellerId &&
       other.seedProducts.length == seedProducts.length &&
       other.initialSort == initialSort;
 
@@ -58,6 +66,7 @@ class ProductListingArgs {
         categoryId,
         brandName,
         query,
+        sellerId,
         seedProducts.length,
         initialSort,
       );

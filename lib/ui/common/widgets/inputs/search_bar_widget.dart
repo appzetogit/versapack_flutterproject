@@ -150,43 +150,46 @@ class _SearchBarWidgetState extends State<SearchBarWidget> {
   @override
   Widget build(BuildContext context) {
     final decoration = BoxDecoration(
-      color: context.colors.surface,
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: context.semantic.border, width: 1),
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(24),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.05),
-          blurRadius: 8,
-          offset: const Offset(0, 2),
+          color: Colors.black.withValues(alpha: 0.06),
+          blurRadius: 10,
+          offset: const Offset(0, 3),
         ),
       ],
     );
 
-    final hintStyle = context.text.titleMedium!.copyWith(fontWeight: FontWeight.w500, color: context.semantic.textSecondary);
+    final hintStyle = context.text.titleMedium!.copyWith(
+      fontWeight: FontWeight.w400,
+      fontSize: 14,
+      color: const Color(0xFF6B7280),
+    );
 
     if (widget.readOnly) {
       return GestureDetector(
         onTap: widget.onTap,
         behavior: HitTestBehavior.opaque,
         child: Container(
-          height: 52,
+          height: 44,
           decoration: decoration,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 12),
           child: Row(
             children: [
-              Icon(
+              const Icon(
                 Icons.search_rounded,
                 size: 24,
-                color: context.semantic.textSecondary,
+                color: Color(0xFF6B7280),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
               Expanded(
                 child: _buildAnimatedHintText(style: hintStyle),
               ),
-              Icon(
+              const Icon(
                 Icons.qr_code_scanner_rounded,
-                size: 24,
-                color: context.colors.primary,
+                size: 22,
+                color: Color(0xFFFFC107),
               ),
             ],
           ),

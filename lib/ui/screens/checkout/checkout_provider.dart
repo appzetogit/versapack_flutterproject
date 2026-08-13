@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/errors/error_mapper.dart';
+import '../../../core/utils/logger.dart';
 import '../../../di/app_providers.dart';
 import '../../../di/service_providers.dart';
 import '../../../di/usecase_providers.dart';
@@ -62,9 +63,16 @@ class CheckoutController extends Notifier<CheckoutState> {
     }
 
     state = state.copyWith(isPlacing: true, issues: const [], clearFailure: true);
+    final cart = ref.read(cartProvider).cart;
+    AppLogger.debug(
+      'placing order: method=${state.paymentMethod.orderWireValue} '
+      'seller=${cart.sellerId} items=${cart.items.length} '
+      'total=${cart.pricing.total}',
+      scope: 'payment',
+    );
     try {
       final outcome = await ref.read(placeOrderUseCaseProvider)(
-        cart: ref.read(cartProvider).cart,
+        cart: cart,
         address: ref.read(selectedAddressProvider),
         method: state.paymentMethod,
         customerName: name,

@@ -53,6 +53,11 @@ class ProfileScreen extends ConsumerWidget {
                   onTap: () => context.go(RoutePaths.orders),
                 ),
                 _MenuItem(
+                  icon: Icons.account_balance_wallet_rounded,
+                  label: 'Wallet & earnings',
+                  onTap: () => context.push(RoutePaths.wallet),
+                ),
+                _MenuItem(
                   icon: Icons.location_on_rounded,
                   label: 'Saved addresses',
                   onTap: () => context.push(RoutePaths.addresses),

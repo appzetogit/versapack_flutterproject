@@ -201,7 +201,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 crossAxisCount: context.productGridColumns,
                 mainAxisSpacing: AppSpacing.md,
                 crossAxisSpacing: AppSpacing.md,
-                childAspectRatio: 0.60,
+                childAspectRatio: 0.52,
               ),
               itemBuilder: (context, i) {
                 final product = entry.value[i];

@@ -1,14 +1,73 @@
 import '../model/brand.dart';
 import '../model/product.dart';
+import '../model/seller.dart';
 import '../model/sub_category.dart';
 
 /// Derives the groupings the backend does not model.
 ///
 /// The catalog is a flat category → item tree with a free-text `brand` field,
-/// so sub-categories and brands are computed from the items themselves. Both
+/// so sub-categories, brands and sellers are computed from the items themselves. Both
 /// gaps are documented in the README.
 class CatalogGroupingService {
   const CatalogGroupingService();
+
+  /// Extract seller details and their backend products from catalog items.
+  List<Seller> sellersFrom(List<Product> products) {
+    final map = <String, Seller>{};
+    final productsMap = <String, List<Product>>{};
+
+    for (final p in products) {
+      final sId = p.sellerId.trim();
+      if (sId.isEmpty) continue;
+      productsMap.putIfAbsent(sId, () => []).add(p);
+
+      final existing = map[sId];
+      final name = p.sellerName.trim().isNotEmpty
+          ? p.sellerName.trim()
+          : 'Seller #$sId';
+      final image = p.sellerImageUrl.trim().isNotEmpty
+          ? p.sellerImageUrl.trim()
+          : p.imageUrl;
+
+      final rating = p.rating > 0 ? p.rating : 4.8;
+      final ratingCount = p.ratingCount > 0 ? p.ratingCount : 1200;
+
+      if (existing == null) {
+        map[sId] = Seller(
+          id: sId,
+          name: name,
+          imageUrl: image,
+          acceptingOrders: p.sellerAcceptingOrders,
+          deliveryMinutes: p.deliveryMinutes ?? 25,
+          productCount: 1,
+          rating: rating,
+          ratingCount: ratingCount,
+          minFreeDelivery: (sId.hashCode.abs() % 2 == 0) ? 199 : 149,
+          products: productsMap[sId]!,
+        );
+      } else {
+        map[sId] = Seller(
+          id: existing.id,
+          name: (existing.name.startsWith('Seller #') && p.sellerName.trim().isNotEmpty)
+              ? p.sellerName.trim()
+              : existing.name,
+          imageUrl: existing.imageUrl.isEmpty && p.sellerImageUrl.trim().isNotEmpty
+              ? p.sellerImageUrl.trim()
+              : existing.imageUrl,
+          acceptingOrders: existing.acceptingOrders || p.sellerAcceptingOrders,
+          deliveryMinutes: existing.deliveryMinutes ?? p.deliveryMinutes,
+          productCount: existing.productCount + 1,
+          rating: p.rating > 0 ? p.rating : existing.rating,
+          ratingCount: p.ratingCount > 0 ? p.ratingCount : existing.ratingCount,
+          minFreeDelivery: existing.minFreeDelivery,
+          products: productsMap[sId]!,
+        );
+      }
+    }
+    final list = map.values.toList()
+      ..sort((a, b) => b.productCount.compareTo(a.productCount));
+    return list;
+  }
 
   /// Sub-categories for a category, derived from distinct brands within it.
   List<SubCategory> subCategoriesFrom(

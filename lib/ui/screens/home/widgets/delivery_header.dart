@@ -20,38 +20,36 @@ class DeliveryHeader extends ConsumerWidget {
     final wallet = ref.watch(walletProvider);
 
     return Container(
-      color: context.semantic.brandSurface,
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
+      color: Colors.transparent,
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Top Row: Menu | Appzeto Logo | Notification Badge | Wallet Badge
+          // Top Row: Appzeto Logo | Notification Badge | Wallet Badge
           Row(
             children: [
-              IconButton(
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-                onPressed: () => context.go(RoutePaths.profile),
-                tooltip: 'Menu',
-                icon: Icon(
-                  Icons.menu_rounded,
-                  size: 28,
-                  color: context.semantic.onBrandSurface,
-                ),
-              ),
-              const SizedBox(width: 12),
               // Appzeto Logo
               RichText(
                 text: TextSpan(
                   children: [
                     TextSpan(
                       text: 'app',
-                      style: context.text.displaySmall!.copyWith(fontWeight: FontWeight.w900, color: context.semantic.onBrandSurface),
+                      style: context.text.displaySmall!.copyWith(
+                        fontWeight: FontWeight.w900,
+                        color: const Color(0xFF1F2937),
+                        fontSize: 32,
+                        letterSpacing: -0.8,
+                      ),
                     ),
                     TextSpan(
                       text: 'zeto',
-                      style: context.text.displaySmall!.copyWith(fontWeight: FontWeight.w900, color: context.semantic.success),
+                      style: context.text.displaySmall!.copyWith(
+                        fontWeight: FontWeight.w900,
+                        color: const Color(0xFF16A34A),
+                        fontSize: 32,
+                        letterSpacing: -0.8,
+                      ),
                     ),
                   ],
                 ),
@@ -61,10 +59,10 @@ class DeliveryHeader extends ConsumerWidget {
               GestureDetector(
                 onTap: () => context.push(RoutePaths.notifications),
                 child: Container(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(7),
                   decoration: BoxDecoration(
-                    color: context.colors.surface,
-                    borderRadius: BorderRadius.circular(12),
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.05),
@@ -76,24 +74,32 @@ class DeliveryHeader extends ConsumerWidget {
                   child: Stack(
                     clipBehavior: Clip.none,
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.notifications_none_rounded,
-                        size: 20,
-                        color: context.semantic.onBrandSurface,
+                        size: 19,
+                        color: Color(0xFF1F2937),
                       ),
+                      // No badge at zero — a count the inbox cannot back up
+                      // sends the user to an empty screen.
                       if (unread > 0)
                         Positioned(
-                          top: -4,
-                          right: -4,
+                          top: -5,
+                          right: -5,
                           child: Container(
-                            padding: const EdgeInsets.all(3),
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                            constraints: const BoxConstraints(minWidth: 15, minHeight: 15),
                             decoration: const BoxDecoration(
-                              color: Colors.red,
+                              color: Color(0xFFEF4444),
                               shape: BoxShape.circle,
                             ),
+                            alignment: Alignment.center,
                             child: Text(
-                            unread > 99 ? '99+' : '$unread',
-                            style: context.text.labelSmall!.copyWith(color: context.colors.surface, fontWeight: FontWeight.bold),
+                              unread > 99 ? '99+' : '$unread',
+                              style: context.text.labelSmall!.copyWith(
+                                color: Colors.white,
+                                fontSize: 8.5,
+                                fontWeight: FontWeight.w800,
+                              ),
                             ),
                           ),
                         ),
@@ -101,15 +107,15 @@ class DeliveryHeader extends ConsumerWidget {
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               // Wallet Balance Card
               GestureDetector(
-                onTap: () => context.go(RoutePaths.profile),
+                onTap: () => context.push(RoutePaths.wallet),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                   decoration: BoxDecoration(
-                    color: context.colors.surface,
-                    borderRadius: BorderRadius.circular(12),
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.05),
@@ -121,21 +127,25 @@ class DeliveryHeader extends ConsumerWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
-                        Icons.account_balance_wallet_rounded,
-                        size: 18,
-                        color: context.colors.primary,
+                      const Icon(
+                        Icons.account_balance_wallet_outlined,
+                        size: 16,
+                        color: Color(0xFF1F2937),
                       ),
-                      const SizedBox(width: 4),
+                      const SizedBox(width: 3),
                       Text(
                         (wallet.valueOrNull?.balance ?? 0).asCurrency,
-                        style: context.text.titleSmall!.copyWith(fontWeight: FontWeight.w800, color: context.semantic.onBrandSurface),
+                        style: context.text.titleSmall!.copyWith(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 12,
+                          color: const Color(0xFF1F2937),
+                        ),
                       ),
                       const SizedBox(width: 2),
-                      Icon(
+                      const Icon(
                         Icons.keyboard_arrow_down_rounded,
-                        size: 16,
-                        color: context.semantic.onBrandSurface,
+                        size: 15,
+                        color: Color(0xFF1F2937),
                       ),
                     ],
                   ),
@@ -143,7 +153,7 @@ class DeliveryHeader extends ConsumerWidget {
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           // Location Row
           GestureDetector(
             onTap: () => context.push(RoutePaths.addresses),

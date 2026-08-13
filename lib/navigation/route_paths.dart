@@ -21,6 +21,7 @@ abstract final class RoutePaths {
   static const productListing = '/products';
   static const productDetails = '/product/:id';
   static const wishlist = '/wishlist';
+  static const wallet = '/wallet';
   static const checkout = '/checkout';
   static const coupons = '/coupons';
   static const payment = '/payment';
@@ -60,6 +61,7 @@ abstract final class RouteNames {
   static const productListing = 'productListing';
   static const productDetails = 'productDetails';
   static const wishlist = 'wishlist';
+  static const wallet = 'wallet';
   static const checkout = 'checkout';
   static const coupons = 'coupons';
   static const payment = 'payment';

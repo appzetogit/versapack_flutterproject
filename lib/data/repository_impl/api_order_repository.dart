@@ -1,5 +1,6 @@
 import '../../core/errors/app_exception.dart';
 import '../../core/network/api_client.dart';
+import '../../core/utils/logger.dart';
 import '../../domain/model/address.dart';
 import '../../domain/model/cart.dart';
 import '../../domain/model/order.dart';
@@ -59,13 +60,24 @@ class ApiOrderRepository implements OrderRepository {
     }
 
     final razorpay = json.mapOrNull('razorpay');
-    return PlacedOrder(
+    final placed = PlacedOrder(
       order: OrderMapper.toDomain(OrderDto.fromJson(json.mapAt('order'))),
       gatewayOrderId: razorpay?.str('orderId').nullIfEmpty,
       gatewayKey: razorpay?.str('key').nullIfEmpty,
       gatewayAmountPaise: razorpay?.integer('amount') ?? 0,
       gatewayCurrency: razorpay?.str('currency', 'INR') ?? 'INR',
     );
+
+    AppLogger.debug(
+      'order created: id=${placed.order.id} method=${method.orderWireValue} '
+      'status=${placed.order.status} | gateway block: '
+      '${razorpay == null ? 'ABSENT (no Razorpay order was minted)' : 'rzOrderId=${placed.gatewayOrderId} '
+          'key=${placed.gatewayKey} amountPaise=${placed.gatewayAmountPaise} '
+          'currency=${placed.gatewayCurrency}'}',
+      scope: 'payment',
+    );
+
+    return placed;
   }
 
   @override
@@ -75,17 +87,36 @@ class ApiOrderRepository implements OrderRepository {
     required String gatewayPaymentId,
     required String signature,
   }) async {
-    final json = await _client.post(
-      ApiPaths.verifyPayment,
-      body: {
-        'orderId': orderId,
-        'razorpayOrderId': gatewayOrderId,
-        'razorpayPaymentId': gatewayPaymentId,
-        'razorpaySignature': signature,
-      },
-      requiresAuth: true,
+    AppLogger.debug(
+      'verify-payment → POST ${ApiPaths.verifyPayment} '
+      'orderId=$orderId rzOrderId=$gatewayOrderId '
+      'rzPaymentId=$gatewayPaymentId signature=${signature.length} chars',
+      scope: 'payment',
     );
-    return _single(json);
+    try {
+      final json = await _client.post(
+        ApiPaths.verifyPayment,
+        body: {
+          'orderId': orderId,
+          'razorpayOrderId': gatewayOrderId,
+          'razorpayPaymentId': gatewayPaymentId,
+          'razorpaySignature': signature,
+        },
+        requiresAuth: true,
+      );
+      final order = _single(json);
+      AppLogger.debug(
+        'verify-payment OK: order=${order.id} status=${order.status} '
+        'paymentStatus=${order.paymentStatus}',
+        scope: 'payment',
+      );
+      return order;
+    } catch (e) {
+      // The order may well be paid at Razorpay even though this call failed;
+      // never let this line be the only record of it.
+      AppLogger.error('verify-payment FAILED for order $orderId', error: e);
+      rethrow;
+    }
   }
 
   @override

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -97,7 +96,7 @@ class SubCategoryScreen extends ConsumerWidget {
                               crossAxisCount: 2,
                               mainAxisSpacing: 8,
                               crossAxisSpacing: 8,
-                              childAspectRatio: 0.505,
+                              childAspectRatio: 0.41,
                             ),
                             itemBuilder: (context, index) {
                               final product = state.visibleProducts[index];
@@ -199,23 +198,11 @@ class SubCategoryScreen extends ConsumerWidget {
               child: Icon(Icons.search_rounded, size: 20, color: context.colors.onSurface),
             ),
           ),
-          const SizedBox(width: 8),
-          // Share Circle Button
-          InkWell(
-            onTap: () => Share.share(
-              '$categoryTitle on Suvio Quick\nsuvio://category/$categoryId',
-            ),
-            borderRadius: BorderRadius.circular(20),
-            child: Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: context.semantic.border),
-              ),
-              child: Icon(Icons.ios_share_rounded, size: 18, color: context.colors.onSurface),
-            ),
-          ),
+          // Category sharing is deliberately absent: the backend renders share
+          // pages for products and sellers only (shareLinks.routes.js), and the
+          // `suvio://category/<id>` link this button used to send resolves
+          // nowhere — no scheme is registered and there is no web page behind
+          // it. Restore once a category share page exists (BACKEND REQUIRED).
         ],
       ),
     );

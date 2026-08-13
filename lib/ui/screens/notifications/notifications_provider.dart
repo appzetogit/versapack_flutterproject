@@ -46,14 +46,31 @@ class NotificationsController extends Notifier<NotificationsState> {
     return const NotificationsState();
   }
 
+  static const _pageSize = 50;
+
+  /// A guard, not a limit: stops a bad `total` from looping forever.
+  static const _maxPages = 10;
+
   Future<void> load() async {
     state = state.copyWith(isLoading: true, clearFailure: true);
     try {
-      final result =
-          await ref.read(notificationRepositoryProvider).inbox(pageSize: 50);
+      // The inbox has no "load more" affordance, so a single page silently
+      // hid every notification past the first 50.
+      final repository = ref.read(notificationRepositoryProvider);
+      var result = await repository.inbox(pageSize: _pageSize);
+      final unreadCount = result.unreadCount;
+      var items = result.page.items;
+      while (result.page.hasMore && result.page.page < _maxPages) {
+        result = await repository.inbox(
+          page: result.page.page + 1,
+          pageSize: _pageSize,
+        );
+        items = [...items, ...result.page.items];
+      }
+
       state = state.copyWith(
-        items: result.page.items,
-        unreadCount: result.unreadCount,
+        items: items,
+        unreadCount: unreadCount,
         isLoading: false,
       );
     } catch (e) {

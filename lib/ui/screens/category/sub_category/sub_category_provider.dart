@@ -9,6 +9,11 @@ import 'sub_category_state.dart';
 /// Two-pane category browser.
 class SubCategoryController
     extends FamilyNotifier<SubCategoryState, String> {
+  static const _pageSize = 50;
+
+  /// A guard, not a limit: stops a bad `total` from looping forever.
+  static const _maxPages = 20;
+
   @override
   SubCategoryState build(String categoryId) {
     Future.microtask(load);
@@ -18,21 +23,33 @@ class SubCategoryController
   Future<void> load() async {
     state = state.copyWith(isLoading: true, clearFailure: true);
     try {
-      final page = await ref
-          .read(productRepositoryProvider)
-          .list(categoryId: arg, pageSize: 50);
+      // The rail and every filter work over the whole category, so one page is
+      // not enough — a category with more items than the page size silently
+      // lost the rest, and the sub-category rail was built from the fragment.
+      final repository = ref.read(productRepositoryProvider);
+      var page = await repository.list(categoryId: arg, pageSize: _pageSize);
+      var products = page.items;
+      while (page.hasMore && page.page < _maxPages) {
+        page = await repository.list(
+          categoryId: arg,
+          page: page.page + 1,
+          pageSize: _pageSize,
+        );
+        products = [...products, ...page.items];
+      }
 
       final grouping = ref.read(catalogGroupingServiceProvider);
-      final subCategories = grouping.subCategoriesFrom(page.items, arg);
-      final products = page.items;
+      final subCategories = grouping.subCategoriesFrom(products, arg);
 
       state = state.copyWith(
         subCategories: subCategories,
         allProducts: products,
-        visibleProducts: products,
         selectedId: subCategories.isEmpty ? '' : subCategories.first.id,
         isLoading: false,
       );
+      // Through the same pipeline as every control, so a refresh keeps whatever
+      // filter or sort the user had applied.
+      _applyFilters();
     } catch (e) {
       state = state.copyWith(
         isLoading: false,

@@ -83,7 +83,7 @@ class WishlistScreen extends ConsumerWidget {
                                   crossAxisCount: context.productGridColumns,
                                   mainAxisSpacing: AppSpacing.md,
                                   crossAxisSpacing: AppSpacing.md,
-                                  childAspectRatio: 0.60,
+                                  childAspectRatio: 0.52,
                                 ),
                                 itemBuilder: (context, index) {
                                   final product = items[index];

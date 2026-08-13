@@ -1,3 +1,4 @@
+import '../../core/utils/logger.dart';
 import '../../platform/payment/razorpay_checkout.dart';
 import '../model/order.dart';
 import '../model/user.dart';
@@ -22,10 +23,21 @@ class VerifyPaymentUseCase {
 
     if (gatewayOrderId == null || key == null) {
       // Cash and wallet orders are settled at creation; there is nothing to pay.
-      if (!placed.order.paymentMethod.isOnline) return placed.order;
+      if (!placed.order.paymentMethod.isOnline) {
+        AppLogger.debug(
+          'no gateway step needed: method=${placed.order.paymentMethod.wireValue} '
+          'order=${placed.order.id}',
+          scope: 'payment',
+        );
+        return placed.order;
+      }
       // An online order without gateway parameters was never charged — the
       // backend has no Razorpay credentials configured. Completing it here
       // would hand the user a success screen for an unpaid order.
+      AppLogger.error(
+        'online order ${placed.order.id} has no Razorpay parameters — '
+        'the backend did not mint a gateway order. Payment cannot start.',
+      );
       throw const PaymentDeclined('Online payment is unavailable right now.');
     }
 

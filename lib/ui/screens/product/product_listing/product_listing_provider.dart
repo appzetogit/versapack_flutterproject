@@ -17,6 +17,10 @@ class ProductListingController
     extends FamilyNotifier<ProductListingState, ProductListingArgs> {
   static const _pageSize = 20;
 
+  /// Cap on the pages a client-side-only filter (brand) will pull up front, so
+  /// a large catalogue cannot turn one screen into an unbounded crawl.
+  static const _maxClientFilterPages = 5;
+
   final List<Product> _raw = [];
 
   @override
@@ -34,11 +38,31 @@ class ProductListingController
       );
     }
 
-    Future.microtask(() => load(reset: true));
+    Future.microtask(
+      () => args.isSellerStore ? _loadSellerStore() : load(reset: true),
+    );
     return ProductListingState(
       filters: args.initialFilters,
       sort: args.initialSort,
     );
+  }
+
+  /// A seller's whole catalogue in one call — the menu endpoint does not
+  /// paginate, so there is nothing to load more of.
+  Future<void> _loadSellerStore() async {
+    state = state.copyWith(isLoading: true, clearFailure: true);
+    try {
+      final items = await ref.read(productRepositoryProvider).bySeller(arg.sellerId!);
+      _raw
+        ..clear()
+        ..addAll(items);
+      state = _rank(state.copyWith(isLoading: false, hasMore: false));
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        failure: ErrorMapper.toFailure(e),
+      );
+    }
   }
 
   Future<void> load({bool reset = false}) async {
@@ -58,12 +82,32 @@ class ProductListingController
           );
 
       _raw.addAll(page.items);
+
+      // `/search/products` has no brand parameter, so a brand listing is the
+      // catalogue filtered here. Showing only page one made the screen contradict
+      // the "N items" count on the brand card and silently hide stock: the grid
+      // never scrolled far enough to trigger loadMore, so the rest never loaded.
+      var current = page;
+      if (arg.brandName != null && reset) {
+        while (current.hasMore && current.page < _maxClientFilterPages) {
+          current = await ref.read(productRepositoryProvider).list(
+                query: arg.query,
+                categoryId: state.filters.categoryId,
+                vegOnly: state.filters.vegOnly,
+                inStockOnly: state.filters.inStockOnly,
+                page: current.page + 1,
+                pageSize: _pageSize,
+              );
+          _raw.addAll(current.items);
+        }
+      }
+
       state = _rank(
         state.copyWith(
           isLoading: false,
           isLoadingMore: false,
-          hasMore: page.hasMore,
-          page: page.page,
+          hasMore: current.hasMore,
+          page: current.page,
         ),
       );
     } catch (e) {
@@ -77,7 +121,11 @@ class ProductListingController
 
   /// Triggered when the grid scrolls past ~80%.
   Future<void> loadMore() async {
-    if (arg.isSeeded || state.isLoadingMore || state.isLoading || !state.hasMore) {
+    if (arg.isSeeded ||
+        arg.isSellerStore ||
+        state.isLoadingMore ||
+        state.isLoading ||
+        !state.hasMore) {
       return;
     }
     state = state.copyWith(isLoadingMore: true, page: state.page + 1);

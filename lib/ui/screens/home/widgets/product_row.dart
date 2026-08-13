@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/constants/app_dimens.dart';
-import '../../../../core/theme/app_spacing.dart';
 import '../../../../domain/model/product.dart';
 import '../../../common/widgets/cards/product_card.dart';
 import '../../../common/widgets/misc/staggered_entrance.dart';
@@ -14,7 +12,7 @@ class ProductRow extends StatelessWidget {
     required this.onProductTap,
     required this.heroTag,
     this.showRanks = false,
-    this.height = 262,
+    this.height = 258,
   });
 
   final List<Product> products;
@@ -31,9 +29,9 @@ class ProductRow extends StatelessWidget {
       height: height,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+        padding: const EdgeInsets.symmetric(horizontal: 12),
         itemCount: products.length,
-        separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.md),
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
         itemBuilder: (context, index) {
           final product = products[index];
           return StaggeredEntrance(
@@ -42,7 +40,7 @@ class ProductRow extends StatelessWidget {
             child: ProductCard(
               product: product,
               heroTag: heroTag,
-              width: AppDimens.productCardWidth,
+              width: 135,
               rank: showRanks ? index + 1 : null,
               onTap: () => onProductTap(product),
             ),

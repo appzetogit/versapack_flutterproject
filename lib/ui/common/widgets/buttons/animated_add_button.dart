@@ -114,17 +114,47 @@ class _AddPillState extends State<_AddPill> {
           scale: _pressed ? 0.93 : 1,
           duration: AppDurations.instant,
           child: Container(
-            height: 30,
-            width: 30,
-            alignment: Alignment.center,
+            height: widget.height,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: enabled ? context.semantic.success : context.semantic.border,
-              borderRadius: BorderRadius.circular(8),
+              color: enabled ? const Color(0xFFFFC107) : context.semantic.border,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
-            child: Icon(
-              Icons.add_rounded,
-              size: 20,
-              color: context.colors.surface,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'Add',
+                  style: context.text.labelSmall!.copyWith(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 12,
+                    color: const Color(0xFF1F2937),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Container(
+                  width: 18,
+                  height: 18,
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                  alignment: Alignment.center,
+                  child: const Icon(
+                    Icons.add_rounded,
+                    size: 14,
+                    color: Color(0xFF1F2937),
+                  ),
+                ),
+              ],
             ),
           ),
         ),

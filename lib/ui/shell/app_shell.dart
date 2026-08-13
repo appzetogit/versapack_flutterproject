@@ -104,7 +104,7 @@ class _NavItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color =
-        selected ? context.colors.primary : context.semantic.textSecondary;
+        selected ? const Color(0xFFFFC107) : const Color(0xFF6B7280);
 
     return Semantics(
       button: true,
@@ -122,7 +122,11 @@ class _NavItem extends StatelessWidget {
               spec.$4,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: context.text.labelSmall!.copyWith(color: color, fontWeight: selected ? FontWeight.w800 : FontWeight.w600),
+              style: context.text.labelSmall!.copyWith(
+                color: selected ? const Color(0xFF1F2937) : const Color(0xFF6B7280),
+                fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
+                fontSize: 10.5,
+              ),
             ),
           ],
         ),
@@ -142,79 +146,115 @@ class _CentreBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       button: true,
-      label: count > 0 ? 'Cart, $count items' : 'Cart',
+      label: count > 0 ? 'Cart, $count items' : 'Quick Delivery',
       child: GestureDetector(
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
         child: Center(
-          child: Transform.translate(
-            offset: const Offset(0, -14),
-            child: Stack(
-              clipBehavior: Clip.none,
-              alignment: Alignment.center,
-              children: [
-                Container(
-                  key: cartAnchorKey,
-                  height: 62,
-                  width: 62,
-                  decoration: BoxDecoration(
-                    color: context.semantic.brandSurface,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: context.colors.surface, width: 4.5),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.12),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Transform.translate(
+                offset: const Offset(0, -12),
+                child: Stack(
+                  clipBehavior: Clip.none,
                   alignment: Alignment.center,
-                  child: Text(
-                    '10\nmins',
-                    textAlign: TextAlign.center,
-                    style: context.text.bodySmall!.copyWith(color: context.colors.onSurface, fontWeight: FontWeight.w900),
-                  ),
-                ),
-                if (count > 0)
-                  Positioned(
-                    right: -2,
-                    top: -2,
-                    child: TweenAnimationBuilder<double>(
-                      key: ValueKey(count),
-                      tween: Tween(begin: 0.6, end: 1),
-                      duration: AppDurations.medium,
-                      curve: Curves.elasticOut,
-                      builder: (context, scale, child) =>
-                          Transform.scale(scale: scale, child: child),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.xs,
-                          vertical: 1,
-                        ),
-                        constraints: const BoxConstraints(minWidth: 20),
-                        decoration: BoxDecoration(
-                          // A count badge is an alert, and it sits on the
-                          // yellow brand disc — the brand colour would vanish
-                          // into it.
-                          color: context.semantic.danger,
-                          borderRadius: AppRadii.rPill,
-                          border: Border.all(
-                            color: context.colors.surface,
-                            width: 2,
+                  children: [
+                    Container(
+                      key: cartAnchorKey,
+                      height: 54,
+                      width: 54,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFC107),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 4),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.14),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
                           ),
-                        ),
-                        alignment: Alignment.center,
-                        child: Text(
-                          count > 99 ? '99+' : '$count',
-                          style: context.text.labelSmall!
-                              .copyWith(color: context.colors.surface),
-                        ),
+                        ],
+                      ),
+                      alignment: Alignment.center,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            '10',
+                            style: context.text.bodySmall!.copyWith(
+                              color: const Color(0xFF1F2937),
+                              fontWeight: FontWeight.w900,
+                              fontSize: 13,
+                              height: 0.95,
+                            ),
+                          ),
+                          Text(
+                            'mins',
+                            style: context.text.labelSmall!.copyWith(
+                              color: const Color(0xFF1F2937),
+                              fontWeight: FontWeight.w800,
+                              fontSize: 8.5,
+                              height: 0.95,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
+                    if (count > 0)
+                      Positioned(
+                        right: -2,
+                        top: -2,
+                        child: TweenAnimationBuilder<double>(
+                          key: ValueKey(count),
+                          tween: Tween(begin: 0.6, end: 1),
+                          duration: AppDurations.medium,
+                          curve: Curves.elasticOut,
+                          builder: (context, scale, child) =>
+                              Transform.scale(scale: scale, child: child),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.xs,
+                              vertical: 1,
+                            ),
+                            constraints: const BoxConstraints(minWidth: 18),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEF4444),
+                              borderRadius: AppRadii.rPill,
+                              border: Border.all(
+                                color: context.colors.surface,
+                                width: 2,
+                              ),
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              count > 99 ? '99+' : '$count',
+                              style: context.text.labelSmall!.copyWith(
+                                color: context.colors.surface,
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              Transform.translate(
+                offset: const Offset(0, -8),
+                child: Text(
+                  'Quick Delivery',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.text.labelSmall!.copyWith(
+                    color: const Color(0xFF1F2937),
+                    fontWeight: FontWeight.w600,
+                    fontSize: 10.5,
                   ),
-              ],
-            ),
+                ),
+              ),
+            ],
           ),
         ),
       ),

@@ -30,42 +30,42 @@ class ShopByCategoryRow extends StatelessWidget {
       children: [
         SectionHeader(title: 'Shop by Category', onSeeAll: onSeeAll),
         SizedBox(
-          height: 142,
+          height: 125,
           child: categories.isEmpty
               ? ListView.separated(
                   scrollDirection: Axis.horizontal,
                   physics: const NeverScrollableScrollPhysics(),
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
                   itemCount: 4,
-                  separatorBuilder: (_, _) => const SizedBox(width: 10),
+                  separatorBuilder: (_, _) => const SizedBox(width: 8),
                   itemBuilder: (_, _) => const Column(
                     children: [
-                      ShimmerBox(width: 96, height: 90),
-                      SizedBox(height: 6),
-                      ShimmerBox(width: 72, height: 11),
+                      ShimmerBox(width: 84, height: 76),
+                      SizedBox(height: 4),
+                      ShimmerBox(width: 64, height: 10),
                     ],
                   ),
                 )
               : ListView.separated(
                   scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
                   itemCount: categories.length,
-                  separatorBuilder: (_, _) => const SizedBox(width: 10),
+                  separatorBuilder: (_, _) => const SizedBox(width: 8),
                   itemBuilder: (context, index) {
                     final item = categories[index];
                     return GestureDetector(
                       onTap: () => onCategoryTap?.call(item.id),
                       child: SizedBox(
-                        width: 96,
+                        width: 84,
                         child: Column(
                           children: [
                             Container(
-                              height: 90,
-                              width: 96,
-                              padding: const EdgeInsets.all(6),
+                              height: 76,
+                              width: 84,
+                              padding: const EdgeInsets.all(5),
                               decoration: BoxDecoration(
                                 color: context.semantic.surfaceAlt,
-                                borderRadius: BorderRadius.circular(18),
+                                borderRadius: BorderRadius.circular(14),
                               ),
                               clipBehavior: Clip.antiAlias,
                               child: AppNetworkImage(
@@ -74,13 +74,13 @@ class ShopByCategoryRow extends StatelessWidget {
                                 fallbackIcon: Icons.category_rounded,
                               ),
                             ),
-                            const SizedBox(height: 6),
+                            const SizedBox(height: 4),
                             Text(
                               item.name,
                               maxLines: 2,
                               textAlign: TextAlign.center,
                               overflow: TextOverflow.ellipsis,
-                              style: context.text.bodySmall!.copyWith(fontWeight: FontWeight.w800, color: context.colors.onSurface),
+                              style: context.text.bodySmall!.copyWith(fontWeight: FontWeight.w800, color: context.colors.onSurface, fontSize: 10.5),
                             ),
                           ],
                         ),
