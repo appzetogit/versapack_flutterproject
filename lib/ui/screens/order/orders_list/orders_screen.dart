@@ -11,6 +11,7 @@ import '../../../common/widgets/states/empty_state_widget.dart';
 import '../../../common/widgets/states/error_state_widget.dart';
 import '../widgets/order_card.dart';
 import 'orders_provider.dart';
+import '../../../common/widgets/misc/sound_refresh_indicator.dart';
 
 class OrdersScreen extends ConsumerStatefulWidget {
   const OrdersScreen({super.key, this.showAppBar = true});
@@ -74,7 +75,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                     actionLabel: 'Start shopping',
                     onAction: () => context.go(RoutePaths.home),
                   ),
-                _ => RefreshIndicator(
+                _ => SoundRefreshIndicator(
                     onRefresh: () => controller.load(reset: true),
                     child: ListView(
                       controller: _scrollController,

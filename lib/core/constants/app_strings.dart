@@ -1,6 +1,6 @@
 /// Centralised user-facing copy. Keeps UI files free of string literals.
 abstract final class AppStrings {
-  static const appName = 'Suvio Quick';
+  static const appName = 'Appzeto Quick';
   static const tagline = 'Groceries. Instantly.';
 
   // Auth

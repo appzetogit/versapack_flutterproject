@@ -5,13 +5,14 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../domain/model/category.dart';
 import '../misc/app_network_image.dart';
 
-/// Category tile: image plate + name. Used in the home strip and the full grid.
+/// Category tile matching exact Blinkit-style reference screenshot:
+/// Light mint pastel rounded squircle container (16px radius) + 2-line title.
 class CategoryCard extends StatefulWidget {
   const CategoryCard({
     super.key,
     required this.category,
     required this.onTap,
-    this.size = 68,
+    this.size = 74,
     this.showCount = false,
   });
 
@@ -36,44 +37,57 @@ class _CategoryCardState extends State<CategoryCard> {
       onTap: widget.onTap,
       behavior: HitTestBehavior.opaque,
       child: AnimatedScale(
-        scale: _pressed ? 0.94 : 1,
+        scale: _pressed ? 0.94 : 1.0,
         duration: AppDurations.instant,
-        child: SizedBox(
-          width: widget.size + 14,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                height: widget.size + 6,
-                width: widget.size + 14,
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: context.semantic.surfaceAlt,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: AppNetworkImage(
-                  url: widget.category.imageUrl,
-                  height: widget.size,
-                  width: widget.size,
-                  fallbackIcon: Icons.shopping_basket_outlined,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // Soft Mint Pastel Rounded Image Plate (Matching Screenshot)
+            Container(
+              height: widget.size,
+              width: double.infinity,
+              padding: const EdgeInsets.all(7),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEBF5F0), // Pastel soft mint green
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: const Color(0xFFE0ECE6),
+                  width: 0.8,
                 ),
               ),
-              const SizedBox(height: 6),
+              clipBehavior: Clip.antiAlias,
+              alignment: Alignment.center,
+              child: AppNetworkImage(
+                url: widget.category.imageUrl,
+                height: widget.size - 14,
+                width: double.infinity,
+                fit: BoxFit.contain,
+                fallbackIcon: Icons.shopping_basket_outlined,
+              ),
+            ),
+            const SizedBox(height: 6),
+
+            // 2-Line Bold Category Title
+            Text(
+              widget.category.name,
+              maxLines: 2,
+              textAlign: TextAlign.center,
+              overflow: TextOverflow.ellipsis,
+              style: context.text.labelSmall!.copyWith(
+                fontWeight: FontWeight.w800,
+                fontSize: 11.5,
+                color: const Color(0xFF1F2937),
+                height: 1.15,
+              ),
+            ),
+
+            if (widget.showCount && widget.category.itemCount > 0)
               Text(
-                widget.category.name,
-                maxLines: 2,
-                textAlign: TextAlign.center,
-                overflow: TextOverflow.ellipsis,
-                style: context.text.labelSmall!.copyWith(fontWeight: FontWeight.w700, color: context.colors.onSurface),
+                '${widget.category.itemCount} items',
+                style: context.text.bodySmall!.copyWith(fontSize: 9.5),
               ),
-              if (widget.showCount && widget.category.itemCount > 0)
-                Text(
-                  '${widget.category.itemCount} items',
-                  style: context.text.bodySmall!,
-                ),
-            ],
-          ),
+          ],
         ),
       ),
     );

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/utils/app_haptics.dart';
 import '../../di/app_providers.dart';
 import '../../di/repository_providers.dart';
 import '../../domain/model/addon.dart';
@@ -10,7 +11,7 @@ import '../../domain/usecase/add_to_cart_usecase.dart';
 import '../screens/product/widgets/addon_sheet.dart';
 import '../screens/product/widgets/variant_sheet.dart';
 import 'widgets/feedback/app_dialog.dart';
-import 'widgets/feedback/app_snackbar.dart';
+import 'widgets/feedback/app_toast.dart';
 import 'widgets/misc/fly_to_cart.dart';
 
 /// One place that owns "user tapped ADD".
@@ -93,7 +94,7 @@ abstract final class CartActions {
         if (sourceKey != null) {
           FlyToCart.run(context, sourceKey: sourceKey, imageUrl: product.imageUrl);
         }
-        AppSnackbar.success(context, '${product.name} added to cart');
+        AppToast.success(context, '${product.name} added to cart');
 
       case SellerConflict(:final currentSellerName):
         final replace = await AppDialog.confirm(
@@ -120,7 +121,7 @@ abstract final class CartActions {
         }
 
       case AddRejected(:final reason):
-        AppSnackbar.error(context, reason);
+        AppToast.error(context, reason);
 
       case NeedsVariantSelection():
         // Unreachable: variants are resolved before this call.
@@ -165,14 +166,17 @@ abstract final class CartActions {
     Product product,
   ) async {
     if (!ref.read(authProvider).isSignedIn) {
-      AppSnackbar.show(context, 'Sign in to save items to your wishlist');
+      AppToast.show(context, 'Sign in to save items to your wishlist');
       return;
     }
+    // Single call site for every heart in the app (cards, PDP, sub-category),
+    // so one cue here can never double-fire.
+    AppHaptics.selection();
     try {
       await ref.read(wishlistProvider.notifier).toggle(product.id);
     } catch (_) {
       if (context.mounted) {
-        AppSnackbar.error(context, 'Could not update your wishlist');
+        AppToast.error(context, 'Could not update your wishlist');
       }
     }
   }

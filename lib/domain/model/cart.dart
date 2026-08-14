@@ -94,6 +94,9 @@ class Cart {
   double get provisionalSubtotal =>
       items.fold(0, (sum, i) => sum + i.lineTotal);
 
+  /// Effective total payable: server-calculated total if > 0, otherwise provisional subtotal.
+  double get effectiveTotal => pricing.total > 0 ? pricing.total : provisionalSubtotal;
+
   double get provisionalStrikeTotal =>
       items.fold(0, (sum, i) => sum + i.lineStrikeTotal);
 

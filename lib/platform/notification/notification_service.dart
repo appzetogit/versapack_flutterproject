@@ -84,17 +84,29 @@ class FcmNotificationService implements NotificationService {
 
   @override
   Future<bool> requestPermission() async {
-    // The messaging SDK owns this prompt on both platforms (iOS always,
-    // Android from 13). Below Android 13 it resolves as already authorized.
-    final settings = await FirebaseMessaging.instance.requestPermission();
-    return settings.authorizationStatus == AuthorizationStatus.authorized ||
-        settings.authorizationStatus == AuthorizationStatus.provisional;
+    try {
+      // The messaging SDK owns this prompt on both platforms (iOS always,
+      // Android from 13). Below Android 13 it resolves as already authorized.
+      final settings = await FirebaseMessaging.instance.requestPermission();
+      return settings.authorizationStatus == AuthorizationStatus.authorized ||
+          settings.authorizationStatus == AuthorizationStatus.provisional;
+    } catch (e) {
+      // Same posture as `deviceToken`: no Firebase on this platform, or Play
+      // Services missing. Registration continues without the prompt rather
+      // than taking down the sign-in that triggered it.
+      AppLogger.debug('notification permission unavailable: $e', scope: 'push');
+      return false;
+    }
   }
 
   @override
   Future<String?> deviceToken() async {
     try {
-      return await FirebaseMessaging.instance.getToken();
+      final token = await FirebaseMessaging.instance.getToken();
+      if (token != null && token.isNotEmpty) {
+        AppLogger.debug('FCM TOKEN GENERATED', scope: 'push');
+      }
+      return token;
     } catch (e) {
       // No Firebase config on this platform, or Play Services missing. Push is
       // not worth failing a login over.
@@ -107,12 +119,30 @@ class FcmNotificationService implements NotificationService {
   Future<void> registerDevice() async {
     if (!_pushEnabled) return;
 
+    // Android 13+ denies POST_NOTIFICATIONS until the user is actually asked,
+    // and the system then drops every push without a word — no error, no
+    // callback, nothing in the logs. Until this call was here the only place
+    // that asked was the Settings toggle, so a normal install never got the
+    // prompt and never received a notification.
+    //
+    // Registering the token is still worth doing when the answer is no: data
+    // messages continue to arrive, and the user can grant it later from
+    // Settings without needing another token round trip.
+    final granted = await requestPermission();
+    AppLogger.debug(
+      'notification permission: ${granted ? 'granted' : 'denied'}',
+      scope: 'push',
+    );
+
     // FCM rotates tokens on its own schedule; without this the backend holds a
     // dead token and the user silently stops receiving order updates.
     if (_refreshSubscription == null) {
       try {
         _refreshSubscription = FirebaseMessaging.instance.onTokenRefresh
-            .listen(_upload, onError: (Object e) {
+            .listen((token) {
+          AppLogger.debug('FCM TOKEN REFRESHED', scope: 'push');
+          _upload(token);
+        }, onError: (Object e) {
           AppLogger.debug('FCM token refresh failed: $e', scope: 'push');
         });
       } catch (e) {
@@ -173,18 +203,27 @@ class FcmNotificationService implements NotificationService {
 
   Future<void> _upload(String token) async {
     if (token.isEmpty || token == _syncedToken) return;
-    if (!_isSignedIn) return;
+    if (!_isSignedIn) {
+      AppLogger.debug('FCM token not sent: signed out', scope: 'push');
+      return;
+    }
 
     try {
+      AppLogger.debug('FCM TOKEN SENT TO BACKEND', scope: 'push');
       await _client.post(
         ApiPaths.fcmTokenSave,
         body: {'token': token, 'platform': 'mobile'},
         requiresAuth: true,
       );
       _syncedToken = token;
+      // Tail only — the token is a credential for reaching this device, and it
+      // has no business sitting whole in a log. The short-token guard keeps a
+      // truncated token from making the log line throw.
+      final tail = token.substring(token.length < 12 ? 0 : token.length - 12);
+      AppLogger.debug('FCM TOKEN SAVED SUCCESSFULLY (…$tail)', scope: 'push');
     } on AppException catch (e) {
       // Retried on the next launch, and whenever FCM rotates the token.
-      AppLogger.debug('FCM token save failed: ${e.message}', scope: 'push');
+      AppLogger.debug('FCM TOKEN SAVE FAILED: ${e.message}', scope: 'push');
     }
   }
 }

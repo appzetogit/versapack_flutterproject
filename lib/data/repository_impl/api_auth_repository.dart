@@ -141,6 +141,49 @@ class ApiAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<WalletTopupOrder> createWalletTopupOrder(double amountRupees) async {
+    // Backend takes rupees and mints a Razorpay order for the paise equivalent.
+    final json = await _client.post(
+      ApiPaths.walletTopupOrder,
+      body: {'amount': amountRupees},
+      requiresAuth: true,
+    );
+    if (json is! Map<String, dynamic>) {
+      throw const ParseException('Unexpected top-up response.');
+    }
+    final rz = json.mapAt('razorpay');
+    return WalletTopupOrder(
+      key: rz.str('key'),
+      orderId: rz.str('orderId'),
+      amountPaise: rz.integer('amount'),
+      currency: rz.str('currency', 'INR'),
+    );
+  }
+
+  @override
+  Future<Wallet> verifyWalletTopup({
+    required String orderId,
+    required String paymentId,
+    required String signature,
+    required double amountRupees,
+  }) async {
+    final json = await _client.post(
+      ApiPaths.walletTopupVerify,
+      body: {
+        'razorpayOrderId': orderId,
+        'razorpayPaymentId': paymentId,
+        'razorpaySignature': signature,
+        // Rupees — the backend credits this exact figure after re-checking the
+        // signature server-side.
+        'amount': amountRupees,
+      },
+      requiresAuth: true,
+    );
+    if (json is! Map<String, dynamic>) return const Wallet();
+    return UserMapper.walletToDomain(WalletDto.fromJson(json.mapAt('wallet')));
+  }
+
+  @override
   Future<void> signOut() async {
     // Before the tokens go: removing the device server-side needs the session.
     await _push.unregisterDevice();

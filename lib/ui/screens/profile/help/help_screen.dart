@@ -10,7 +10,7 @@ import '../../../../di/repository_providers.dart';
 import '../../../common/widgets/buttons/primary_button.dart';
 import '../../../common/widgets/buttons/secondary_button.dart';
 import '../../../common/widgets/feedback/app_bottom_sheet.dart';
-import '../../../common/widgets/feedback/app_snackbar.dart';
+import '../../../common/widgets/feedback/app_toast.dart';
 import '../../../common/widgets/inputs/app_text_field.dart';
 import '../../../common/widgets/inputs/search_bar_widget.dart';
 import '../../../common/widgets/states/empty_state_widget.dart';
@@ -81,7 +81,7 @@ class _HelpScreenState extends ConsumerState<HelpScreen> {
 
   Future<void> _contactSupport() async {
     if (!ref.read(authProvider).isSignedIn) {
-      AppSnackbar.error(context, 'Sign in to raise a support request');
+      AppToast.error(context, 'Sign in to raise a support request');
       return;
     }
 
@@ -99,10 +99,10 @@ class _HelpScreenState extends ConsumerState<HelpScreen> {
         requiresAuth: true,
       );
       if (mounted) {
-        AppSnackbar.success(context, 'We have your request — we will be in touch');
+        AppToast.success(context, 'We have your request — we will be in touch');
       }
     } catch (_) {
-      if (mounted) AppSnackbar.error(context, 'Could not send your request');
+      if (mounted) AppToast.error(context, 'Could not send your request');
     }
   }
 
@@ -169,7 +169,7 @@ class _HelpScreenState extends ConsumerState<HelpScreen> {
               icon: Icons.call_rounded,
               expand: true,
               tonal: false,
-              onPressed: () => AppSnackbar.show(
+              onPressed: () => AppToast.show(
                 context,
                 'Our phone line is open 7 AM – 11 PM',
               ),

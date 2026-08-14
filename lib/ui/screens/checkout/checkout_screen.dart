@@ -15,7 +15,7 @@ import '../../../di/app_providers.dart';
 import '../../../di/service_providers.dart';
 import '../../../navigation/route_paths.dart';
 import '../../common/widgets/buttons/primary_button.dart';
-import '../../common/widgets/feedback/app_snackbar.dart';
+import '../../common/widgets/feedback/app_toast.dart';
 import '../../common/widgets/misc/app_network_image.dart';
 import '../../common/widgets/states/offline_banner.dart';
 import '../cart/widgets/bill_details_card.dart';
@@ -43,7 +43,7 @@ class CheckoutScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Checkout')),
       bottomNavigationBar: _PayBar(
-        total: cart.pricing.total,
+        total: cart.effectiveTotal,
         isPricing: cartState.isPricing,
         isPlacing: state.isPlacing,
         onPay: () => _proceed(context, ref),
@@ -121,7 +121,7 @@ class CheckoutScreen extends ConsumerWidget {
 
     if (placed == null) {
       final issues = ref.read(checkoutProvider).issues;
-      AppSnackbar.error(
+      AppToast.error(
         context,
         issues.isEmpty
             ? ref.read(checkoutProvider).failure?.message ??

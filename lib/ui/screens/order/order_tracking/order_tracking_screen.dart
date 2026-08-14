@@ -10,11 +10,12 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../domain/model/order.dart';
 import '../../../../navigation/route_paths.dart';
 import '../../../common/widgets/buttons/secondary_button.dart';
-import '../../../common/widgets/feedback/app_snackbar.dart';
+import '../../../common/widgets/feedback/app_toast.dart';
 import '../../../common/widgets/loaders/full_page_loader.dart';
 import '../../../common/widgets/misc/rating_stars.dart';
 import '../../../common/widgets/maps/order_route_map.dart';
 import '../../../common/widgets/states/error_state_widget.dart';
+import '../../chat/chat_screen.dart';
 import '../order_details/order_details_provider.dart';
 import '../widgets/order_status_chip.dart';
 import 'widgets/tracking_timeline.dart';
@@ -31,7 +32,9 @@ class OrderTrackingScreen extends ConsumerWidget {
     final order = state.order;
 
     if (state.isLoading && order == null) {
-      return const Scaffold(body: FullPageLoader(message: 'Fetching your order…'));
+      return const Scaffold(
+        body: FullPageLoader(message: 'Fetching your order…'),
+      );
     }
     if (order == null) {
       return Scaffold(
@@ -43,59 +46,77 @@ class OrderTrackingScreen extends ConsumerWidget {
       );
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(order.displayId),
-        actions: [OrderStatusChip(status: order.status), const SizedBox(width: AppSpacing.lg)],
-      ),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.only(bottom: AppSpacing.xxl),
-          children: [
-            _LiveStatusBanner(order: order),
-            Padding(
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              // Real route, drawn from the polyline the backend returns. The
-              // map SDK carries its own native key.
-              child: OrderRouteMap(
-                route: state.route,
-                riderLocation: order.riderLocation,
-              ),
-            ),
-            if (order.status.isOutForDelivery && state.dropOtp.isNotEmpty)
-              _DropOtpCard(otp: state.dropOtp),
-            if (order.deliveryPartner != null)
-              _RiderCard(partner: order.deliveryPartner!),
-            Padding(
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              child: TrackingTimeline(order: order),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-              child: SecondaryButton(
-                label: 'Need help with this order?',
-                icon: Icons.support_agent_rounded,
-                expand: true,
-                onPressed: () => context.push(RoutePaths.help),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-              child: SecondaryButton(
-                label: 'View order details',
-                icon: Icons.receipt_long_rounded,
-                expand: true,
-                tonal: false,
-                onPressed: () => context.push(RoutePaths.orderDetailsOf(order.id)),
-              ),
-            ),
+    // Reached two ways: pushed from the orders list (pop works), and `go`n to
+    // from the order-success screen, which leaves no history — back there used
+    // to fall through to the OS and close the app.
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go(RoutePaths.home);
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(order.displayId),
+          actions: [
+            OrderStatusChip(status: order.status),
+            const SizedBox(width: AppSpacing.lg),
           ],
+        ),
+        body: SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.only(bottom: AppSpacing.xxl),
+            children: [
+              _LiveStatusBanner(order: order),
+              Padding(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                // Real route, drawn from the polyline the backend returns. The
+                // map SDK carries its own native key.
+                child: OrderRouteMap(
+                  route: state.route,
+                  // Prefers the live socket position over the last REST value.
+                  riderLocation: state.riderLocation,
+                ),
+              ),
+              if (order.status.isOutForDelivery && state.dropOtp.isNotEmpty)
+                _DropOtpCard(otp: state.dropOtp),
+              if (order.deliveryPartner != null)
+                _RiderCard(partner: order.deliveryPartner!, orderId: order.id),
+              Padding(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                child: TrackingTimeline(order: order),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                child: SecondaryButton(
+                  label: 'Need help with this order?',
+                  icon: Icons.support_agent_rounded,
+                  expand: true,
+                  onPressed: () => context.push(RoutePaths.help),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                child: SecondaryButton(
+                  label: 'View order details',
+                  icon: Icons.receipt_long_rounded,
+                  expand: true,
+                  tonal: false,
+                  onPressed: () =>
+                      context.push(RoutePaths.orderDetailsOf(order.id)),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
-
 }
 
 /// Pulsing scooter + live ETA at the top of the screen.
@@ -167,17 +188,20 @@ class _LiveStatusBannerState extends State<_LiveStatusBanner>
               children: [
                 Text(
                   order.status.label,
-                  style: context.text.titleLarge!.copyWith(color: context.colors.surface),
+                  style: context.text.titleLarge!.copyWith(
+                    color: context.colors.surface,
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.xxs),
                 Text(
                   live
                       ? order.etaMinutes != null
-                          ? 'Arriving in about ${order.etaMinutes} minutes'
-                          : 'We will share an ETA shortly'
+                            ? 'Arriving in about ${order.etaMinutes} minutes'
+                            : 'We will share an ETA shortly'
                       : 'Thanks for shopping with Suvio',
-                  style: context.text.bodyMedium!
-                      .copyWith(color: Colors.white.withValues(alpha: 0.86)),
+                  style: context.text.bodyMedium!.copyWith(
+                    color: Colors.white.withValues(alpha: 0.86),
+                  ),
                 ),
               ],
             ),
@@ -242,9 +266,10 @@ class _DropOtpCard extends StatelessWidget {
 }
 
 class _RiderCard extends StatelessWidget {
-  const _RiderCard({required this.partner});
+  const _RiderCard({required this.partner, required this.orderId});
 
   final DeliveryPartner partner;
+  final String orderId;
 
   @override
   Widget build(BuildContext context) {
@@ -261,10 +286,7 @@ class _RiderCard extends StatelessWidget {
           CircleAvatar(
             radius: 24,
             backgroundColor: context.colors.primary.withValues(alpha: 0.12),
-            child: Icon(
-              Icons.person_rounded,
-              color: context.colors.primary,
-            ),
+            child: Icon(Icons.person_rounded, color: context.colors.primary),
           ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
@@ -272,7 +294,8 @@ class _RiderCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(partner.name, style: context.text.titleMedium),
-                if (partner.rating > 0) RatingStars(rating: partner.rating, size: 11),
+                if (partner.rating > 0)
+                  RatingStars(rating: partner.rating, size: 11),
                 if (partner.vehicleNumber.isNotEmpty)
                   Text(partner.vehicleNumber, style: context.text.bodySmall),
               ],
@@ -281,7 +304,7 @@ class _RiderCard extends StatelessWidget {
           _RiderAction(
             icon: Icons.call_rounded,
             label: 'Call',
-            onTap: () => AppSnackbar.show(
+            onTap: () => AppToast.show(
               context,
               'Calling is available once the rider is nearby',
             ),
@@ -290,9 +313,11 @@ class _RiderCard extends StatelessWidget {
           _RiderAction(
             icon: Icons.chat_bubble_outline_rounded,
             label: 'Message',
-            onTap: () => AppSnackbar.show(
-              context,
-              'In-app chat opens when your rider is assigned',
+            // The rider is assigned by the time this card renders, so chat is
+            // live. Open the real thread keyed on this order.
+            onTap: () => context.push(
+              RoutePaths.orderChatOf(orderId),
+              extra: ChatArgs(riderName: partner.name),
             ),
           ),
         ],

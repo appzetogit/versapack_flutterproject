@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_durations.dart';
 import '../../../core/errors/error_mapper.dart';
+import '../../../core/utils/app_haptics.dart';
 import '../../../core/extensions/num_extensions.dart';
 import '../../../core/theme/app_radii.dart';
 import '../../../core/theme/app_spacing.dart';
@@ -56,6 +57,9 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
           'Cancel and try Cash on Delivery.';
     } else {
       // Cash and wallet orders are already settled server-side at creation.
+      // Their "order placed" pulse fires here; gateway orders get theirs on
+      // payment success instead, so every order buzzes exactly once.
+      AppHaptics.success();
       Future.microtask(_complete);
     }
   }
@@ -72,6 +76,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
         customer: ref.read(authProvider).user,
       );
       if (!mounted) return;
+      AppHaptics.success();
       setState(() => _phase = PaymentPhase.success);
       await Future<void>.delayed(AppDurations.medium);
       if (mounted) _complete(order: order);
@@ -85,12 +90,14 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
       });
     } on PaymentDeclined catch (e) {
       if (!mounted) return;
+      AppHaptics.error();
       setState(() {
         _phase = PaymentPhase.failed;
         _error = e.message;
       });
     } catch (e) {
       if (!mounted) return;
+      AppHaptics.error();
       setState(() {
         _phase = PaymentPhase.failed;
         _error = ErrorMapper.toFailure(e).message;

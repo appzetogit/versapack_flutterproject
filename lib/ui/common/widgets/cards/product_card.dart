@@ -8,6 +8,7 @@ import '../../../../core/theme/app_radii.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/app_haptics.dart';
 import '../../../../di/app_providers.dart';
 import '../../../../di/service_providers.dart';
 import '../../../../domain/model/product.dart';
@@ -67,7 +68,13 @@ class _ProductCardState extends ConsumerState<ProductCard> {
       onTapDown: (_) => setState(() => _pressed = true),
       onTapUp: (_) => setState(() => _pressed = false),
       onTapCancel: () => setState(() => _pressed = false),
-      onTap: widget.onTap,
+      onTap: () {
+        // Opening a product is a selection. The add pill and wishlist heart sit
+        // in nested gesture detectors with their own cues, so this only fires
+        // on a body tap.
+        AppHaptics.selection();
+        widget.onTap();
+      },
       child: AnimatedScale(
         scale: _pressed ? 0.975 : 1,
         duration: AppDurations.instant,
@@ -231,14 +238,30 @@ class _ProductCardState extends ConsumerState<ProductCard> {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (_product.strikePrice != null)
-                Text(
-                  _product.strikePrice!.asCurrency,
-                  style: context.text.mrp,
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    _product.strikePrice!.asCurrency,
+                    maxLines: 1,
+                    softWrap: false,
+                    style: context.text.mrp,
+                  ),
                 ),
-              Text(_product.price.asCurrency, style: context.text.price),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  _product.price.asCurrency,
+                  maxLines: 1,
+                  softWrap: false,
+                  style: context.text.price,
+                ),
+              ),
             ],
           ),
         ),
+        const SizedBox(width: 4),
         AnimatedAddButton(
           quantity: quantity,
           enabled: !outOfStock && _product.sellerAcceptingOrders,

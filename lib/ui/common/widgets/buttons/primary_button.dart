@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_durations.dart';
+import '../../../../core/utils/app_haptics.dart';
 import '../../../../core/theme/app_radii.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -51,7 +52,15 @@ class _PrimaryButtonState extends State<PrimaryButton> {
         onTapDown: enabled ? (_) => setState(() => _pressed = true) : null,
         onTapUp: enabled ? (_) => setState(() => _pressed = false) : null,
         onTapCancel: enabled ? () => setState(() => _pressed = false) : null,
-        onTap: enabled ? widget.onPressed : null,
+        onTap: enabled
+            ? () {
+                // The main CTA is a committing action → medium, or heavy when
+                // it is the destructive variant. Flow outcomes (payment, order)
+                // fire their own success/error pulse separately.
+                widget.destructive ? AppHaptics.heavy() : AppHaptics.medium();
+                widget.onPressed!.call();
+              }
+            : null,
         child: AnimatedScale(
           scale: _pressed ? 0.96 : 1,
           duration: AppDurations.instant,

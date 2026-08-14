@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_durations.dart';
+import '../../../../core/utils/app_haptics.dart';
 import '../misc/quantity_stepper.dart';
 import '../../../../core/theme/app_theme.dart';
 
@@ -66,7 +67,15 @@ class AnimatedAddButton extends StatelessWidget {
               )
             : _AddPill(
                 key: const ValueKey('add'),
-                onTap: enabled ? onAdd : null,
+                // Add to cart is a committing action → medium. Placed on the
+                // pill (not on `CartActions.add`) so batch adds like "add all
+                // in-stock" fire once, not once per item.
+                onTap: enabled
+                    ? () {
+                        AppHaptics.medium();
+                        onAdd();
+                      }
+                    : null,
                 hasVariants: hasVariants,
                 height: height,
                 width: width,

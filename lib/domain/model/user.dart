@@ -63,6 +63,23 @@ class Wallet {
   final List<WalletTransaction> transactions;
 }
 
+/// Gateway parameters the backend mints for a wallet top-up. The app never
+/// decides the amount charged — the backend created the Razorpay order for
+/// exactly [amountPaise] and re-verifies the signature before crediting.
+class WalletTopupOrder {
+  const WalletTopupOrder({
+    required this.key,
+    required this.orderId,
+    required this.amountPaise,
+    this.currency = 'INR',
+  });
+
+  final String key;
+  final String orderId;
+  final int amountPaise;
+  final String currency;
+}
+
 class WalletTransaction {
   const WalletTransaction({
     required this.id,

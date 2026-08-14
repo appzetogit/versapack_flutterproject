@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_radii.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/errors/error_mapper.dart';
 import '../../../../core/utils/logger.dart';
 import '../../../../di/app_providers.dart';
 import '../../../../di/repository_providers.dart';
@@ -16,7 +17,7 @@ import '../../../../navigation/route_paths.dart';
 import '../../../../platform/location/location_service.dart';
 import '../../../common/widgets/buttons/primary_button.dart';
 import '../../../common/widgets/buttons/secondary_button.dart';
-import '../../../common/widgets/feedback/app_snackbar.dart';
+import '../../../common/widgets/feedback/app_toast.dart';
 import '../../../common/widgets/inputs/app_text_field.dart';
 import '../../../common/widgets/maps/address_picker_map.dart';
 import 'widgets/place_search_field.dart';
@@ -128,7 +129,7 @@ class _AddressSelectionScreenState
       if (!location.isResolved) {
         // Two different causes, two different fixes — say which one it is
         // rather than making the user guess.
-        AppSnackbar.error(
+        AppToast.error(
           context,
           ref.read(appConfigProvider).hasMapsKey
               ? 'We placed the pin but could not read the address. Please fill it in.'
@@ -136,30 +137,30 @@ class _AddressSelectionScreenState
                   'Please enter the address manually.',
         );
       } else if (_street.text.trim().isEmpty) {
-        AppSnackbar.show(context, 'Add your house / flat number to finish');
+        AppToast.show(context, 'Add your house / flat number to finish');
       }
     } on LocationPermissionDenied catch (e) {
       if (!mounted) return;
       if (e.isPermanent) {
-        AppSnackbar.show(
+        AppToast.show(
           context,
           'Location is turned off for Suvio Quick. Enable it in Settings.',
           actionLabel: 'SETTINGS',
           onAction: () => ref.read(permissionServiceProvider).openSettings(),
         );
       } else {
-        AppSnackbar.error(
+        AppToast.error(
           context,
           'Location access was denied — allow it or enter the address manually.',
         );
       }
     } on LocationUnavailable catch (e) {
       // GPS switched off, no fix within the timeout, or no last-known position.
-      if (mounted) AppSnackbar.error(context, e.message);
+      if (mounted) AppToast.error(context, e.message);
     } catch (e) {
       AppLogger.error('current location failed', error: e);
       if (mounted) {
-        AppSnackbar.error(context, 'Could not get your location. Try again.');
+        AppToast.error(context, 'Could not get your location. Try again.');
       }
     } finally {
       if (mounted) setState(() => _locating = false);
@@ -221,7 +222,7 @@ class _AddressSelectionScreenState
     final errors = _validator.validate(_address);
     setState(() => _errors = errors);
     if (errors.isNotEmpty) {
-      AppSnackbar.error(context, errors.values.first);
+      AppToast.error(context, errors.values.first);
       return;
     }
 
@@ -235,14 +236,20 @@ class _AddressSelectionScreenState
       }
       if (!mounted) return;
 
-      AppSnackbar.success(context, 'Address saved');
+      AppToast.success(context, 'Address saved');
       if (context.canPop()) {
         context.pop(true);
       } else {
         context.go(RoutePaths.home);
       }
-    } catch (e) {
-      if (mounted) AppSnackbar.error(context, 'Could not save this address');
+    } catch (e, stack) {
+      // Surface the real reason — "Session expired", "Latitude is required",
+      // "Could not reach the server" — instead of a generic line that hides
+      // whether the fix is re-login, re-pin, or retry.
+      AppLogger.error('address save failed', error: e, stackTrace: stack);
+      if (mounted) {
+        AppToast.error(context, ErrorMapper.toFailure(e).message);
+      }
     } finally {
       if (mounted) setState(() => _saving = false);
     }

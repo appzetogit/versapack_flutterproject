@@ -12,7 +12,7 @@ import '../../../di/service_providers.dart';
 import '../../../domain/model/coupon.dart';
 import '../../../domain/usecase/apply_coupon_usecase.dart';
 import '../../common/widgets/buttons/secondary_button.dart';
-import '../../common/widgets/feedback/app_snackbar.dart';
+import '../../common/widgets/feedback/app_toast.dart';
 import '../../common/widgets/inputs/app_text_field.dart';
 import '../../common/widgets/loaders/list_skeleton.dart';
 import '../../common/widgets/states/empty_state_widget.dart';
@@ -44,10 +44,10 @@ class _CouponsScreenState extends ConsumerState<CouponsScreen> {
 
     switch (outcome) {
       case CouponApplied(:final savings):
-        AppSnackbar.success(context, 'Saved ${savings.asCurrency} with ${coupon.code}');
+        AppToast.success(context, 'Saved ${savings.asCurrency} with ${coupon.code}');
         context.pop();
       case CouponRejected(:final reason):
-        AppSnackbar.error(context, reason);
+        AppToast.error(context, reason);
     }
   }
 
@@ -57,7 +57,7 @@ class _CouponsScreenState extends ConsumerState<CouponsScreen> {
 
     final match = coupons.where((c) => c.code.toUpperCase() == code).firstOrNull;
     if (match == null) {
-      AppSnackbar.error(context, 'We could not find the coupon "$code"');
+      AppToast.error(context, 'We could not find the coupon "$code"');
       return;
     }
     await _apply(match);

@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/config/app_config.dart';
+import '../platform/realtime/realtime_socket.dart';
 import '../core/local_storage/local_storage.dart';
 import '../core/network/api_client.dart';
 import '../core/network/dio_api_client.dart';
@@ -10,6 +11,7 @@ import '../data/repository_impl/api_cart_repository.dart';
 import '../data/repository_impl/api_catalog_content_repository.dart';
 import '../data/repository_impl/api_category_repository.dart';
 import '../data/repository_impl/api_coupon_repository.dart';
+import '../data/repository_impl/api_chat_repository.dart';
 import '../data/repository_impl/api_notification_repository.dart';
 import '../data/repository_impl/api_order_repository.dart';
 import '../data/repository_impl/api_product_repository.dart';
@@ -22,6 +24,7 @@ import '../domain/repository/cart_repository.dart';
 import '../domain/repository/catalog_content_repository.dart';
 import '../domain/repository/category_repository.dart';
 import '../domain/repository/coupon_repository.dart';
+import '../domain/repository/chat_repository.dart';
 import '../domain/repository/notification_repository.dart';
 import '../domain/repository/order_repository.dart';
 import '../domain/repository/place_repository.dart';
@@ -145,3 +148,27 @@ final reviewRepositoryProvider = Provider<ReviewRepository>(
 final notificationRepositoryProvider = Provider<NotificationRepository>(
   (ref) => ApiNotificationRepository(ref.watch(apiClientProvider)),
 );
+
+final chatRepositoryProvider = Provider<ChatRepository>(
+  (ref) => ApiChatRepository(ref.watch(apiClientProvider)),
+);
+
+/// One shared chat socket for the whole app. It connects on first use with the
+/// current access token and the API origin, and is torn down with the app.
+final realtimeSocketProvider = Provider<RealtimeSocket>((ref) {
+  final service = RealtimeSocket();
+  final token = ref.watch(localStorageProvider).getString(StorageKeys.accessToken);
+  if (token != null && token.isNotEmpty) {
+    service.connect(token: token, origin: _originOf(ref.watch(appConfigProvider).apiBaseUrl));
+  }
+  ref.onDispose(service.dispose);
+  return service;
+});
+
+/// `https://host/api/v1` → `https://host`. Socket.IO lives at the server root.
+String _originOf(String apiBaseUrl) {
+  final uri = Uri.tryParse(apiBaseUrl);
+  if (uri == null || !uri.hasAuthority) return apiBaseUrl;
+  return Uri(scheme: uri.scheme, host: uri.host, port: uri.hasPort ? uri.port : null)
+      .toString();
+}

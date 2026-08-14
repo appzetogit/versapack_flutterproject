@@ -172,6 +172,10 @@ class _OtpBoxState extends State<_OtpBox> {
         decoration: const InputDecoration(
           counterText: '',
           border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          disabledBorder: InputBorder.none,
+          errorBorder: InputBorder.none,
           filled: false,
           contentPadding: EdgeInsets.zero,
         ),

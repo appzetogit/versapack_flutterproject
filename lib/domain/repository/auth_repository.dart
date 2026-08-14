@@ -41,6 +41,19 @@ abstract interface class AuthRepository {
 
   Future<Wallet> wallet();
 
+  /// Creates a Razorpay order for a wallet top-up of [amountRupees].
+  /// Returns the gateway parameters the checkout sheet needs.
+  Future<WalletTopupOrder> createWalletTopupOrder(double amountRupees);
+
+  /// Confirms a completed top-up with the backend, which re-checks the
+  /// signature before crediting the wallet, and returns the fresh balance.
+  Future<Wallet> verifyWalletTopup({
+    required String orderId,
+    required String paymentId,
+    required String signature,
+    required double amountRupees,
+  });
+
   Future<void> signOut();
 
   Future<void> deleteAccount();

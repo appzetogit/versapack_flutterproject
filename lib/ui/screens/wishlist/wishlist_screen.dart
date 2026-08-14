@@ -11,13 +11,14 @@ import '../../../domain/usecase/add_to_cart_usecase.dart';
 import '../../../navigation/route_paths.dart';
 import '../../common/widgets/buttons/secondary_button.dart';
 import '../../common/widgets/cards/product_card.dart';
-import '../../common/widgets/feedback/app_snackbar.dart';
+import '../../common/widgets/feedback/app_toast.dart';
 import '../../common/widgets/loaders/product_card_skeleton.dart';
 import '../../common/widgets/misc/staggered_entrance.dart';
 import '../../common/widgets/states/empty_state_widget.dart';
 import '../../common/widgets/states/error_state_widget.dart';
 import '../cart/widgets/cart_summary_bar.dart';
 import 'wishlist_provider.dart';
+import '../../common/widgets/misc/sound_refresh_indicator.dart';
 
 class WishlistScreen extends ConsumerWidget {
   const WishlistScreen({super.key});
@@ -72,7 +73,7 @@ class WishlistScreen extends ConsumerWidget {
                             ),
                           ),
                           Expanded(
-                            child: RefreshIndicator(
+                            child: SoundRefreshIndicator(
                               onRefresh: () async =>
                                   ref.invalidate(wishlistProductsProvider),
                               child: GridView.builder(
@@ -117,7 +118,7 @@ class WishlistScreen extends ConsumerWidget {
   ) async {
     final available = items.where((p) => p.isPurchasable).toList();
     if (available.isEmpty) {
-      AppSnackbar.error(context, 'None of your saved items are in stock');
+      AppToast.error(context, 'None of your saved items are in stock');
       return;
     }
 
@@ -145,7 +146,7 @@ class WishlistScreen extends ConsumerWidget {
       }
     }
 
-    AppSnackbar.success(
+    AppToast.success(
       context,
       skipped == 0
           ? '$added items added to your cart'

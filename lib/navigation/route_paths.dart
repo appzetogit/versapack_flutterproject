@@ -29,6 +29,7 @@ abstract final class RoutePaths {
   static const notifications = '/notifications';
   static const orderSuccess = '/order/success';
   static const orderTracking = '/order/:id/track';
+  static const orderChat = '/order/:id/chat';
   static const orderDetails = '/order/:id';
   static const editProfile = '/profile/edit';
   static const help = '/profile/help';
@@ -41,6 +42,7 @@ abstract final class RoutePaths {
   static String productDetailsOf(String productId) => '/product/$productId';
   static String orderDetailsOf(String orderId) => '/order/$orderId';
   static String orderTrackingOf(String orderId) => '/order/$orderId/track';
+  static String orderChatOf(String orderId) => '/order/$orderId/chat';
 }
 
 abstract final class RouteNames {
@@ -69,6 +71,7 @@ abstract final class RouteNames {
   static const notifications = 'notifications';
   static const orderSuccess = 'orderSuccess';
   static const orderTracking = 'orderTracking';
+  static const orderChat = 'orderChat';
   static const orderDetails = 'orderDetails';
   static const editProfile = 'editProfile';
   static const help = 'help';

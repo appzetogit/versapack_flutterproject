@@ -1,9 +1,39 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:quick_commerce_user/core/errors/error_mapper.dart';
 import 'package:quick_commerce_user/core/extensions/num_extensions.dart';
 import 'package:quick_commerce_user/core/network/media_url.dart';
 import 'package:quick_commerce_user/core/network/share_links.dart';
 
 void main() {
+  group('backend message branding (Restaurant → Store)', () {
+    Response<dynamic> resp(String message) => Response<dynamic>(
+          requestOptions: RequestOptions(path: '/food/orders/calculate'),
+          statusCode: 400,
+          data: {'success': false, 'message': message},
+        );
+
+    test('the closed-store message reads "Store", not "Restaurant"', () {
+      final failure = ErrorMapper.toFailure(
+        ErrorMapper.fromResponse(
+          resp('Restaurant is currently closed. Please try again later.'),
+        ),
+      );
+      expect(failure.message, 'Store is currently closed. Please try again later.');
+    });
+
+    test('the offline sibling and plurals are rewritten too', () {
+      expect(
+        ErrorMapper.fromResponse(resp('Restaurant is currently offline.')).message,
+        'Store is currently offline.',
+      );
+      expect(
+        ErrorMapper.fromResponse(resp('No restaurants deliver here yet.')).message,
+        'No stores deliver here yet.',
+      );
+    });
+  });
+
   group('delivery promise formatting', () {
     test('sub-hour promises stay in minutes', () {
       expect(12.asDurationLabel, '12 mins');

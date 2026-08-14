@@ -8,7 +8,7 @@ import 'app_colors.dart';
 /// Theme mode + brand flavour, persisted across launches.
 class ThemeSettings {
   const ThemeSettings({
-    this.mode = ThemeMode.system,
+    this.mode = ThemeMode.light,
     this.flavor = AppThemeFlavor.green,
   });
 
@@ -41,9 +41,8 @@ class ThemeController extends Notifier<ThemeSettings> {
   }
 
   static ThemeMode _modeFromName(String? name) => switch (name) {
-        'light' => ThemeMode.light,
         'dark' => ThemeMode.dark,
-        _ => ThemeMode.system,
+        _ => ThemeMode.light,
       };
 }
 

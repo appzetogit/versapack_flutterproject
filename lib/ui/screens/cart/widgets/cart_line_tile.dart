@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/extensions/num_extensions.dart';
+import '../../../../core/utils/app_haptics.dart';
 import '../../../../core/theme/app_radii.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_styles.dart';
@@ -32,7 +33,11 @@ class CartLineTile extends StatelessWidget {
     return Dismissible(
       key: ValueKey(item.lineId),
       direction: DismissDirection.endToStart,
-      onDismissed: (_) => onRemove(),
+      onDismissed: (_) {
+        // Swiping a line away is a removal → heavy, matching delete elsewhere.
+        AppHaptics.heavy();
+        onRemove();
+      },
       background: Container(
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: AppSpacing.xl),

@@ -12,6 +12,7 @@ import '../../common/widgets/states/offline_banner.dart';
 import '../product/product_listing/product_listing_args.dart';
 import 'home_provider.dart';
 import 'home_state.dart';
+import 'widgets/active_order_card.dart';
 import 'widgets/banner_carousel.dart';
 import 'widgets/bestsellers_row.dart';
 import 'widgets/delivery_header.dart';
@@ -25,6 +26,7 @@ import 'widgets/shop_by_brand_row.dart';
 import 'widgets/top_sellers_row.dart';
 
 import 'package:flutter/services.dart';
+import '../../common/widgets/misc/sound_refresh_indicator.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -41,44 +43,56 @@ class HomeScreen extends ConsumerWidget {
       ),
       child: Scaffold(
         backgroundColor: context.colors.surface,
-        body: Column(
+        body: Stack(
           children: [
-            const OfflineBanner(),
-            Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Color(0xFFFFB300),
-                    Color(0xFFFFC107),
-                    Color(0xFFFFD54F),
-                    Color(0xFFFFF8E1),
-                    Colors.white,
-                  ],
-                  stops: [0.0, 0.4, 0.7, 0.9, 1.0],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ),
-              ),
-              child: SafeArea(
-                bottom: false,
-                child: Column(
-                  children: [
-                    const DeliveryHeader(),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(14, 2, 14, 8),
-                      child: SearchBarWidget(
-                        readOnly: true,
-                        categories: state.categories.map((c) => c.name).toList(),
-                        onTap: () => context.push(RoutePaths.search),
-                      ),
+            Column(
+              children: [
+                const OfflineBanner(),
+                Container(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Color(0xFFFFB300),
+                        Color(0xFFFFC107),
+                        Color(0xFFFFD54F),
+                        Color(0xFFFFF8E1),
+                        Colors.white,
+                      ],
+                      stops: [0.0, 0.4, 0.7, 0.9, 1.0],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
                     ),
-                    const FeatureHighlightsRow(),
-                    const SizedBox(height: 10),
-                  ],
+                  ),
+                  child: SafeArea(
+                    bottom: false,
+                    child: Column(
+                      children: [
+                        const DeliveryHeader(),
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(14, 2, 14, 8),
+                          child: SearchBarWidget(
+                            readOnly: true,
+                            categories: state.categories.map((c) => c.name).toList(),
+                            onTap: () => context.push(RoutePaths.search),
+                          ),
+                        ),
+                        const FeatureHighlightsRow(),
+                        const SizedBox(height: 10),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
+                Expanded(child: _body(context, ref, state)),
+              ],
             ),
-            Expanded(child: _body(context, ref, state)),
+
+            // Active Order Floating Card above bottom navigation
+            const Positioned(
+              left: 0,
+              right: 0,
+              bottom: 4,
+              child: ActiveOrderFloatingCard(),
+            ),
           ],
         ),
       ),
@@ -93,7 +107,7 @@ class HomeScreen extends ConsumerWidget {
       );
     }
 
-    return RefreshIndicator(
+    return SoundRefreshIndicator(
       onRefresh: () => ref.read(homeProvider.notifier).load(refresh: true),
       child: CustomScrollView(
         slivers: [

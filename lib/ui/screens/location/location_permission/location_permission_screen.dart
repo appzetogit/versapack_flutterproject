@@ -8,9 +8,10 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../di/repository_providers.dart';
 import '../../../../navigation/route_paths.dart';
 import '../../../../platform/location/location_service.dart';
+import '../../home/home_provider.dart';
 import '../../../common/widgets/buttons/primary_button.dart';
 import '../../../common/widgets/buttons/secondary_button.dart';
-import '../../../common/widgets/feedback/app_snackbar.dart';
+import '../../../common/widgets/feedback/app_toast.dart';
 
 /// Asks for location so we can quote a real delivery time and fee.
 class LocationPermissionScreen extends ConsumerStatefulWidget {
@@ -30,14 +31,33 @@ class _LocationPermissionScreenState
     try {
       final location = await ref.read(locationServiceProvider).currentLocation();
       if (!mounted) return;
-      context.push(RoutePaths.addressSelection, extra: location);
+      await _openAddressAndEnter(extra: location);
     } on LocationPermissionDenied {
       if (mounted) {
-        AppSnackbar.error(context, 'We could not access your location');
+        AppToast.error(context, 'We could not access your location');
       }
     } finally {
       if (mounted) setState(() => _locating = false);
     }
+  }
+
+  /// Opens the address form and, only if it reports a successful backend save
+  /// (`pop(true)`), advances the onboarding user to Home.
+  ///
+  /// This screen owns that decision because the address form is shared with the
+  /// address book and checkout, where a save should just pop back — not jump to
+  /// Home. Pushing the form left the onboarding user here on a `pop`, which is
+  /// why saving an address never reached Home on a fresh install.
+  Future<void> _openAddressAndEnter({Object? extra}) async {
+    final saved =
+        await context.push<bool>(RoutePaths.addressSelection, extra: extra);
+    if (saved != true || !mounted) return;
+
+    // Rebuild Home against the address just selected, then replace the whole
+    // onboarding stack with it — `go` leaves no location/login screens behind
+    // to back into, so there is only ever one Home.
+    ref.invalidate(homeProvider);
+    context.go(RoutePaths.home);
   }
 
   @override
@@ -75,7 +95,7 @@ class _LocationPermissionScreenState
               SecondaryButton(
                 label: 'Enter address manually',
                 expand: true,
-                onPressed: () => context.push(RoutePaths.addressSelection),
+                onPressed: () => _openAddressAndEnter(),
               ),
             ],
           ),

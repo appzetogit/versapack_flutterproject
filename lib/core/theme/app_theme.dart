@@ -129,11 +129,6 @@ abstract final class AppTheme {
         titleTextStyle: text.headlineSmall,
         contentTextStyle: text.bodyLarge!.copyWith(color: semantic.textSecondary),
       ),
-      snackBarTheme: SnackBarThemeData(
-        behavior: SnackBarBehavior.floating,
-        shape: const RoundedRectangleBorder(borderRadius: AppRadii.rMd),
-        contentTextStyle: text.titleSmall!.copyWith(color: Colors.white),
-      ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: scheme.surface,
         surfaceTintColor: Colors.transparent,

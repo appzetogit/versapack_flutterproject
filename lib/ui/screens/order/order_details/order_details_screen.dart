@@ -16,7 +16,7 @@ import '../../../common/widgets/buttons/primary_button.dart';
 import '../../../common/widgets/buttons/secondary_button.dart';
 import '../../../common/widgets/feedback/app_bottom_sheet.dart';
 import '../../../common/widgets/feedback/app_dialog.dart';
-import '../../../common/widgets/feedback/app_snackbar.dart';
+import '../../../common/widgets/feedback/app_toast.dart';
 import '../../../common/widgets/loaders/full_page_loader.dart';
 import '../../../common/widgets/misc/app_network_image.dart';
 import '../../../common/widgets/misc/rating_stars.dart';
@@ -278,11 +278,11 @@ class OrderDetailsScreen extends ConsumerWidget {
       await ref
           .read(orderDetailProvider(orderId).notifier)
           .cancel('Cancelled from the app');
-      if (context.mounted) AppSnackbar.success(context, 'Your order was cancelled');
+      if (context.mounted) AppToast.success(context, 'Your order was cancelled');
       ref.invalidate(orderDetailProvider(orderId));
     } catch (_) {
       if (context.mounted) {
-        AppSnackbar.error(context, 'We could not cancel this order');
+        AppToast.error(context, 'We could not cancel this order');
       }
     }
   }
@@ -297,10 +297,10 @@ class OrderDetailsScreen extends ConsumerWidget {
             riderRating: order.deliveryPartner == null ? null : rating.rider,
             comment: rating.comment,
           );
-      if (context.mounted) AppSnackbar.success(context, 'Thanks for the feedback');
+      if (context.mounted) AppToast.success(context, 'Thanks for the feedback');
     } catch (_) {
       if (context.mounted) {
-        AppSnackbar.error(context, 'Could not save your rating');
+        AppToast.error(context, 'Could not save your rating');
       }
     }
   }
@@ -331,11 +331,11 @@ class OrderDetailsScreen extends ConsumerWidget {
     }
 
     if (added == 0) {
-      AppSnackbar.error(context, 'None of these items are available right now');
+      AppToast.error(context, 'None of these items are available right now');
       return;
     }
 
-    AppSnackbar.success(
+    AppToast.success(
       context,
       missing == 0
           ? '$added items added to your cart'

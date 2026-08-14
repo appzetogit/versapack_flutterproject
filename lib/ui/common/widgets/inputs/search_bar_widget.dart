@@ -227,6 +227,10 @@ class _SearchBarWidgetState extends State<SearchBarWidget> {
                   style: context.text.bodyLarge,
                   decoration: const InputDecoration(
                     border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    disabledBorder: InputBorder.none,
+                    errorBorder: InputBorder.none,
                     filled: false,
                     isDense: true,
                     contentPadding: EdgeInsets.zero,

@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show SystemNavigator;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../common/widgets/feedback/app_dialog.dart';
+
 import '../../core/constants/app_durations.dart';
+import '../../core/utils/app_haptics.dart';
 import '../../core/theme/app_radii.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_theme.dart';
@@ -23,6 +27,7 @@ class AppShell extends ConsumerWidget {
   /// names its branch explicitly rather than relying on position.
   /// Router branches: 0 home · 1 categories · 2 cart · 3 orders · 4 profile.
   static const _cartBranchIndex = 2;
+  static const _homeBranchIndex = 0;
 
   static const _left = [
     (0, Icons.home_outlined, Icons.home_rounded, 'Home'),
@@ -39,6 +44,50 @@ class AppShell extends ConsumerWidget {
     final cartCount = ref.watch(cartItemCountProvider);
     final current = navigationShell.currentIndex;
 
+    // Back on a tab root used to fall straight through to the OS and close the
+    // app — there is nothing above the shell to pop, and switching tabs with
+    // `go` leaves no history entry behind. Only Home is allowed to exit, and
+    // only after asking.
+    //
+    // Screens pushed on top of the shell (product, order details, checkout …)
+    // are separate routes on the root navigator, so their back press is handled
+    // by the Navigator and never reaches this callback. Deep links are
+    // unaffected for the same reason.
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        if (current != _homeBranchIndex) {
+          // Any other tab returns to Home first, the way a back press is
+          // expected to behave on Android.
+          _go(_homeBranchIndex);
+          return;
+        }
+        await _confirmExit(context);
+      },
+      child: _scaffold(context, cartCount, current),
+    );
+  }
+
+  /// Home is the only place the app may be closed from, and never silently.
+  Future<void> _confirmExit(BuildContext context) async {
+    final shouldExit = await AppDialog.confirm(
+      context,
+      icon: Icons.exit_to_app_rounded,
+      title: 'Do you want to exit the app?',
+      message: 'Your cart is saved and will be waiting when you come back.',
+      confirmLabel: 'Exit',
+      cancelLabel: 'Cancel',
+    );
+    if (!shouldExit) return;
+
+    // `SystemNavigator.pop` backs out of the app the way the OS expects,
+    // leaving it resumable from Recents. `exit(0)` would kill the process and
+    // is what Android's own guidance warns against.
+    await SystemNavigator.pop();
+  }
+
+  Widget _scaffold(BuildContext context, int cartCount, int current) {
     return Scaffold(
       body: navigationShell,
       bottomNavigationBar: Container(
@@ -82,11 +131,16 @@ class AppShell extends ConsumerWidget {
     );
   }
 
-  void _go(int index) => navigationShell.goBranch(
-        index,
-        // Tapping the active tab pops it back to its root.
-        initialLocation: index == navigationShell.currentIndex,
-      );
+  void _go(int index) {
+    // Only cue an actual tab change — re-tapping the current tab (which just
+    // pops to its root) should not buzz.
+    if (index != navigationShell.currentIndex) AppHaptics.selection();
+    navigationShell.goBranch(
+      index,
+      // Tapping the active tab pops it back to its root.
+      initialLocation: index == navigationShell.currentIndex,
+    );
+  }
 }
 
 class _NavItem extends StatelessWidget {

@@ -139,6 +139,10 @@ class _PlaceSearchFieldState extends ConsumerState<PlaceSearchField> {
                   decoration: InputDecoration(
                     hintText: 'Search a building, street or area',
                     border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    disabledBorder: InputBorder.none,
+                    errorBorder: InputBorder.none,
                     filled: false,
                     isDense: true,
                     contentPadding: EdgeInsets.zero,

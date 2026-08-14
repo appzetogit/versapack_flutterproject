@@ -8,7 +8,8 @@ abstract final class AppDurations {
   static const staggerStep = Duration(milliseconds: 40);
   static const searchDebounce = Duration(milliseconds: 300);
   static const bannerAutoScroll = Duration(seconds: 4);
-  static const snackbar = Duration(seconds: 2);
+  static const toast = Duration(seconds: 2, milliseconds: 500);
+  static const toastAnimation = Duration(milliseconds: 250);
   static const trackingPoll = Duration(seconds: 8);
   static const splashHold = Duration(milliseconds: 1400);
 }

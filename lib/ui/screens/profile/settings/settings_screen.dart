@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/local_storage/local_storage.dart';
+import '../../../../core/utils/app_haptics.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radii.dart';
 import '../../../../core/theme/app_spacing.dart';
@@ -38,19 +39,16 @@ class SettingsScreen extends ConsumerWidget {
                     icon: Icon(Icons.light_mode_rounded),
                   ),
                   ButtonSegment(
-                    value: ThemeMode.system,
-                    label: Text('System'),
-                    icon: Icon(Icons.brightness_auto_rounded),
-                  ),
-                  ButtonSegment(
                     value: ThemeMode.dark,
                     label: Text('Dark'),
                     icon: Icon(Icons.dark_mode_rounded),
                   ),
                 ],
                 selected: {settings.mode},
-                onSelectionChanged: (selection) =>
-                    controller.setMode(selection.first),
+                onSelectionChanged: (selection) {
+                  AppHaptics.selection();
+                  controller.setMode(selection.first);
+                },
               ),
             ),
             const SectionHeader(
@@ -83,13 +81,15 @@ class SettingsScreen extends ConsumerWidget {
                 style: context.text.bodySmall,
               ),
               onChanged: (value) async {
+                AppHaptics.selection();
                 await storage.setBool(StorageKeys.notificationsEnabled, value);
                 final push = ref.read(notificationServiceProvider);
                 if (value) {
                   // Re-register: turning the switch off dropped the token, so
                   // the backend has no way to reach this device until it is
-                  // sent again.
-                  if (await push.requestPermission()) await push.registerDevice();
+                  // sent again. `registerDevice` asks for the OS permission
+                  // itself, so there is no separate prompt to make here.
+                  await push.registerDevice();
                 } else {
                   await push.unregisterDevice();
                 }

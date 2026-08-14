@@ -90,6 +90,26 @@ class OrdersController extends Notifier<OrdersState> {
     state = state.copyWith(isLoadingMore: true, page: state.page + 1);
     await load();
   }
+
+  /// Background poll for the live-order card: refreshes page one without
+  /// flipping `isLoading`, so the Orders tab (kept alive in the shell's
+  /// IndexedStack) does not flash its skeleton every few seconds. Silent on
+  /// failure — a dropped poll must not replace the list with an error.
+  Future<void> silentRefresh() async {
+    if (!ref.read(authProvider).isSignedIn) return;
+    try {
+      final page =
+          await ref.read(orderRepositoryProvider).list(page: 1, pageSize: _pageSize);
+      state = state.copyWith(
+        orders: page.items,
+        hasMore: page.hasMore,
+        page: page.page,
+        clearFailure: true,
+      );
+    } catch (_) {
+      // Keep whatever is on screen; the next poll retries.
+    }
+  }
 }
 
 final ordersProvider =

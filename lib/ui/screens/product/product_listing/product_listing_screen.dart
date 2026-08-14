@@ -16,6 +16,7 @@ import '../../cart/widgets/cart_summary_bar.dart';
 import 'product_listing_args.dart';
 import 'product_listing_provider.dart';
 import 'widgets/sort_filter_sheet.dart';
+import '../../../common/widgets/misc/sound_refresh_indicator.dart';
 
 /// Grid listing for category, sub-category, brand and "see all" contexts.
 class ProductListingScreen extends ConsumerStatefulWidget {
@@ -124,7 +125,7 @@ class _ProductListingScreenState extends ConsumerState<ProductListingScreen> {
       );
     }
 
-    return RefreshIndicator(
+    return SoundRefreshIndicator(
       onRefresh: () =>
           ref.read(productListingProvider(widget.args).notifier).load(reset: true),
       child: GridView.builder(
@@ -135,7 +136,7 @@ class _ProductListingScreenState extends ConsumerState<ProductListingScreen> {
           crossAxisCount: context.productGridColumns,
           mainAxisSpacing: AppSpacing.md,
           crossAxisSpacing: AppSpacing.md,
-          childAspectRatio: 0.46,
+          childAspectRatio: 0.58,
         ),
         itemBuilder: (context, index) {
           if (index >= state.products.length) {

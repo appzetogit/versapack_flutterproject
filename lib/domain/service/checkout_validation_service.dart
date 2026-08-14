@@ -68,7 +68,7 @@ class CheckoutValidationService {
       issues.add(const AddressMissingCoordinates());
     }
 
-    if (cart.pricing.total <= 0) issues.add(const BillNotPriced());
+    if (cart.effectiveTotal <= 0) issues.add(const BillNotPriced());
 
     if (requirePayment && method == null) issues.add(const MissingPaymentMethod());
 

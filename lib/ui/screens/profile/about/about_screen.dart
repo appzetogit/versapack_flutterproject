@@ -56,7 +56,7 @@ class AboutScreen extends ConsumerWidget {
             const SizedBox(height: AppSpacing.xxl),
             Center(
               child: Text(
-                '© ${DateTime.now().year} Suvio Quick',
+                '© ${DateTime.now().year} Appzeto Quick',
                 style: context.text.bodySmall,
               ),
             ),

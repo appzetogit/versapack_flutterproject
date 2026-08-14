@@ -17,6 +17,7 @@ import '../../../common/widgets/buttons/secondary_button.dart';
 import '../../../common/widgets/feedback/app_bottom_sheet.dart';
 import '../../../../core/theme/app_radii.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/utils/app_haptics.dart';
 import 'sub_category_provider.dart';
 import 'sub_category_state.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -96,7 +97,7 @@ class SubCategoryScreen extends ConsumerWidget {
                               crossAxisCount: 2,
                               mainAxisSpacing: 8,
                               crossAxisSpacing: 8,
-                              childAspectRatio: 0.41,
+                              childAspectRatio: 0.52,
                             ),
                             itemBuilder: (context, index) {
                               final product = state.visibleProducts[index];
@@ -768,7 +769,7 @@ class _BrowseProductCardState extends ConsumerState<_BrowseProductCard> {
                 ),
               ],
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 10),
 
             // Unit / Weight
             Text(
@@ -884,12 +885,15 @@ class _BrowseProductCardState extends ConsumerState<_BrowseProductCard> {
       return Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () => CartActions.add(
-            context,
-            ref,
-            product: product,
-            sourceKey: _imageKey,
-          ),
+          onTap: () {
+            AppHaptics.medium();
+            CartActions.add(
+              context,
+              ref,
+              product: product,
+              sourceKey: _imageKey,
+            );
+          },
           borderRadius: BorderRadius.circular(8),
           child: Container(
             width: 66,

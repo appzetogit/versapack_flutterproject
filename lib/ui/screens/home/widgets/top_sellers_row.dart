@@ -15,7 +15,7 @@ import '../../../common/widgets/misc/app_network_image.dart';
 /// - 1-second auto-cycling backend product images.
 /// - Static seller cards that do not move or slide automatically.
 /// - 100% dynamic backend data (name, images, ratings, item counts).
-class TopSellersRow extends StatefulWidget {
+class TopSellersRow extends StatelessWidget {
   const TopSellersRow({
     super.key,
     required this.sellers,
@@ -30,15 +30,8 @@ class TopSellersRow extends StatefulWidget {
   final bool isLoading;
 
   @override
-  State<TopSellersRow> createState() => _TopSellersRowState();
-}
-
-class _TopSellersRowState extends State<TopSellersRow> {
-  int _activeHeaderDot = 0;
-
-  @override
   Widget build(BuildContext context) {
-    if (!widget.isLoading && widget.sellers.isEmpty) {
+    if (!isLoading && sellers.isEmpty) {
       return const SizedBox.shrink();
     }
 
@@ -49,115 +42,68 @@ class _TopSellersRowState extends State<TopSellersRow> {
         // 1. Header with Yellow Star Badge, Title, Subtitle & See All
         Padding(
           padding: const EdgeInsets.fromLTRB(14, 6, 14, 6),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              if (widget.sellers.length > 1)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+              Container(
+                width: 20,
+                height: 20,
+                margin: const EdgeInsets.only(right: 6),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFFFC107),
+                  shape: BoxShape.circle,
+                ),
+                alignment: Alignment.center,
+                child: const Icon(
+                  Icons.star_rounded,
+                  size: 14,
+                  color: Colors.white,
+                ),
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 300),
-                      width: _activeHeaderDot == 0 ? 14 : 5,
-                      height: 5,
-                      decoration: BoxDecoration(
-                        color: _activeHeaderDot == 0
-                            ? const Color(0xFFFFC107)
-                            : const Color(0xFFE5E7EB),
-                        borderRadius: BorderRadius.circular(3),
+                    Text(
+                      'Top Sellers',
+                      style: context.text.titleMedium!.copyWith(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 16.5,
+                        color: const Color(0xFF1F2937),
                       ),
                     ),
-                    const SizedBox(width: 4),
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 300),
-                      width: _activeHeaderDot == 1 ? 14 : 5,
-                      height: 5,
-                      decoration: BoxDecoration(
-                        color: _activeHeaderDot == 1
-                            ? const Color(0xFFFFC107)
-                            : const Color(0xFFE5E7EB),
-                        borderRadius: BorderRadius.circular(3),
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 300),
-                      width: _activeHeaderDot == 2 ? 14 : 5,
-                      height: 5,
-                      decoration: BoxDecoration(
-                        color: _activeHeaderDot == 2
-                            ? const Color(0xFFFFC107)
-                            : const Color(0xFFE5E7EB),
-                        borderRadius: BorderRadius.circular(3),
+                    Text(
+                      'Verified stores delivering near you',
+                      style: context.text.bodySmall!.copyWith(
+                        fontSize: 11,
+                        color: const Color(0xFF6B7280),
                       ),
                     ),
                   ],
                 ),
-              const SizedBox(height: 4),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 20,
-                    height: 20,
-                    margin: const EdgeInsets.only(right: 6),
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFFFC107),
-                      shape: BoxShape.circle,
-                    ),
-                    alignment: Alignment.center,
-                    child: const Icon(
-                      Icons.star_rounded,
-                      size: 14,
-                      color: Colors.white,
-                    ),
-                  ),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Top Sellers',
-                          style: context.text.titleMedium!.copyWith(
-                            fontWeight: FontWeight.w900,
-                            fontSize: 16.5,
-                            color: const Color(0xFF1F2937),
-                          ),
-                        ),
-                        Text(
-                          'Verified stores delivering near you',
-                          style: context.text.bodySmall!.copyWith(
-                            fontSize: 11,
-                            color: const Color(0xFF6B7280),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (widget.onSeeAll != null)
-                    GestureDetector(
-                      onTap: widget.onSeeAll,
-                      child: Row(
-                        children: [
-                          Text(
-                            'See all',
-                            style: context.text.labelSmall!.copyWith(
-                              fontWeight: FontWeight.w800,
-                              fontSize: 12.5,
-                              color: const Color(0xFF16A34A),
-                            ),
-                          ),
-                          const SizedBox(width: 2),
-                          const Icon(
-                            Icons.arrow_forward_rounded,
-                            size: 13,
-                            color: Color(0xFF16A34A),
-                          ),
-                        ],
-                      ),
-                    ),
-                ],
               ),
+              if (onSeeAll != null)
+                GestureDetector(
+                  onTap: onSeeAll,
+                  child: Row(
+                    children: [
+                      Text(
+                        'See all',
+                        style: context.text.labelSmall!.copyWith(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 12.5,
+                          color: const Color(0xFF16A34A),
+                        ),
+                      ),
+                      const SizedBox(width: 2),
+                      const Icon(
+                        Icons.arrow_forward_rounded,
+                        size: 13,
+                        color: Color(0xFF16A34A),
+                      ),
+                    ],
+                  ),
+                ),
             ],
           ),
         ),
@@ -165,7 +111,7 @@ class _TopSellersRowState extends State<TopSellersRow> {
         const SizedBox(height: 2),
 
         // 2. Short Compact Horizontal Cards List (Height 175px)
-        if (widget.isLoading)
+        if (isLoading)
           SizedBox(
             height: 175,
             child: ListView.separated(
@@ -183,32 +129,18 @@ class _TopSellersRowState extends State<TopSellersRow> {
         else
           SizedBox(
             height: 175,
-            child: NotificationListener<ScrollNotification>(
-              onNotification: (notification) {
-                if (notification is ScrollUpdateNotification &&
-                    notification.metrics.maxScrollExtent > 0) {
-                  final progress = notification.metrics.pixels /
-                      notification.metrics.maxScrollExtent;
-                  final dot = (progress * 2).clamp(0, 2).round();
-                  if (dot != _activeHeaderDot) {
-                    setState(() => _activeHeaderDot = dot);
-                  }
-                }
-                return false;
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              itemCount: sellers.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 10),
+              itemBuilder: (context, index) {
+                final seller = sellers[index];
+                return _SellerCard(
+                  seller: seller,
+                  onTap: () => onSellerTap(seller),
+                );
               },
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                itemCount: widget.sellers.length,
-                separatorBuilder: (_, _) => const SizedBox(width: 10),
-                itemBuilder: (context, index) {
-                  final seller = widget.sellers[index];
-                  return _SellerCard(
-                    seller: seller,
-                    onTap: () => widget.onSellerTap(seller),
-                  );
-                },
-              ),
             ),
           ),
       ],

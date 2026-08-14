@@ -5,15 +5,15 @@
 	<key>GMSApiKey</key>
 	<string>$(MAPS_API_KEY)</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Suvio Quick uses your location to pin your delivery address and show an accurate delivery time.</string>
+	<string>Appzeto Quick uses your location to pin your delivery address and show an accurate delivery time.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Suvio Quick uses your location to pin your delivery address and show an accurate delivery time.</string>
+	<string>Appzeto Quick uses your location to pin your delivery address and show an accurate delivery time.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Quick Commerce User</string>
+	<string>Appzeto Quick</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -21,7 +21,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>quick_commerce_user</string>
+	<string>Appzeto Quick</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>

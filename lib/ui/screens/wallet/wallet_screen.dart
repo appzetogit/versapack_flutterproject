@@ -2,13 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../../core/errors/error_mapper.dart';
 import '../../../core/extensions/num_extensions.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../di/repository_providers.dart';
 import '../../../domain/model/user.dart';
+import '../../../platform/payment/razorpay_checkout.dart';
 import '../../common/widgets/buttons/primary_button.dart';
+import '../../common/widgets/feedback/app_toast.dart';
 import '../../common/widgets/loaders/shimmer_box.dart';
 import 'wallet_provider.dart';
+import '../../common/widgets/misc/sound_refresh_indicator.dart';
 
 /// Fully functional Wallet & Transactions Screen.
 class WalletScreen extends ConsumerStatefulWidget {
@@ -29,34 +33,57 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
     super.dispose();
   }
 
+  /// Real wallet top-up. Nothing is credited here: the backend mints a Razorpay
+  /// order, the user pays through the gateway, and the backend re-checks the
+  /// signature before it moves any money — the returned wallet is the source of
+  /// truth. This replaced a simulated 800ms delay that announced success
+  /// without ever charging or crediting anything.
   Future<void> _addFunds(double amount) async {
     if (amount <= 0) return;
     setState(() => _isAddingFunds = true);
 
+    final auth = ref.read(authRepositoryProvider);
+    final gateway = ref.read(paymentGatewayProvider);
+    final user = auth.cachedUser;
+
     try {
-      // Simulate/trigger wallet top up
-      await Future.delayed(const Duration(milliseconds: 800));
-      if (!mounted) return;
+      final order = await auth.createWalletTopupOrder(amount);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Successfully added ${amount.asCurrency} to your Wallet!'),
-          backgroundColor: const Color(0xFF16A34A),
-          behavior: SnackBarBehavior.floating,
-        ),
+      final outcome = await gateway.open(
+        key: order.key,
+        gatewayOrderId: order.orderId,
+        amountPaise: order.amountPaise,
+        currency: order.currency,
+        orderReference: 'Wallet top-up',
+        customerName: user?.name ?? '',
+        customerEmail: user?.email ?? '',
+        customerPhone: user?.phone ?? '',
       );
 
-      _amountController.clear();
-      ref.invalidate(walletProvider);
+      if (!mounted) return;
+
+      switch (outcome) {
+        case PaymentSucceeded(:final paymentId, :final signature):
+          await auth.verifyWalletTopup(
+            orderId: order.orderId,
+            paymentId: paymentId,
+            signature: signature,
+            amountRupees: amount,
+          );
+          _amountController.clear();
+          ref.invalidate(walletProvider);
+          if (mounted) {
+            AppToast.success(context, '${amount.asCurrency} added to your wallet');
+          }
+        case PaymentCancelled():
+          AppToast.info(context, 'Top-up cancelled. You have not been charged.');
+        case PaymentFailed(:final message):
+          AppToast.error(context, message);
+      }
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to add funds: ${e.toString()}'),
-          backgroundColor: const Color(0xFFEF4444),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      if (mounted) {
+        AppToast.error(context, ErrorMapper.toFailure(e).message);
+      }
     } finally {
       if (mounted) setState(() => _isAddingFunds = false);
     }
@@ -78,7 +105,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
           ),
         ],
       ),
-      body: RefreshIndicator(
+      body: SoundRefreshIndicator(
         color: const Color(0xFFFFC107),
         onRefresh: () async {
           ref.invalidate(walletProvider);
@@ -98,9 +125,11 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                   height: 180,
                   radius: BorderRadius.all(Radius.circular(20)),
                 ),
-                error: (err, stack) => _buildWalletCard(
-                  const Wallet(balance: 250, referralEarnings: 50),
-                  user,
+                // Never invent a balance on error. Showing a fabricated
+                // "₹250" told the user they had money they did not; a wallet
+                // that could not load says so and offers a retry.
+                error: (err, stack) => _WalletLoadError(
+                  onRetry: () => ref.invalidate(walletProvider),
                 ),
               ),
 
@@ -180,7 +209,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                     ),
                   ),
                 ),
-                error: (err, stack) => _buildTransactionsList(_sampleTransactions),
+                error: (err, stack) => _buildTransactionsList(const []),
               ),
             ],
           ),
@@ -379,9 +408,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
               if (val != null && val > 0) {
                 _addFunds(val);
               } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Please enter a valid amount')),
-                );
+                AppToast.error(context, 'Please enter a valid amount');
               }
             },
           ),
@@ -459,9 +486,10 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
   }
 
   Widget _buildTransactionsList(List<WalletTransaction> list) {
-    final transactions = list.isEmpty ? _sampleTransactions : list;
-
-    final filtered = transactions.where((t) {
+    // Real history only. An empty list means no transactions — the empty state
+    // below says so. It used to be swapped for three invented rows ("Payment
+    // for Order #1089", a ₹250 top-up), which every new user saw as their own.
+    final filtered = list.where((t) {
       if (_selectedFilter == 'Credits') return t.isCredit;
       if (_selectedFilter == 'Debits') return !t.isCredit;
       return true;
@@ -586,33 +614,6 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
     );
   }
 
-  static final List<WalletTransaction> _sampleTransactions = [
-    WalletTransaction(
-      id: 'tx_101',
-      type: 'addition',
-      amount: 250,
-      date: DateTime.now().subtract(const Duration(hours: 3)),
-      description: 'Instant Top Up via UPI',
-      status: 'Completed',
-    ),
-    WalletTransaction(
-      id: 'tx_102',
-      type: 'deduction',
-      amount: 140,
-      date: DateTime.now().subtract(const Duration(days: 1)),
-      description: 'Payment for Order #1089',
-      status: 'Completed',
-    ),
-    WalletTransaction(
-      id: 'tx_103',
-      type: 'addition',
-      amount: 50,
-      date: DateTime.now().subtract(const Duration(days: 3)),
-      description: 'Referral Bonus Received',
-      status: 'Completed',
-    ),
-  ];
-
   String _monthName(int month) {
     const months = [
       'Jan',
@@ -629,5 +630,53 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
       'Dec'
     ];
     return months[(month - 1).clamp(0, 11)];
+  }
+}
+
+/// Shown when the wallet balance cannot be loaded. Deliberately carries no
+/// number — an unreachable balance is unknown, not zero and not ₹250.
+class _WalletLoadError extends StatelessWidget {
+  const _WalletLoadError({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      height: 180,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: context.colors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: context.semantic.border),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.account_balance_wallet_outlined,
+              size: 34, color: context.semantic.textSecondary),
+          const SizedBox(height: 10),
+          Text(
+            'Could not load your balance',
+            style: context.text.titleSmall!
+                .copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Check your connection and try again.',
+            textAlign: TextAlign.center,
+            style: context.text.bodySmall!
+                .copyWith(color: context.semantic.textSecondary),
+          ),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: onRetry,
+            icon: const Icon(Icons.refresh_rounded, size: 18),
+            label: const Text('Retry'),
+          ),
+        ],
+      ),
+    );
   }
 }

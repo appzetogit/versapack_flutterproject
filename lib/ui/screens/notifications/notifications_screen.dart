@@ -13,6 +13,7 @@ import '../../common/widgets/misc/section_header.dart';
 import '../../common/widgets/states/empty_state_widget.dart';
 import '../../common/widgets/states/error_state_widget.dart';
 import 'notifications_provider.dart';
+import '../../common/widgets/misc/sound_refresh_indicator.dart';
 
 class NotificationsScreen extends ConsumerWidget {
   const NotificationsScreen({super.key});
@@ -62,7 +63,7 @@ class NotificationsScreen extends ConsumerWidget {
                     message:
                         'Order updates, delivery alerts and offers will show up here.',
                   ),
-                _ => RefreshIndicator(
+                _ => SoundRefreshIndicator(
                     onRefresh: controller.load,
                     child: ListView(
                       padding: const EdgeInsets.only(bottom: AppSpacing.xl),

@@ -6,6 +6,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../../../core/errors/failure.dart';
 import '../../../../core/extensions/num_extensions.dart';
 import '../../../../core/network/share_links.dart';
+import '../../../../core/utils/app_haptics.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../di/app_providers.dart';
 
@@ -13,6 +14,7 @@ import '../../../../domain/model/product.dart';
 import '../../../../domain/model/product_variant.dart';
 import '../../../../navigation/route_paths.dart';
 import '../../../common/cart_actions.dart';
+import '../../../common/widgets/feedback/app_toast.dart';
 import '../../../common/widgets/badges/delivery_time_badge.dart';
 import '../../../common/widgets/loaders/full_page_loader.dart';
 import '../../../common/widgets/misc/app_network_image.dart';
@@ -86,15 +88,11 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
             comment: draft.comment,
           );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Thanks for your review')),
-        );
+        AppToast.success(context, 'Thanks for your review');
       }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not submit your review')),
-        );
+        AppToast.error(context, 'Could not submit your review');
       }
     }
   }
@@ -569,9 +567,12 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
                     (state.selectedVariant == null && index == 0);
 
                 return GestureDetector(
-                  onTap: () => ref
-                      .read(productDetailsProvider(_args).notifier)
-                      .selectVariant(v),
+                  onTap: () {
+                    AppHaptics.selection();
+                    ref
+                        .read(productDetailsProvider(_args).notifier)
+                        .selectVariant(v);
+                  },
                   child: Container(
                     width: 88,
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
@@ -1073,7 +1074,10 @@ class _StickyBottomBar extends ConsumerWidget {
             )
           else
             GestureDetector(
-              onTap: onAdd,
+              onTap: () {
+                AppHaptics.medium();
+                onAdd();
+              },
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
                 decoration: BoxDecoration(

@@ -41,11 +41,23 @@ abstract final class ErrorMapper {
 
   static String? _messageFrom(dynamic body) {
     if (body is Map && body['message'] is String) {
-      final m = body['message'] as String;
-      return m.trim().isEmpty ? null : m;
+      final m = (body['message'] as String).trim();
+      return m.isEmpty ? null : _brandTerms(m);
     }
     return null;
   }
+
+  /// The backend is a food-delivery service reused for grocery, so its copy
+  /// says "Restaurant" where this app brands every seller a "Store". Every
+  /// user-facing backend message flows through here, so rewriting the term
+  /// once keeps the two from disagreeing — e.g. "Restaurant is currently
+  /// closed" becomes "Store is currently closed" on screen. Harmless once the
+  /// backend copy is updated; essential until it is deployed.
+  static String _brandTerms(String message) => message
+      .replaceAll('Restaurants', 'Stores')
+      .replaceAll('Restaurant', 'Store')
+      .replaceAll('restaurants', 'stores')
+      .replaceAll('restaurant', 'store');
 
   static Failure toFailure(Object error) => switch (error) {
         NetworkException() => NetworkFailure(error.message),

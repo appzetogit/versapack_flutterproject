@@ -11,7 +11,7 @@ import '../../../../core/utils/validators.dart';
 import '../../../../di/app_providers.dart';
 import '../../../../di/repository_providers.dart';
 import '../../../common/widgets/buttons/primary_button.dart';
-import '../../../common/widgets/feedback/app_snackbar.dart';
+import '../../../common/widgets/feedback/app_toast.dart';
 import '../../../common/widgets/inputs/app_text_field.dart';
 
 class EditProfileScreen extends ConsumerStatefulWidget {
@@ -66,12 +66,12 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           );
       ref.read(authProvider.notifier).setUser(user);
       if (!mounted) return;
-      AppSnackbar.success(context, 'Profile updated');
+      AppToast.success(context, 'Profile updated');
       context.pop();
     } catch (e) {
       // Surface what the server actually rejected — "email already in use" is
       // something the user can act on; "Could not save your profile" is not.
-      if (mounted) AppSnackbar.error(context, ErrorMapper.toFailure(e).message);
+      if (mounted) AppToast.error(context, ErrorMapper.toFailure(e).message);
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -106,7 +106,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                     child: GestureDetector(
                       // Image upload needs a file picker, which is out of scope
                       // for this build — see README → Backend Gaps.
-                      onTap: () => AppSnackbar.show(
+                      onTap: () => AppToast.show(
                         context,
                         'Photo uploads are coming soon',
                       ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_durations.dart';
+import '../../../../core/utils/app_haptics.dart';
 import '../../../../core/theme/app_radii.dart';
 import '../../../../core/theme/app_theme.dart';
 
@@ -36,7 +37,13 @@ class QuantityStepper extends StatelessWidget {
         children: [
           _StepButton(
             icon: Icons.remove_rounded,
-            onTap: onDecrement,
+            // Every quantity change routes through this shared control, so one
+            // light cue here covers cards, the cart and the product page —
+            // without ever double-firing.
+            onTap: () {
+              AppHaptics.light();
+              onDecrement();
+            },
             compact: compact,
             semanticLabel: 'Decrease quantity',
           ),
@@ -55,7 +62,12 @@ class QuantityStepper extends StatelessWidget {
           ),
           _StepButton(
             icon: Icons.add_rounded,
-            onTap: canIncrement ? onIncrement : null,
+            onTap: canIncrement
+                ? () {
+                    AppHaptics.light();
+                    onIncrement();
+                  }
+                : null,
             compact: compact,
             semanticLabel: 'Increase quantity',
           ),

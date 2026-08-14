@@ -21,7 +21,7 @@ class StockService {
         StockStatus.inStock => '',
       };
 
-  /// Why the stepper stopped growing, for the snackbar.
+  /// Why the stepper stopped growing, for the toast.
   String? capReason(Product product, int currentQuantity) {
     if (currentQuantity < product.maxOrderableQty) return null;
     final perOrder = product.maxQtyPerOrder;

@@ -39,8 +39,14 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen>
   Widget build(BuildContext context) {
     final order = widget.order;
 
+    // Back must not return to the payment sheet the order just came through,
+    // but it must not be a dead key either — it lands on Home, which is where
+    // the "Continue shopping" button goes.
     return PopScope(
       canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) context.go(RoutePaths.home);
+      },
       child: Scaffold(
         body: SafeArea(
           child: Stack(

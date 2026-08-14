@@ -78,10 +78,10 @@ export function assertRestaurantOpenForOrdering(restaurant, at = new Date()) {
   if (availability.isOpen) return availability;
 
   if (availability.reason === 'not-accepting-orders') {
-    throw new ValidationError('Restaurant is currently offline. Please try again later.');
+    throw new ValidationError('Store is currently offline. Please try again later.');
   }
 
-  throw new ValidationError('Restaurant is currently closed. Please try again later.');
+  throw new ValidationError('Store is currently closed. Please try again later.');
 }
 
 /**

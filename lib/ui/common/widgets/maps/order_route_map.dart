@@ -53,12 +53,17 @@ class _OrderRouteMapState extends State<OrderRouteMap> {
     return points;
   }
 
+  /// The camera is framed exactly once, when the map is first ready. After that
+  /// the user owns the zoom and position: a live rider/route/polyline update
+  /// moves the markers and line but must never re-frame or reset the camera.
+  bool _didFit = false;
+
   @override
   void didUpdateWidget(OrderRouteMap oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // The rider moves every poll; re-frame so they never drift off screen.
-    if (oldWidget.riderLocation?.latitude != widget.riderLocation?.latitude ||
-        oldWidget.riderLocation?.longitude != widget.riderLocation?.longitude) {
+    // If the route only just arrived (map created with nothing to frame), fit
+    // once now — but never again, and never on a rider move.
+    if (!_didFit && _framed.isNotEmpty && _controller != null) {
       _fitBounds();
     }
   }
@@ -142,6 +147,9 @@ class _OrderRouteMapState extends State<OrderRouteMap> {
     final controller = _controller;
     final points = _framed;
     if (controller == null || points.isEmpty) return;
+
+    // One-and-done: after the first frame the user's zoom/position is sacred.
+    _didFit = true;
 
     if (points.length == 1) {
       await controller.animateCamera(

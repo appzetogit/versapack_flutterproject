@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../core/extensions/num_extensions.dart';
+import '../../../../../core/utils/app_haptics.dart';
 import '../../../../../core/theme/app_radii.dart';
 import '../../../../../core/theme/app_spacing.dart';
 import '../../../../../core/theme/app_theme.dart';
@@ -241,7 +242,12 @@ class _Chip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
+      // Every sort, brand and discount chip in the sheet routes through here,
+      // so one selection cue covers all of them.
+      onTap: () {
+        AppHaptics.selection();
+        onTap();
+      },
       child: Container(
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.lg,

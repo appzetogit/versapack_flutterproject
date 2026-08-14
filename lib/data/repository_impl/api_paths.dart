@@ -11,6 +11,8 @@ abstract final class ApiPaths {
   // User — modules/food/user/routes/user.routes.js
   static const profile = '/food/user/profile';
   static const wallet = '/food/user/wallet';
+  static const walletTopupOrder = '/food/user/wallet/topup/order';
+  static const walletTopupVerify = '/food/user/wallet/topup/verify';
   static const addresses = '/food/user/addresses';
   static String address(String id) => '/food/user/addresses/$id';
   static String addressDefault(String id) => '/food/user/addresses/$id/default';
@@ -54,6 +56,12 @@ abstract final class ApiPaths {
   // outside the `/food` namespace the rest of the app lives in.
   static const fcmTokenSave = '/fcm-tokens/mobile/save';
   static const fcmTokenRemove = '/fcm-tokens/remove';
+
+  // Chat — modules/food/chat/routes/chat.routes.js. Customer↔rider threads are
+  // keyed on the order id (conversationId == orderId).
+  static const chatMessages = '/food/chat/messages';
+  static String chatRead(String conversationId) =>
+      '/food/chat/conversations/$conversationId/read';
 
   // Notifications — core/notifications/notification.routes.js
   static const notificationInbox = '/food/notifications/inbox';

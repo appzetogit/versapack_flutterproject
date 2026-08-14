@@ -13,6 +13,7 @@ class OrderDetailState {
     this.order,
     this.route = OrderRoute.empty,
     this.dropOtp = '',
+    this.liveRiderLocation,
     this.isLoading = true,
     this.isMutating = false,
     this.failure,
@@ -21,14 +22,24 @@ class OrderDetailState {
   final Order? order;
   final OrderRoute route;
   final String dropOtp;
+
+  /// The rider's latest GPS from the socket. Kept apart from `order` so a status
+  /// re-fetch (which may carry a stale or absent rider position over REST) never
+  /// snaps the map marker backwards.
+  final GeoPoint? liveRiderLocation;
   final bool isLoading;
   final bool isMutating;
   final Failure? failure;
+
+  /// What the map should draw: the live socket position when we have one, else
+  /// whatever the order last carried.
+  GeoPoint? get riderLocation => liveRiderLocation ?? order?.riderLocation;
 
   OrderDetailState copyWith({
     Order? order,
     OrderRoute? route,
     String? dropOtp,
+    GeoPoint? liveRiderLocation,
     bool? isLoading,
     bool? isMutating,
     Failure? failure,
@@ -38,19 +49,52 @@ class OrderDetailState {
         order: order ?? this.order,
         route: route ?? this.route,
         dropOtp: dropOtp ?? this.dropOtp,
+        liveRiderLocation: liveRiderLocation ?? this.liveRiderLocation,
         isLoading: isLoading ?? this.isLoading,
         isMutating: isMutating ?? this.isMutating,
         failure: clearFailure ? null : (failure ?? this.failure),
       );
 }
 
-/// One order, with live polling while it is still in flight.
+/// One order, kept live by the shared realtime socket:
+/// - `order_status_update` → re-pull the full order (status, route, drop OTP).
+/// - `location-update` → move only the rider, so the map's zoom/camera and the
+///   rest of the UI are left exactly as the user left them.
+///
+/// A slow poll stays as a safety net for the rare case the socket is down; the
+/// socket is what makes updates feel instant.
 class OrderDetailController extends FamilyNotifier<OrderDetailState, String> {
   Timer? _poll;
 
   @override
   OrderDetailState build(String orderId) {
-    ref.onDispose(() => _poll?.cancel());
+    // Reading the provider opens/keeps the one shared connection; joining the
+    // order's tracking room starts the rider GPS stream (re-joined for us
+    // automatically after any reconnect).
+    final socket = ref.read(realtimeSocketProvider);
+    socket.joinTracking(orderId);
+
+    final locSub = socket.riderLocations.listen((event) {
+      if (event.orderId.isNotEmpty && event.orderId != orderId) return;
+      // Rider marker only — no re-fetch, no camera/zoom change. Held separately
+      // from the order so a status poll cannot overwrite it.
+      state = state.copyWith(liveRiderLocation: event.location);
+    });
+
+    final statusSub = socket.orderStatusUpdates.listen((event) {
+      if (event.orderId != orderId) return;
+      // A status change can also change the route and drop OTP, so pull the
+      // whole order fresh rather than patching one field.
+      load();
+    });
+
+    ref.onDispose(() {
+      _poll?.cancel();
+      locSub.cancel();
+      statusSub.cancel();
+      socket.leaveTracking(orderId);
+    });
+
     Future.microtask(load);
     return const OrderDetailState();
   }

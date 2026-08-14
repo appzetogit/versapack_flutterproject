@@ -10,10 +10,11 @@ import '../../../domain/model/address.dart';
 import '../../../navigation/route_paths.dart';
 import '../../common/widgets/buttons/primary_button.dart';
 import '../../common/widgets/feedback/app_dialog.dart';
-import '../../common/widgets/feedback/app_snackbar.dart';
+import '../../common/widgets/feedback/app_toast.dart';
 import '../../common/widgets/loaders/list_skeleton.dart';
 import '../../common/widgets/states/empty_state_widget.dart';
 import '../../common/widgets/states/error_state_widget.dart';
+import '../../common/widgets/misc/sound_refresh_indicator.dart';
 
 /// Saved address management: pick, edit, delete, set default.
 class AddressesScreen extends ConsumerWidget {
@@ -60,7 +61,7 @@ class AddressesScreen extends ConsumerWidget {
               actionLabel: 'Add address',
               onAction: () => context.push(RoutePaths.addressSelection),
             ),
-          _ => RefreshIndicator(
+          _ => SoundRefreshIndicator(
               onRefresh: controller.load,
               child: ListView.separated(
                 padding: const EdgeInsets.all(AppSpacing.lg),
@@ -110,10 +111,10 @@ class AddressesScreen extends ConsumerWidget {
 
     try {
       await ref.read(addressBookProvider.notifier).remove(address.id);
-      if (context.mounted) AppSnackbar.success(context, 'Address deleted');
+      if (context.mounted) AppToast.success(context, 'Address deleted');
     } catch (_) {
       if (context.mounted) {
-        AppSnackbar.error(context, 'Could not delete this address');
+        AppToast.error(context, 'Could not delete this address');
       }
     }
   }

@@ -13,6 +13,7 @@ import '../ui/screens/auth/login/login_screen.dart';
 import '../ui/screens/auth/otp/otp_screen.dart';
 import '../ui/screens/brand/brand_listing_screen.dart';
 import '../ui/screens/cart/cart_screen.dart';
+import '../ui/screens/chat/chat_screen.dart';
 import '../ui/screens/category/categories/categories_screen.dart';
 import '../ui/screens/category/sub_category/sub_category_screen.dart';
 import '../ui/screens/checkout/checkout_screen.dart';
@@ -261,6 +262,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         parentNavigatorKey: _rootKey,
         builder: (context, state) =>
             OrderTrackingScreen(orderId: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: RoutePaths.orderChat,
+        name: RouteNames.orderChat,
+        parentNavigatorKey: _rootKey,
+        builder: (context, state) {
+          final extra = state.extra is ChatArgs ? state.extra as ChatArgs : null;
+          return ChatScreen(
+            orderId: state.pathParameters['id']!,
+            riderName: extra?.riderName ?? 'Delivery partner',
+            riderId: extra?.riderId ?? '',
+          );
+        },
       ),
       GoRoute(
         path: RoutePaths.orderDetails,

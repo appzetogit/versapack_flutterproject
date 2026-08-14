@@ -142,7 +142,18 @@ class AddressBookController extends Notifier<AddressBookState> {
     state = state.copyWith(isLoading: true, clearFailure: true);
     try {
       final addresses = await ref.read(addressRepositoryProvider).list();
-      state = state.copyWith(addresses: addresses, isLoading: false);
+      String selectedId = state.selectedId ?? '';
+      if ((selectedId.isEmpty || !addresses.any((a) => a.id == selectedId)) &&
+          addresses.isNotEmpty) {
+        final def =
+            addresses.firstWhere((a) => a.isDefault, orElse: () => addresses.first);
+        selectedId = def.id;
+      }
+      state = state.copyWith(
+        addresses: addresses,
+        selectedId: selectedId,
+        isLoading: false,
+      );
     } catch (e) {
       state = state.copyWith(isLoading: false, failure: ErrorMapper.toFailure(e));
     }
