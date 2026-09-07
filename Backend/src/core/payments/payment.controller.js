@@ -1,16 +1,38 @@
-import { sendResponse } from '../../utils/response.js';
+import { sendResponse, sendError } from '../../utils/response.js';
 import { getPaymentsByOrder } from './payment.service.js';
 import { getTransactionsByOrder } from './transaction.service.js';
 import { getWalletBalance, getWalletWithTransactions, getUserWalletForFrontend } from './wallet.service.js';
 import { getRefundsByOrder, listRefunds } from './refund.service.js';
 import { createSettlement, processSettlement, listSettlements } from './settlement.service.js';
 import { logger } from '../../utils/logger.js';
+import { FoodOrder } from '../../modules/food/orders/models/order.model.js';
+
+// An order's payment/transaction/refund trail is only visible to its own
+// customer, its own restaurant, its assigned delivery partner, or an admin —
+// these routes previously had no ownership check at all, so any authenticated
+// account of any role could read any order's financial detail by guessing
+// its id.
+const assertOrderAccess = async (req, orderId) => {
+    const order = await FoodOrder.findById(orderId).select('userId restaurantId dispatch.deliveryPartnerId').lean();
+    if (!order) return { order: null, allowed: false };
+
+    const { role, userId } = req.user || {};
+    const allowed = role === 'ADMIN'
+        || (role === 'USER' && String(order.userId) === String(userId))
+        || (role === 'RESTAURANT' && String(order.restaurantId) === String(userId))
+        || (role === 'DELIVERY_PARTNER' && String(order.dispatch?.deliveryPartnerId) === String(userId));
+
+    return { order, allowed };
+};
 
 // ─── User Endpoints ───
 
 export const getPaymentHistoryController = async (req, res, next) => {
     try {
         const { orderId } = req.params;
+        const { order, allowed } = await assertOrderAccess(req, orderId);
+        if (!order) return sendError(res, 404, 'Order not found');
+        if (!allowed) return sendError(res, 403, 'Forbidden: insufficient permissions');
         const payments = await getPaymentsByOrder(orderId);
         return sendResponse(res, 200, 'Payment history fetched', { payments });
     } catch (err) {
@@ -21,6 +43,9 @@ export const getPaymentHistoryController = async (req, res, next) => {
 export const getOrderTransactionsController = async (req, res, next) => {
     try {
         const { orderId } = req.params;
+        const { order, allowed } = await assertOrderAccess(req, orderId);
+        if (!order) return sendError(res, 404, 'Order not found');
+        if (!allowed) return sendError(res, 403, 'Forbidden: insufficient permissions');
         const transactions = await getTransactionsByOrder(orderId);
         return sendResponse(res, 200, 'Transactions fetched', { transactions });
     } catch (err) {
@@ -54,7 +79,10 @@ export const getUserWalletTransactionsController = async (req, res, next) => {
 
 export const getRestaurantWalletController = async (req, res, next) => {
     try {
-        const restaurantId = req.user?.restaurantId || req.params.restaurantId;
+        const restaurantId = req.params.restaurantId;
+        if (req.user?.role !== 'ADMIN' && String(req.user?.userId) !== String(restaurantId)) {
+            return sendError(res, 403, 'Forbidden: insufficient permissions');
+        }
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 20;
         const data = await getWalletWithTransactions('restaurant', restaurantId, { page, limit });
@@ -68,7 +96,10 @@ export const getRestaurantWalletController = async (req, res, next) => {
 
 export const getDeliveryWalletController = async (req, res, next) => {
     try {
-        const deliveryPartnerId = req.user?.deliveryPartnerId || req.params.deliveryPartnerId;
+        const deliveryPartnerId = req.params.deliveryPartnerId;
+        if (req.user?.role !== 'ADMIN' && String(req.user?.userId) !== String(deliveryPartnerId)) {
+            return sendError(res, 403, 'Forbidden: insufficient permissions');
+        }
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 20;
         const data = await getWalletWithTransactions('deliveryBoy', deliveryPartnerId, { page, limit });
@@ -166,6 +197,9 @@ export const listRefundsController = async (req, res, next) => {
 export const getRefundsByOrderController = async (req, res, next) => {
     try {
         const { orderId } = req.params;
+        const { order, allowed } = await assertOrderAccess(req, orderId);
+        if (!order) return sendError(res, 404, 'Order not found');
+        if (!allowed) return sendError(res, 403, 'Forbidden: insufficient permissions');
         const refunds = await getRefundsByOrder(orderId);
         return sendResponse(res, 200, 'Refunds fetched', { refunds });
     } catch (err) {
