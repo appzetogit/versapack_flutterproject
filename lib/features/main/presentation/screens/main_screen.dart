@@ -8,6 +8,7 @@ import 'package:food_user_application/features/history/presentation/screens/hist
 import 'package:food_user_application/features/pocket/presentation/screens/pocket_screen.dart';
 import 'package:food_user_application/features/profile/presentation/screens/profile_screen.dart';
 import '../widgets/custom_bottom_nav_bar.dart';
+import 'package:food_user_application/core/theme/app_colors.dart';
 
 class MainTabIndexNotifier extends Notifier<int> {
   @override
@@ -38,7 +39,7 @@ class MainScreen extends ConsumerWidget {
       barrierDismissible: true,
       builder: (ctx) => Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28.r)),
-        backgroundColor: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+        backgroundColor: isDarkMode ? AppColors.darkSurface : AppColors.lightSurface,
         elevation: 8,
         child: Padding(
           padding: EdgeInsets.fromLTRB(24.w, 24.h, 24.w, 20.h),
@@ -49,12 +50,12 @@ class MainScreen extends ConsumerWidget {
               Container(
                 padding: EdgeInsets.all(16.r),
                 decoration: const BoxDecoration(
-                  color: Color(0xFFFEE4E2),
+                  color: AppColors.errorBg,
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
                   Icons.power_settings_new_rounded,
-                  color: const Color(0xFFF04438),
+                  color: AppColors.error,
                   size: 32.sp,
                 ),
               ),
@@ -124,7 +125,7 @@ class MainScreen extends ConsumerWidget {
                           Navigator.of(ctx).pop(true);
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFF04438),
+                          backgroundColor: AppColors.error,
                           foregroundColor: Colors.white,
                           elevation: 0,
                           shape: RoundedRectangleBorder(

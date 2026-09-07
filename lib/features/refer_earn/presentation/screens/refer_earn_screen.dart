@@ -10,6 +10,7 @@ import 'package:food_user_application/features/refer_earn/application/referral_c
 import 'package:food_user_application/features/refer_earn/data/models/referral_stats.dart';
 import 'package:food_user_application/features/refer_earn/presentation/widgets/referral_ticket_card.dart';
 import 'package:food_user_application/features/refer_earn/presentation/widgets/refer_earn_background.dart';
+import 'package:food_user_application/core/theme/app_colors.dart';
 
 class ReferEarnScreen extends ConsumerStatefulWidget {
   const ReferEarnScreen({super.key});
@@ -106,13 +107,13 @@ class _ReferEarnScreenState extends ConsumerState<ReferEarnScreen>
     String text;
     
     if (partner.status == 'credited') {
-      color = Colors.green;
+      color = AppColors.success;
       text = 'Earned ₹${partner.earnedAmount}';
     } else if (partner.status == 'rejected') {
       color = Colors.grey;
       text = partner.reason.isNotEmpty ? partner.reason : 'Rejected';
     } else {
-      color = Colors.amber;
+      color = AppColors.rating;
       if (partner.partnerStatus == 'pending') {
         text = 'Waiting for approval';
       } else {
@@ -123,8 +124,8 @@ class _ReferEarnScreenState extends ConsumerState<ReferEarnScreen>
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.2),
-        border: Border.all(color: color.withOpacity(0.5)),
+        color: color.withValues(alpha: 0.2),
+        border: Border.all(color: color.withValues(alpha: 0.5)),
         borderRadius: BorderRadius.circular(12.r),
       ),
       child: Text(
@@ -308,6 +309,7 @@ class _ReferEarnScreenState extends ConsumerState<ReferEarnScreen>
                                         child: ReferralTicketCard(
                                           width: _ticketWidth,
                                           height: _ticketHeight,
+                                          rewardAmount: stats.rewardAmount,
                                         ),
                                       ),
                                     ),
@@ -408,7 +410,7 @@ class _ReferEarnScreenState extends ConsumerState<ReferEarnScreen>
                           margin: EdgeInsets.symmetric(horizontal: 20.w, vertical: 6.h),
                           padding: EdgeInsets.all(12.r),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.05),
+                            color: Colors.white.withValues(alpha: 0.05),
                             borderRadius: BorderRadius.circular(12.r),
                           ),
                           child: Row(

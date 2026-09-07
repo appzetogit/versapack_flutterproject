@@ -6,6 +6,7 @@ import 'package:food_user_application/core/services/review_service.dart';
 import 'package:food_user_application/features/orders/application/pending_customer_rating_controller.dart';
 import 'package:food_user_application/features/orders/data/models/delivery_order.dart';
 import 'package:food_user_application/features/orders/data/orders_repository.dart';
+import 'package:food_user_application/core/theme/app_colors.dart';
 
 /// Full-screen overlay stacked over the app (see main.dart) whenever
 /// [pendingCustomerRatingControllerProvider] is non-null — auto-shown right
@@ -68,11 +69,11 @@ class _RateCustomerScreenState extends ConsumerState<RateCustomerScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDarkMode = theme.brightness == Brightness.dark;
-    final textColor = isDarkMode ? Colors.white : const Color(0xFF1E1E1E);
+    final textColor = AppColors.of(context).textPrimary;
     final subTextColor = isDarkMode ? Colors.grey[400] : Colors.grey[600];
 
     return Material(
-      color: Colors.black.withOpacity(0.5),
+      color: Colors.black.withValues(alpha: 0.5),
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: _cancel,
@@ -80,6 +81,7 @@ class _RateCustomerScreenState extends ConsumerState<RateCustomerScreen> {
           alignment: Alignment.bottomCenter,
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
+            // Absorbs taps so tapping the card does not dismiss the sheet.
             onTap: () {},
             child: SafeArea(
               top: false,
@@ -132,7 +134,7 @@ class _RateCustomerScreenState extends ConsumerState<RateCustomerScreen> {
                         hintText: 'Add a comment (optional)',
                         hintStyle: TextStyle(color: subTextColor, fontSize: 13.sp),
                         filled: true,
-                        fillColor: isDarkMode ? Colors.white10 : Colors.black.withOpacity(0.04),
+                        fillColor: isDarkMode ? Colors.white10 : Colors.black.withValues(alpha: 0.04),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16.r),
                           borderSide: BorderSide.none,
@@ -142,14 +144,14 @@ class _RateCustomerScreenState extends ConsumerState<RateCustomerScreen> {
                     ),
                     if (_error != null) ...[
                       SizedBox(height: 8.h),
-                      Text(_error!, style: const TextStyle(color: Colors.redAccent, fontSize: 12)),
+                      Text(_error!, style: const TextStyle(color: AppColors.error, fontSize: 12)),
                     ],
                     SizedBox(height: 16.h),
                     ElevatedButton(
                       onPressed: _rating == 0 || _submitting ? null : _submit,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: theme.primaryColor,
-                        foregroundColor: Colors.white,
+                        foregroundColor: AppColors.onPrimary,
                         minimumSize: Size(double.infinity, 48.h),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
                       ),
@@ -157,7 +159,7 @@ class _RateCustomerScreenState extends ConsumerState<RateCustomerScreen> {
                           ? SizedBox(
                               width: 20.w,
                               height: 20.w,
-                              child: const CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onPrimary),
                             )
                           : const Text('Submit Rating'),
                     ),

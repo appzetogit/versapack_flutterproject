@@ -7,6 +7,7 @@ import '../../../../core/constants/app_constants.dart';
 import '../../../auth/application/auth_controller.dart';
 import '../../../auth/application/auth_state.dart';
 import '../../../auth/data/models/delivery_partner.dart';
+import 'package:food_user_application/core/theme/app_colors.dart';
 
 class DriverIdCardScreen extends ConsumerWidget {
   const DriverIdCardScreen({super.key});
@@ -22,8 +23,8 @@ class DriverIdCardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final isDarkMode = theme.brightness == Brightness.dark;
-    final textColor = isDarkMode ? Colors.white : const Color(0xFF1E1E1E);
-    final bgColor = isDarkMode ? const Color(0xFF161925) : Colors.white;
+    final textColor = AppColors.of(context).textPrimary;
+    final bgColor = isDarkMode ? AppColors.darkSurface : Colors.white;
     final authState = ref.watch(authControllerProvider);
     final user = authState is AuthAuthenticated ? authState.user : null;
     final vehicleLabel = [
@@ -45,7 +46,7 @@ class DriverIdCardScreen extends ConsumerWidget {
             child: Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [theme.primaryColor, const Color(0xFFFF9853)],
+                  colors: [theme.primaryColor, AppColors.primaryLight],
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                 ),
@@ -63,7 +64,7 @@ class DriverIdCardScreen extends ConsumerWidget {
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    bgColor.withOpacity(0.0),
+                    bgColor.withValues(alpha: 0.0),
                     bgColor,
                   ],
                   begin: Alignment.topCenter,
@@ -105,7 +106,7 @@ class DriverIdCardScreen extends ConsumerWidget {
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
+                        color: Colors.black.withValues(alpha: 0.1),
                         blurRadius: 20,
                         spreadRadius: 5,
                       ),
@@ -160,12 +161,12 @@ class DriverIdCardScreen extends ConsumerWidget {
                 Container(
                   padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
                   decoration: BoxDecoration(
-                    color: (user?.isApproved == true ? Colors.green : Colors.orange)
-                        .withOpacity(0.1),
+                    color: (user?.isApproved == true ? AppColors.success : AppColors.warning)
+                        .withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20.r),
                     border: Border.all(
-                      color: (user?.isApproved == true ? Colors.green : Colors.orange)
-                          .withOpacity(0.5),
+                      color: (user?.isApproved == true ? AppColors.success : AppColors.warning)
+                          .withValues(alpha: 0.5),
                     ),
                   ),
                   child: Row(
@@ -175,14 +176,14 @@ class DriverIdCardScreen extends ConsumerWidget {
                         user?.isApproved == true
                             ? Icons.check_circle_outline
                             : Icons.access_time,
-                        color: user?.isApproved == true ? Colors.green : Colors.orange,
+                        color: user?.isApproved == true ? AppColors.success : AppColors.warning,
                         size: 16.sp,
                       ),
                       SizedBox(width: 6.w),
                       Text(
                         (user?.status ?? 'PENDING').toUpperCase(),
                         style: TextStyle(
-                          color: user?.isApproved == true ? Colors.green : Colors.orange,
+                          color: user?.isApproved == true ? AppColors.success : AppColors.warning,
                           fontSize: 12.sp,
                           fontWeight: FontWeight.bold,
                         ),
@@ -266,7 +267,7 @@ class DriverIdCardScreen extends ConsumerWidget {
       width: double.infinity,
       padding: EdgeInsets.symmetric(vertical: 16.h, horizontal: 16.w),
       decoration: BoxDecoration(
-        color: Colors.grey.withOpacity(0.05),
+        color: Colors.grey.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(16.r),
       ),
       child: Column(

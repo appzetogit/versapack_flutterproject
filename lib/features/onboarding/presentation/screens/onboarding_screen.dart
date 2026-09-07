@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import 'package:food_user_application/core/services/haptic_service.dart';
+import 'package:food_user_application/core/theme/app_colors.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -14,21 +15,23 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
 
+  // Speaks to the delivery partner about the work, not to a shopper about
+  // the products — this app is only ever installed by riders.
   final List<Map<String, String>> _onboardingData = [
     {
       'image': 'assets/image/onboard1.png',
-      'title': 'Build your\n*Flavor,* Step by Step',
-      'subtitle': 'Stack fresh ingredients for meals made your way',
+      'title': 'Deliver on\n*Your* Schedule',
+      'subtitle': 'Go online when you want. Take the orders that suit you.',
     },
     {
       'image': 'assets/image/onboard2.png',
-      'title': 'Delivered in\n*Minutes,* Not Hours',
-      'subtitle': 'Enjoy hot meals without the wait.',
+      'title': 'Short Trips,\n*Quick* Payouts',
+      'subtitle': 'Nearby stores mean shorter rides and more drops per hour.',
     },
     {
       'image': 'assets/image/onboard3.png',
-      'title': '*Hot & Fast*\nFood at Your Door',
-      'subtitle': 'Order from your favorite Food anytime, anywhere',
+      'title': 'Track Every\n*Rupee* You Earn',
+      'subtitle': 'Live earnings, trip history and settlements in one place.',
     },
   ];
 
@@ -118,7 +121,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             child: ElevatedButton(
               onPressed: _nextPage,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1C1C1E),
+                backgroundColor: AppColors.lightNeutralDark,
                 foregroundColor: Colors.white,
                 minimumSize: Size(double.infinity, 56.h),
                 shape: RoundedRectangleBorder(
@@ -146,7 +149,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       height: 4.h,
       width: 40.w,
       decoration: BoxDecoration(
-        color: isActive ? Colors.white : Colors.white.withOpacity(0.5),
+        color: isActive ? Colors.white : Colors.white.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(2.r),
       ),
     );
@@ -221,8 +224,8 @@ class OnboardingContent extends StatelessWidget {
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  Colors.white.withOpacity(0.0),
-                  Colors.white.withOpacity(0.75),
+                  Colors.white.withValues(alpha: 0.0),
+                  Colors.white.withValues(alpha: 0.75),
                   Colors.white,
                   Colors.white,
                 ],

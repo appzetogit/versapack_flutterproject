@@ -11,7 +11,6 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:food_user_application/core/router/app_router.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:go_router/go_router.dart';
 import 'package:confetti/confetti.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:food_user_application/core/error/result.dart';
@@ -21,6 +20,7 @@ import 'package:food_user_application/core/utils/map_launcher.dart';
 import 'package:food_user_application/core/constants/app_constants.dart';
 import 'package:food_user_application/core/constants/map_styles.dart';
 import 'package:food_user_application/core/utils/polyline_decoder.dart';
+import 'package:food_user_application/core/utils/route_snap.dart';
 import 'package:food_user_application/features/auth/application/auth_controller.dart';
 import 'package:food_user_application/features/auth/application/auth_state.dart';
 import '../widgets/otp_bottom_sheet.dart';
@@ -32,8 +32,10 @@ import 'package:food_user_application/features/orders/data/models/delivery_order
 import 'package:food_user_application/features/orders/data/orders_repository.dart';
 import 'package:food_user_application/features/orders/presentation/widgets/collect_payment_sheet.dart';
 import 'package:food_user_application/features/support/data/support_repository.dart';
+import 'package:food_user_application/core/theme/app_colors.dart';
+import 'package:food_user_application/features/orders/presentation/widgets/order_products_sheet.dart';
 
-const _tripOnlineGreen = Color(0xFF1EBE5D);
+const _tripOnlineGreen = AppColors.online;
 
 /// Full-screen "active trip" map view, stacked over the app by [main.dart]'s
 /// overlay builder whenever there is an active order and the trip hasn't
@@ -63,7 +65,8 @@ class _ActiveTripScaffold extends ConsumerStatefulWidget {
   ConsumerState<_ActiveTripScaffold> createState() => _ActiveTripScaffoldState();
 }
 
-class _ActiveTripScaffoldState extends ConsumerState<_ActiveTripScaffold> {
+class _ActiveTripScaffoldState extends ConsumerState<_ActiveTripScaffold>
+    with SingleTickerProviderStateMixin {
   GoogleMapController? _mapController;
   List<LatLng> _routePoints = [];
   LatLng? _routeDestination;
@@ -71,14 +74,48 @@ class _ActiveTripScaffoldState extends ConsumerState<_ActiveTripScaffold> {
   String? _routeKey;
   Timer? _routeRefreshTimer;
   BitmapDescriptor? _bikeMarkerIcon;
-  BitmapDescriptor? _restaurantMarkerIcon;
-  String? _restaurantMarkerUrl;
-  bool _restaurantMarkerLoading = false;
+  BitmapDescriptor? _storeMarkerIcon;
+  String? _storeMarkerUrl;
+  bool _storeMarkerLoading = false;
   StreamSubscription<Position>? _positionSub;
   bool _routeFetchInFlight = false;
   DeliveryOrder? _lastOrder;
-  double _currentHeading = 0.0;
   Position? _previousPos;
+
+  // --- Rider marker, locked to the drawn route ----------------------------
+  //
+  // The marker used to sit at the raw GPS fix while the polyline came from the
+  // routing API, so the two disagreed by however far the fix had drifted and
+  // the bike appeared to ride down a parallel street. Everything below keeps
+  // the marker ON the line: its position is the projection of the fix onto the
+  // nearest segment, its heading comes from that segment, and it eases between
+  // fixes instead of teleporting.
+  BitmapDescriptor? _walkMarkerIcon;
+  late final AnimationController _markerAnimation;
+  LatLng? _markerFrom;
+  LatLng? _markerTo;
+  double _bearingFrom = 0;
+  double _bearingTo = 0;
+
+  /// True once the rider is close enough to the customer to be on foot.
+  bool _isWalking = false;
+
+  /// Where the bike stopped. The footsteps trail starts here and stays put
+  /// while the rider walks the last stretch.
+  LatLng? _walkAnchor;
+
+  /// Distance at which riding becomes walking, and the wider distance at which
+  /// it reverts. The gap is deliberate: without hysteresis a fix wobbling
+  /// across a single threshold flips the marker between bike and footsteps
+  /// several times a minute.
+  static const double _walkStartMetres = 45;
+  static const double _walkStopMetres = 90;
+
+  /// Beyond this the rider genuinely is not on the drawn route — a wrong turn,
+  /// or a route that has gone stale — and pretending otherwise would draw them
+  /// somewhere they are not. The raw fix is used instead until the next route
+  /// refresh catches up.
+  static const double _maxSnapMetres = 60;
   final ConfettiController _confettiController = ConfettiController(duration: const Duration(seconds: 2));
   bool _isCompleting = false;
   bool _isActionLoading = false;
@@ -96,6 +133,15 @@ class _ActiveTripScaffoldState extends ConsumerState<_ActiveTripScaffold> {
   @override
   void initState() {
     super.initState();
+    _markerAnimation = AnimationController(
+      vsync: this,
+      // Matches the position stream's cadence closely enough that the marker
+      // is still gliding when the next fix arrives — which is what reads as
+      // continuous movement rather than a hop every second.
+      duration: const Duration(milliseconds: 950),
+    )..addListener(() {
+        if (mounted) setState(() {});
+      });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadMarkerIcon();
     });
@@ -107,6 +153,7 @@ class _ActiveTripScaffoldState extends ConsumerState<_ActiveTripScaffold> {
     _routeRefreshTimer?.cancel();
     _positionSub?.cancel();
     _simTimer?.cancel();
+    _markerAnimation.dispose();
     _confettiController.dispose();
     super.dispose();
   }
@@ -197,17 +244,64 @@ class _ActiveTripScaffoldState extends ConsumerState<_ActiveTripScaffold> {
 
   Future<void> _loadMarkerIcon() async {
     try {
-      final bytes = await _getBytesFromAsset('assets/image/bike.png', 80);
+      // 44: BitmapDescriptor.bytes treats the decoded width as LOGICAL pixels,
+      // so this is ~44dp on every density. At 80 it dwarfed the map's own pins
+      // and road labels and covered the junction the rider was approaching.
+      final bytes = await _getBytesFromAsset('assets/image/bike.png', 44);
       if (!mounted) return;
-      setState(() => _bikeMarkerIcon = BitmapDescriptor.fromBytes(bytes));
+      setState(() => _bikeMarkerIcon = BitmapDescriptor.bytes(bytes));
     } catch (_) {
       // Falls back to the native blue dot if the asset fails to decode.
     }
+    try {
+      final walk = await _glyphMarkerBytes('\u{1F6B6}');
+      if (!mounted) return;
+      setState(() => _walkMarkerIcon = BitmapDescriptor.bytes(walk));
+    } catch (_) {
+      // Falls back to the bike icon for the walking leg.
+    }
   }
 
-  Future<void> _loadRestaurantMarkerIcon(String imageUrl) async {
-    if (_restaurantMarkerUrl == imageUrl || _restaurantMarkerLoading) return;
-    _restaurantMarkerLoading = true;
+  /// Renders [glyph] into a round white badge for use as a map marker.
+  ///
+  /// Drawn rather than shipped as an asset: it is one small image, and an
+  /// emoji renders identically on every device the app targets.
+  Future<Uint8List> _glyphMarkerBytes(String glyph) async {
+    const size = 44.0;
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+
+    canvas.drawCircle(
+      const Offset(size / 2, size / 2),
+      size / 2 - 1,
+      Paint()..color = Colors.white,
+    );
+    canvas.drawCircle(
+      const Offset(size / 2, size / 2),
+      size / 2 - 1,
+      Paint()
+        ..color = AppColors.success
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3,
+    );
+
+    final painter = TextPainter(
+      text: TextSpan(text: glyph, style: const TextStyle(fontSize: 22)),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    painter.paint(
+      canvas,
+      Offset((size - painter.width) / 2, (size - painter.height) / 2),
+    );
+
+    final image = await recorder.endRecording().toImage(size.round(), size.round());
+    final data = await image.toByteData(format: ui.ImageByteFormat.png);
+    return data!.buffer.asUint8List();
+  }
+
+  Future<void> _loadStoreMarkerIcon(String imageUrl) async {
+    if (_storeMarkerUrl == imageUrl || _storeMarkerLoading) return;
+    _storeMarkerLoading = true;
     try {
       final response = await Dio().get<List<int>>(
         imageUrl,
@@ -224,19 +318,19 @@ class _ActiveTripScaffoldState extends ConsumerState<_ActiveTripScaffold> {
       final markerBytes = await _framedMarkerBytes(frame.image, photoSize);
       if (!mounted) return;
       setState(() {
-        _restaurantMarkerIcon = BitmapDescriptor.fromBytes(markerBytes);
-        _restaurantMarkerUrl = imageUrl;
+        _storeMarkerIcon = BitmapDescriptor.bytes(markerBytes);
+        _storeMarkerUrl = imageUrl;
       });
     } catch (e) {
       // Falls back to the default pin if the photo fails to load.
-      debugPrint('[ActiveTrip] restaurant marker photo failed to load ($imageUrl): $e');
+      debugPrint('[ActiveTrip] store marker photo failed to load ($imageUrl): $e');
     } finally {
-      _restaurantMarkerLoading = false;
+      _storeMarkerLoading = false;
     }
   }
 
   /// Draws a rounded-square framed photo with a downward pointer, mirroring
-  /// the "restaurant photo pin" look used by other delivery apps.
+  /// the "store photo pin" look used by other delivery apps.
   Future<Uint8List> _framedMarkerBytes(ui.Image image, int photoSize) async {
     const border = 6.0;
     const pointerHeight = 16.0;
@@ -252,7 +346,7 @@ class _ActiveTripScaffoldState extends ConsumerState<_ActiveTripScaffold> {
     canvas.drawRRect(
       frameRRect.shift(const Offset(0, 2)),
       Paint()
-        ..color = Colors.black.withOpacity(0.25)
+        ..color = Colors.black.withValues(alpha: 0.25)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
     );
     canvas.drawRRect(frameRRect, Paint()..color = Colors.white);
@@ -286,47 +380,107 @@ class _ActiveTripScaffoldState extends ConsumerState<_ActiveTripScaffold> {
       _fetchRoute(_lastOrder!, _targetFor(_lastOrder!));
     }
 
-    // Prefer the device's own compass-fused heading (updates continuously,
-    // even while turning in place) over a bearing computed between two GPS
-    // fixes, which only changes once the rider has actually moved.
-    final hasDeviceHeading = position.headingAccuracy >= 0 && position.heading >= 0;
-    double? nextHeading;
-    if (hasDeviceHeading) {
-      nextHeading = position.heading;
+    final raw = LatLng(position.latitude, position.longitude);
+    final snapped = snapToRoute(_routePoints, raw);
+    final onRoute = snapped != null && snapped.metresFromRoute <= _maxSnapMetres;
+
+    // The marker follows the ROUTE when the fix is close enough to believe it
+    // belongs there, and the raw fix otherwise. Snapping unconditionally would
+    // hide a genuine wrong turn behind a marker gliding serenely along a road
+    // the rider has left.
+    final target = onRoute ? snapped.point : raw;
+
+    // Heading from the road when snapped: a GPS bearing swings wildly at low
+    // speed and at a standstill is meaningless, which is what made the marker
+    // spin while the rider waited at a light.
+    double heading = _bearingTo;
+    if (onRoute) {
+      heading = snapped.bearing;
+    } else if (position.headingAccuracy >= 0 && position.heading >= 0) {
+      heading = position.heading;
     } else if (_previousPos != null) {
-      final distance = Geolocator.distanceBetween(
+      final moved = Geolocator.distanceBetween(
         _previousPos!.latitude,
         _previousPos!.longitude,
         position.latitude,
         position.longitude,
       );
-      if (distance > 1.5) { // update heading if moved more than 1.5 meters
-        nextHeading = Geolocator.bearingBetween(
-          _previousPos!.latitude,
-          _previousPos!.longitude,
-          position.latitude,
-          position.longitude,
+      if (moved > 1.5) {
+        heading = bearingBetween(
+          LatLng(_previousPos!.latitude, _previousPos!.longitude),
+          raw,
         );
       }
     }
-    if (nextHeading != null && mounted) {
-      setState(() => _currentHeading = nextHeading!);
-    }
+
+    _updateWalkingState(target);
+    _animateMarkerTo(target, heading);
+
     _previousPos = position;
   }
+
+  /// Switches between riding and walking as the rider closes on the customer.
+  ///
+  /// Only on the drop leg: arriving at the STORE is a pickup, and the rider is
+  /// still on the bike for the rest of the trip.
+  void _updateWalkingState(LatLng riderPoint) {
+    final destination = _routeDestination;
+    final order = _lastOrder;
+    if (destination == null || order == null || _targetFor(order) != 'customer') {
+      if (_isWalking) setState(() { _isWalking = false; _walkAnchor = null; });
+      return;
+    }
+
+    final metres = metresBetween(riderPoint, destination);
+    if (!_isWalking && metres <= _walkStartMetres) {
+      // Anchored once, at the point the bike stopped, so the footsteps trail
+      // stays rooted there instead of following the rider up the path.
+      setState(() {
+        _isWalking = true;
+        _walkAnchor = riderPoint;
+      });
+    } else if (_isWalking && metres > _walkStopMetres) {
+      setState(() {
+        _isWalking = false;
+        _walkAnchor = null;
+      });
+    }
+  }
+
+  /// Eases the marker from where it is to [target] rather than jumping.
+  void _animateMarkerTo(LatLng target, double bearing) {
+    _markerFrom = _currentMarkerPoint ?? target;
+    _bearingFrom = _currentMarkerBearing;
+    _markerTo = target;
+    _bearingTo = bearing;
+    _markerAnimation
+      ..reset()
+      ..forward();
+  }
+
+  /// The marker's position for this frame.
+  LatLng? get _currentMarkerPoint {
+    final from = _markerFrom, to = _markerTo;
+    if (to == null) return null;
+    if (from == null) return to;
+    return lerpLatLng(from, to, _markerAnimation.value);
+  }
+
+  double get _currentMarkerBearing =>
+      lerpBearing(_bearingFrom, _bearingTo, _markerAnimation.value);
 
   void _maybeFetchRoute(DeliveryOrder order) {
     _lastOrder = order;
     final target = _targetFor(order);
     if (target == 'restaurant') {
-      final photo = order.restaurant.displayImage;
+      final photo = order.store.displayImage;
       debugPrint(
-        '[ActiveTrip] restaurant media — cover: ${order.restaurant.coverImages}, '
-        'menu: ${order.restaurant.menuImages}, profile: ${order.restaurant.profileImage}, '
+        '[ActiveTrip] store media — cover: ${order.store.coverImages}, '
+        'catalog: ${order.store.catalogImages}, profile: ${order.store.profileImage}, '
         'using: $photo',
       );
       if (photo != null && photo.isNotEmpty) {
-        _loadRestaurantMarkerIcon(photo);
+        _loadStoreMarkerIcon(photo);
       }
     }
     final key = '${order.id}::$target';
@@ -344,9 +498,9 @@ class _ActiveTripScaffoldState extends ConsumerState<_ActiveTripScaffold> {
   }
 
   String _targetFor(DeliveryOrder order) {
-    final navigateToRestaurant = order.currentPhase == 'en_route_to_pickup' ||
+    final navigateToStore = order.currentPhase == 'en_route_to_pickup' ||
         order.currentPhase == 'at_pickup';
-    return navigateToRestaurant ? 'restaurant' : 'customer';
+    return navigateToStore ? 'restaurant' : 'customer';
   }
 
   Future<void> _fetchRoute(DeliveryOrder order, String target) async {
@@ -368,7 +522,7 @@ class _ActiveTripScaffoldState extends ConsumerState<_ActiveTripScaffold> {
             ? decodePolyline(encoded)
             : <LatLng>[];
         final destLoc = target == 'restaurant'
-            ? order.restaurant.location
+            ? order.store.location
             : order.deliveryAddress.location;
         final destination = destLoc != null
             ? LatLng(destLoc.lat, destLoc.lng)
@@ -431,7 +585,7 @@ class _ActiveTripScaffoldState extends ConsumerState<_ActiveTripScaffold> {
         return (
           label: 'Confirm pickup',
           icon: Icons.check_circle_outline,
-          action: () => _runAction(() => controller.confirmPickup(order.id)),
+          action: () => _confirmPickup(order),
         );
       case 'en_route_to_delivery':
         return (
@@ -462,6 +616,20 @@ class _ActiveTripScaffoldState extends ConsumerState<_ActiveTripScaffold> {
       default:
         return null;
     }
+  }
+
+  /// Walks the rider through the products before confirming pickup, so a
+  /// missing line is caught at the counter rather than at the customer's door.
+  Future<void> _confirmPickup(DeliveryOrder order) async {
+    final confirmed = await showOrderProductsSheet(
+      context,
+      order: order,
+      checklist: true,
+    );
+    if (confirmed != true) return;
+    await _runAction(
+      () => ref.read(ordersControllerProvider.notifier).confirmPickup(order.id),
+    );
   }
 
   Future<void> _completeDelivery(DeliveryOrder order) async {
@@ -544,14 +712,14 @@ class _ActiveTripScaffoldState extends ConsumerState<_ActiveTripScaffold> {
   }
 
   void _openRestaurantGallery(DeliveryOrder order) {
-    final images = order.restaurant.allImages;
+    final images = order.store.allImages;
     if (images.isEmpty) return;
     showDialog(
       context: context,
       barrierColor: Colors.black87,
       builder: (_) => _RestaurantGalleryViewer(
         images: images,
-        restaurantName: order.restaurant.name,
+        restaurantName: order.store.name,
       ),
     );
   }
@@ -592,12 +760,14 @@ class _ActiveTripScaffoldState extends ConsumerState<_ActiveTripScaffold> {
       initialData: ref.read(locationServiceProvider).lastPosition,
       builder: (context, snapshot) {
         final pos = snapshot.data;
+        final rawPoint =
+            pos != null ? LatLng(pos.latitude, pos.longitude) : null;
         final initialTarget = pos != null
             ? LatLng(pos.latitude, pos.longitude)
             : (_routeDestination ?? const LatLng(0, 0));
         final isPickupPhase = _targetFor(order) == 'restaurant';
-        final hasGalleryImages = order.restaurant.allImages.isNotEmpty;
-        final useRestaurantMarker = isPickupPhase && _restaurantMarkerIcon != null;
+        final hasGalleryImages = order.store.allImages.isNotEmpty;
+        final useStoreMarker = isPickupPhase && _storeMarkerIcon != null;
 
         return GoogleMap(
           onMapCreated: (controller) => _mapController = controller,
@@ -607,10 +777,10 @@ class _ActiveTripScaffoldState extends ConsumerState<_ActiveTripScaffold> {
               Marker(
                 markerId: const MarkerId('trip_destination'),
                 position: _routeDestination!,
-                icon: useRestaurantMarker
-                    ? _restaurantMarkerIcon!
+                icon: useStoreMarker
+                    ? _storeMarkerIcon!
                     : BitmapDescriptor.defaultMarkerWithHue(
-                        isPickupPhase ? BitmapDescriptor.hueOrange : BitmapDescriptor.hueViolet,
+                        isPickupPhase ? BitmapDescriptor.hueYellow : BitmapDescriptor.hueViolet,
                       ),
                 onTap: isPickupPhase && hasGalleryImages
                     ? () {
@@ -619,14 +789,20 @@ class _ActiveTripScaffoldState extends ConsumerState<_ActiveTripScaffold> {
                       }
                     : null,
               ),
-            if (useCustomMarker && pos != null)
+            // Positioned from the animated, route-snapped point — NOT the raw
+            // fix — so the marker rides the drawn line instead of a parallel
+            // street. Falls back to the fix before the first route arrives.
+            if (useCustomMarker && (_currentMarkerPoint ?? rawPoint) != null)
               Marker(
                 markerId: const MarkerId('delivery_partner'),
-                position: LatLng(pos.latitude, pos.longitude),
-                icon: _bikeMarkerIcon!,
+                position: _currentMarkerPoint ?? rawPoint!,
+                icon: _isWalking && _walkMarkerIcon != null
+                    ? _walkMarkerIcon!
+                    : _bikeMarkerIcon!,
                 anchor: const Offset(0.5, 0.5),
-                rotation: _currentHeading,
-                flat: true,
+                // A walking badge is upright; only the bike turns with the road.
+                rotation: _isWalking ? 0 : _currentMarkerBearing,
+                flat: !_isWalking,
               ),
           },
           polylines: {
@@ -636,6 +812,17 @@ class _ActiveTripScaffoldState extends ConsumerState<_ActiveTripScaffold> {
                 points: _routePoints,
                 color: Theme.of(context).primaryColor,
                 width: 5,
+              ),
+            // The last stretch on foot: a dotted trail from where the bike
+            // stopped to the customer's door. Dots rather than a solid line
+            // because it is not a road and should not read as one.
+            if (_isWalking && _walkAnchor != null && _routeDestination != null)
+              Polyline(
+                polylineId: const PolylineId('walk_to_customer'),
+                points: [_walkAnchor!, _routeDestination!],
+                color: AppColors.success,
+                width: 4,
+                patterns: [PatternItem.dot, PatternItem.gap(12)],
               ),
           },
           myLocationEnabled: true,
@@ -668,7 +855,7 @@ class _ActiveTripScaffoldState extends ConsumerState<_ActiveTripScaffold> {
 
     final theme = Theme.of(context);
     final isDarkMode = theme.brightness == Brightness.dark;
-    final textColor = isDarkMode ? Colors.white : const Color(0xFF1E1E1E);
+    final textColor = AppColors.of(context).textPrimary;
     final subTextColor = isDarkMode ? Colors.grey[400] : Colors.grey[600];
     final isPickupPhase = _targetFor(order) == 'restaurant';
     final title = isPickupPhase ? 'Reach pickup' : 'Reach drop';
@@ -704,7 +891,7 @@ class _ActiveTripScaffoldState extends ConsumerState<_ActiveTripScaffold> {
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(24.r),
                         boxShadow: [
-                          BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 10, offset: const Offset(0, 2)),
+                          BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 10, offset: const Offset(0, 2)),
                         ],
                       ),
                       child: Row(
@@ -741,10 +928,10 @@ class _ActiveTripScaffoldState extends ConsumerState<_ActiveTripScaffold> {
                           width: 40.r,
                           height: 40.r,
                           decoration: BoxDecoration(
-                            color: _isSimulating ? Colors.redAccent : Colors.white,
+                            color: _isSimulating ? AppColors.error : Colors.white,
                             shape: BoxShape.circle,
                             boxShadow: [
-                              BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 10, offset: const Offset(0, 2)),
+                              BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 10, offset: const Offset(0, 2)),
                             ],
                           ),
                           child: Icon(
@@ -758,7 +945,7 @@ class _ActiveTripScaffoldState extends ConsumerState<_ActiveTripScaffold> {
                     SizedBox(width: 4.w),
                     _circleIconButton(
                       Icons.call_rounded,
-                      () => _dial(isPickupPhase ? (order.restaurant.phone ?? '') : order.customerPhone),
+                      () => _dial(isPickupPhase ? (order.store.phone ?? '') : order.customerPhone),
                     ),
                   ],
                 ),
@@ -773,7 +960,7 @@ class _ActiveTripScaffoldState extends ConsumerState<_ActiveTripScaffold> {
                   child: Container(
                     padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 6.h),
                     decoration: BoxDecoration(
-                      color: Colors.redAccent,
+                      color: AppColors.error,
                       borderRadius: BorderRadius.circular(20.r),
                     ),
                     child: Text(
@@ -800,7 +987,7 @@ class _ActiveTripScaffoldState extends ConsumerState<_ActiveTripScaffold> {
                     color: Colors.white,
                     shape: BoxShape.circle,
                     boxShadow: [
-                      BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, 4)),
+                      BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 10, offset: const Offset(0, 4)),
                     ],
                   ),
                   child: Icon(Icons.my_location_rounded, color: Colors.black87, size: 22.sp),
@@ -830,6 +1017,50 @@ class _ActiveTripScaffoldState extends ConsumerState<_ActiveTripScaffold> {
     );
   }
 
+  /// Tappable summary of what is in the bag — reachable in every phase, so
+  /// the rider can re-check the contents at the door, not just at the store.
+  Widget _buildProductsStrip(
+    DeliveryOrder order,
+    Color textColor,
+    Color? subTextColor,
+  ) {
+    return InkWell(
+      onTap: () {
+        HapticService.light();
+        showOrderProductsSheet(context, order: order);
+      },
+      borderRadius: BorderRadius.circular(16.r),
+      child: Padding(
+        padding: EdgeInsets.symmetric(vertical: 6.h),
+        child: Row(
+          children: [
+            Icon(Icons.inventory_2_outlined, size: 18.sp, color: AppColors.primaryDark),
+            SizedBox(width: 10.w),
+            Expanded(
+              child: Text(
+                order.itemsSummary,
+                style: TextStyle(
+                  fontSize: 13.sp,
+                  fontWeight: FontWeight.w700,
+                  color: textColor,
+                ),
+              ),
+            ),
+            Text(
+              'View',
+              style: TextStyle(
+                fontSize: 12.sp,
+                fontWeight: FontWeight.w700,
+                color: AppColors.primaryDark,
+              ),
+            ),
+            Icon(Icons.chevron_right_rounded, size: 18.sp, color: subTextColor),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _circleIconButton(IconData icon, VoidCallback onTap) {
     return GestureDetector(
       onTap: () {
@@ -843,7 +1074,7 @@ class _ActiveTripScaffoldState extends ConsumerState<_ActiveTripScaffold> {
           color: Colors.white,
           shape: BoxShape.circle,
           boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 10, offset: const Offset(0, 2)),
+            BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 10, offset: const Offset(0, 2)),
           ],
         ),
         child: Icon(icon, color: Colors.black87, size: 18.sp),
@@ -861,10 +1092,10 @@ class _ActiveTripScaffoldState extends ConsumerState<_ActiveTripScaffold> {
     bool isPickupPhase,
   ) {
     final action = _actionFor(order);
-    final name = isPickupPhase ? order.restaurant.name : order.customerName;
-    final address = isPickupPhase ? order.restaurant.address : order.deliveryAddress.fullAddress;
-    final destLat = isPickupPhase ? order.restaurant.location?.lat : order.deliveryAddress.location?.lat;
-    final destLng = isPickupPhase ? order.restaurant.location?.lng : order.deliveryAddress.location?.lng;
+    final name = isPickupPhase ? order.store.name : order.customerName;
+    final address = isPickupPhase ? order.store.address : order.deliveryAddress.fullAddress;
+    final destLat = isPickupPhase ? order.store.location?.lat : order.deliveryAddress.location?.lat;
+    final destLng = isPickupPhase ? order.store.location?.lng : order.deliveryAddress.location?.lng;
 
     return Padding(
       padding: EdgeInsets.fromLTRB(16.w, 0, 16.w, 16.h),
@@ -875,7 +1106,7 @@ class _ActiveTripScaffoldState extends ConsumerState<_ActiveTripScaffold> {
           color: theme.scaffoldBackgroundColor,
           borderRadius: BorderRadius.circular(32.r),
           boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 30, offset: const Offset(0, -5)),
+            BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 30, offset: const Offset(0, -5)),
           ],
         ),
         child: Column(
@@ -889,7 +1120,7 @@ class _ActiveTripScaffoldState extends ConsumerState<_ActiveTripScaffold> {
                     Container(
                       padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
                       decoration: BoxDecoration(
-                        color: theme.primaryColor.withOpacity(0.12),
+                        color: theme.primaryColor.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(12.r),
                       ),
                       child: Text(
@@ -900,12 +1131,12 @@ class _ActiveTripScaffoldState extends ConsumerState<_ActiveTripScaffold> {
                     SizedBox(height: 8.h),
                     Builder(
                       builder: (context) {
-                        final rawImg = isPickupPhase ? order.restaurant.displayImage : order.customerPhoto;
+                        final rawImg = isPickupPhase ? order.store.displayImage : order.customerPhoto;
                         final resolvedImg = AppConstants.resolveMediaUrl(rawImg);
                         final defaultIcon = isPickupPhase ? Icons.storefront_rounded : Icons.person_rounded;
 
                         return GestureDetector(
-                          onTap: isPickupPhase && order.restaurant.allImages.isNotEmpty
+                          onTap: isPickupPhase && order.store.allImages.isNotEmpty
                               ? () {
                                   HapticService.light();
                                   _openRestaurantGallery(order);
@@ -923,8 +1154,8 @@ class _ActiveTripScaffoldState extends ConsumerState<_ActiveTripScaffold> {
                                       fit: BoxFit.cover,
                                       width: 48.r,
                                       height: 48.r,
-                                      placeholder: (_, __) => Icon(defaultIcon, color: Colors.grey[500]),
-                                      errorWidget: (_, __, ___) => Icon(defaultIcon, color: Colors.grey[500]),
+                                      placeholder: (_, _) => Icon(defaultIcon, color: Colors.grey[500]),
+                                      errorWidget: (_, _, _) => Icon(defaultIcon, color: Colors.grey[500]),
                                     )
                                   : Icon(defaultIcon, color: Colors.grey[500]),
                             ),
@@ -968,7 +1199,7 @@ class _ActiveTripScaffoldState extends ConsumerState<_ActiveTripScaffold> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       GestureDetector(
-                        onTap: () => _dial(isPickupPhase ? (order.restaurant.phone ?? '') : order.customerPhone),
+                        onTap: () => _dial(isPickupPhase ? (order.store.phone ?? '') : order.customerPhone),
                         child: Container(
                           padding: EdgeInsets.all(10.r),
                           decoration: BoxDecoration(
@@ -1003,14 +1234,16 @@ class _ActiveTripScaffoldState extends ConsumerState<_ActiveTripScaffold> {
                 ),
               ],
             ),
-            SizedBox(height: 20.h),
+            SizedBox(height: 16.h),
+            _buildProductsStrip(order, textColor, subTextColor),
+            SizedBox(height: 16.h),
             Divider(height: 1, color: isDarkMode ? Colors.white12 : Colors.grey[200]),
             SizedBox(height: 20.h),
             Row(
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () => _dial(isPickupPhase ? (order.restaurant.phone ?? '') : order.customerPhone),
+                    onPressed: () => _dial(isPickupPhase ? (order.store.phone ?? '') : order.customerPhone),
                     icon: Icon(Icons.call_rounded, size: 20.sp, color: theme.primaryColor),
                     label: Text('Call', style: TextStyle(color: textColor, fontWeight: FontWeight.w700, fontSize: 14.sp)),
                     style: OutlinedButton.styleFrom(
@@ -1055,7 +1288,7 @@ class _ActiveTripScaffoldState extends ConsumerState<_ActiveTripScaffold> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _tripOnlineGreen,
                   foregroundColor: Colors.white,
-                  disabledBackgroundColor: _tripOnlineGreen.withOpacity(0.6),
+                  disabledBackgroundColor: _tripOnlineGreen.withValues(alpha: 0.6),
                   elevation: 0,
                   padding: EdgeInsets.symmetric(vertical: 14.h),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.r)),
@@ -1098,8 +1331,8 @@ class _ActiveTripScaffoldState extends ConsumerState<_ActiveTripScaffold> {
   }
 }
 
-/// Full-screen swipeable viewer for a restaurant's uploaded photos, opened
-/// when the delivery partner taps the restaurant's map marker or avatar.
+/// Full-screen swipeable viewer for a store's uploaded photos, opened
+/// when the delivery partner taps the store's map marker or avatar.
 class _RestaurantGalleryViewer extends StatefulWidget {
   const _RestaurantGalleryViewer({required this.images, required this.restaurantName});
 
@@ -1137,8 +1370,8 @@ class _RestaurantGalleryViewerState extends State<_RestaurantGalleryViewer> {
                 child: CachedNetworkImage(
                   imageUrl: widget.images[i],
                   fit: BoxFit.contain,
-                  placeholder: (_, __) => const CircularProgressIndicator(color: Colors.white),
-                  errorWidget: (_, __, ___) =>
+                  placeholder: (_, _) => const CircularProgressIndicator(color: Colors.white),
+                  errorWidget: (_, _, _) =>
                       const Icon(Icons.broken_image_outlined, color: Colors.white54, size: 48),
                 ),
               ),

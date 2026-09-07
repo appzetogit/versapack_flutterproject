@@ -29,13 +29,15 @@ import 'package:food_user_application/features/orders/data/orders_repository.dar
 import 'package:food_user_application/features/orders/presentation/widgets/collect_payment_sheet.dart';
 import 'package:food_user_application/features/orders/application/active_trip_visibility_controller.dart';
 import 'package:food_user_application/features/profile/application/availability_controller.dart';
-import 'package:food_user_application/features/support/data/support_repository.dart';
+import 'package:food_user_application/features/main/presentation/screens/main_screen.dart';
 import 'package:food_user_application/features/wallet/data/wallet_repository.dart';
 import 'package:food_user_application/core/services/fcm_service.dart';
 import 'package:food_user_application/features/refer_earn/application/referral_controller.dart';
 import 'package:food_user_application/features/chat/presentation/screens/chat_screen.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:food_user_application/core/theme/app_colors.dart';
+import 'package:food_user_application/features/support/presentation/widgets/emergency_help_sheet.dart';
 
 class FeedScreen extends ConsumerStatefulWidget {
   const FeedScreen({super.key});
@@ -52,7 +54,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
   Map<String, dynamic>? _earningsSummary;
   bool _earningsLoading = true;
 
-  static const Color _onlineGreen = Color(0xFF1EBE5D);
+  static const Color _onlineGreen = AppColors.online;
 
   BitmapDescriptor? _bikeMarkerIcon;
   GoogleMapController? _mapController;
@@ -164,7 +166,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24.r)),
         title: Column(
           children: [
-            Icon(Icons.celebration, color: Colors.amber, size: 48.sp),
+            Icon(Icons.celebration, color: AppColors.rating, size: 48.sp),
             SizedBox(height: 12.h),
             Text(
               'Referral Bonus!',
@@ -181,7 +183,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Awesome!', style: TextStyle(color: Colors.green)),
+            child: const Text('Awesome!', style: TextStyle(color: AppColors.success)),
           ),
         ],
       ),
@@ -197,8 +199,10 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
 
   Future<void> _loadMarkerIcon() async {
     try {
-      final Uint8List markerIcon = await _getBytesFromAsset('assets/image/bike.png', 80);
-      _bikeMarkerIcon = BitmapDescriptor.fromBytes(markerIcon);
+      // Kept in step with ActiveTripScreen — it is the same rider on the same
+      // map, so the two must not be different sizes.
+      final Uint8List markerIcon = await _getBytesFromAsset('assets/image/bike.png', 60);
+      _bikeMarkerIcon = BitmapDescriptor.bytes(markerIcon);
       if (mounted) setState(() {});
     } catch (e) {
       debugPrint('Failed to load map marker: $e');
@@ -243,9 +247,9 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
   }
 
   void _maybeFetchRoute(DeliveryOrder order) {
-    final navigateToRestaurant = order.currentPhase == 'en_route_to_pickup' ||
+    final navigateToStore = order.currentPhase == 'en_route_to_pickup' ||
         order.currentPhase == 'at_pickup';
-    final target = navigateToRestaurant ? 'restaurant' : 'customer';
+    final target = navigateToStore ? 'restaurant' : 'customer';
     final key = '${order.id}::$target';
     if (key == _routeKey) return;
     _routeKey = key;
@@ -277,7 +281,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
             ? decodePolyline(encoded)
             : <LatLng>[];
         final destLoc = target == 'restaurant'
-            ? order.restaurant.location
+            ? order.store.location
             : order.deliveryAddress.location;
         final destination = destLoc != null
             ? LatLng(destLoc.lat, destLoc.lng)
@@ -429,9 +433,16 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Refetched rather than cached: an order completed while this screen sat in
+    // the IndexedStack must show up in Today's Earning without a manual pull.
+    ref.listen<int>(earningsRefreshProvider, (_, _) => _loadEarnings());
+    ref.listen<int>(mainTabIndexProvider, (previous, next) {
+      if (next == 0 && previous != 0) _loadEarnings();
+    });
+
     final theme = Theme.of(context);
     final isDarkMode = theme.brightness == Brightness.dark;
-    final textColor = isDarkMode ? Colors.white : const Color(0xFF1E1E1E);
+    final textColor = AppColors.of(context).textPrimary;
     final subTextColor = isDarkMode ? Colors.grey[400] : Colors.grey[600];
 
     final isOnline = ref.watch(availabilityControllerProvider);
@@ -470,14 +481,14 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
             alignment: Alignment.topCenter,
             child: Container(
               decoration: BoxDecoration(
-                color: isDarkMode ? const Color(0xE6161925) : Colors.white.withOpacity(0.92),
+                color: isDarkMode ? const Color(0xE6161925) : Colors.white.withValues(alpha: 0.92),
                 borderRadius: BorderRadius.only(
                   bottomLeft: Radius.circular(32.r),
                   bottomRight: Radius.circular(32.r),
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: Colors.black.withValues(alpha: 0.05),
                     blurRadius: 20,
                     offset: const Offset(0, 5),
                   ),
@@ -560,7 +571,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
       ),
       child: Column(
         children: [
-          Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 28.sp),
+          Icon(Icons.error_outline_rounded, color: AppColors.error, size: 28.sp),
           SizedBox(height: 10.h),
           Text(message, textAlign: TextAlign.center, style: TextStyle(color: textColor, fontSize: 13.sp)),
           SizedBox(height: 12.h),
@@ -608,7 +619,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
             ],
           ),
         ),
-        _buildHeaderIcon(Icons.report_problem_outlined, _showEmergencyHelpBottomSheet),
+        _buildHeaderIcon(Icons.report_problem_outlined, () => showEmergencyHelpSheet(context, ref)),
         _buildHeaderIcon(Icons.assignment_ind_outlined, () => context.push('/driver-id-card')),
         _buildHeaderIcon(
           Icons.notifications_none_rounded,
@@ -635,7 +646,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -652,7 +663,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                 child: Container(
                   padding: EdgeInsets.all(4.r),
                   decoration: BoxDecoration(
-                    color: Colors.redAccent,
+                    color: AppColors.error,
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white, width: 1.5),
                   ),
@@ -764,7 +775,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
             child: Container(
               width: 52.h,
               height: 52.h,
-              decoration: const BoxDecoration(color: Color(0xFF1C1C1E), shape: BoxShape.circle),
+              decoration: const BoxDecoration(color: AppColors.lightNeutralDark, shape: BoxShape.circle),
               child: AnimatedRotation(
                 turns: _isCurrentOrderVisible ? 0 : 0.5,
                 duration: const Duration(milliseconds: 300),
@@ -796,7 +807,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                 Container(
                   padding: EdgeInsets.all(6.r),
                   decoration: const BoxDecoration(color: Color(0xFFC8E6D9), shape: BoxShape.circle),
-                  child: Icon(Icons.account_balance_wallet_rounded, color: Colors.green, size: 18.sp),
+                  child: Icon(Icons.account_balance_wallet_rounded, color: AppColors.success, size: 18.sp),
                 ),
                 SizedBox(width: 10.w),
                 Expanded(
@@ -811,8 +822,8 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                       //SizedBox(height: 4.h),
                       // Row(
                       //   children: [
-                      //     Icon(Icons.arrow_drop_up_rounded, color: Colors.green, size: 14.sp),
-                      //     Text('12%', style: TextStyle(color: Colors.green, fontSize: 10.sp, fontWeight: FontWeight.bold)),
+                      //     Icon(Icons.arrow_drop_up_rounded, color: AppColors.success, size: 14.sp),
+                      //     Text('12%', style: TextStyle(color: AppColors.success, fontSize: 10.sp, fontWeight: FontWeight.bold)),
                       //   ],
                       // ),
                     //  Text('vs Yesterday', style: TextStyle(color: Colors.grey[500], fontSize: 9.sp)),
@@ -828,7 +839,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
           child: Container(
             padding: EdgeInsets.all(12.r),
             decoration: BoxDecoration(
-              color: const Color(0xFFFFF2E6),
+              color: AppColors.pendingBg,
               borderRadius: BorderRadius.circular(16.r),
             ),
             child: Row(
@@ -836,8 +847,8 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
               children: [
                 Container(
                   padding: EdgeInsets.all(6.r),
-                  decoration: const BoxDecoration(color: Color(0xFFFFD9B8), shape: BoxShape.circle),
-                  child: Icon(Icons.shopping_bag_rounded, color: Colors.orange, size: 18.sp),
+                  decoration: const BoxDecoration(color: AppColors.primaryLight, shape: BoxShape.circle),
+                  child: Icon(Icons.shopping_bag_rounded, color: AppColors.warning, size: 18.sp),
                 ),
                 SizedBox(width: 10.w),
                 Expanded(
@@ -852,8 +863,8 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                       //SizedBox(height: 4.h),
                       // Row(
                       //   children: [
-                      //     Icon(Icons.arrow_drop_up_rounded, color: Colors.orange, size: 14.sp),
-                      //     Text('3', style: TextStyle(color: Colors.orange, fontSize: 10.sp, fontWeight: FontWeight.bold)),
+                      //     Icon(Icons.arrow_drop_up_rounded, color: AppColors.warning, size: 14.sp),
+                      //     Text('3', style: TextStyle(color: AppColors.warning, fontSize: 10.sp, fontWeight: FontWeight.bold)),
                       //   ],
                       // ),
                       // Text('vs Yesterday', style: TextStyle(color: Colors.grey[500], fontSize: 9.sp)),
@@ -947,7 +958,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                               order.currentPhase == 'en_route_to_delivery' || 
                               order.currentPhase == 'at_drop';
 
-    final bool navigateToRestaurant = order.currentPhase == 'en_route_to_pickup' || 
+    final bool navigateToStore = order.currentPhase == 'en_route_to_pickup' || 
                                       order.currentPhase == 'at_pickup';
 
     return GestureDetector(
@@ -990,11 +1001,11 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        order.restaurant.name,
+                        order.store.name,
                         style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15.sp, color: textColor),
                       ),
                       Text(
-                        order.restaurant.address,
+                        order.store.address,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(fontSize: 12.sp, color: subTextColor),
@@ -1016,7 +1027,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                 Container(
                   padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 5.h),
                   decoration: BoxDecoration(
-                    color: theme.primaryColor.withOpacity(0.12),
+                    color: theme.primaryColor.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(12.r),
                   ),
                   child: Text(
@@ -1042,8 +1053,8 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                         },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: theme.primaryColor,
-                    foregroundColor: Colors.white,
-                    disabledBackgroundColor: theme.primaryColor.withOpacity(0.5),
+                    foregroundColor: AppColors.onPrimary,
+                    disabledBackgroundColor: theme.primaryColor.withValues(alpha: 0.5),
                     elevation: 0,
                     minimumSize: Size(double.infinity, 48.h),
                     padding: EdgeInsets.symmetric(horizontal: 4.w),
@@ -1053,11 +1064,11 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                       ? SizedBox(
                           width: 20.r,
                           height: 20.r,
-                          child: const CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                          child: CircularProgressIndicator(color: AppColors.onPrimary, strokeWidth: 2.5),
                         )
                       : Text(
                           action?.label ?? 'Processing…',
-                          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14.sp, color: Colors.white),
+                          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14.sp, color: AppColors.onPrimary),
                           overflow: TextOverflow.ellipsis,
                         ),
                 ),
@@ -1066,9 +1077,9 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                 SizedBox(width: 8.w),
                 GestureDetector(
                   onTap: () {
-                    if (navigateToRestaurant && order.restaurant.location != null) {
-                      MapLauncher.launchGoogleMaps(order.restaurant.location!.lat, order.restaurant.location!.lng);
-                    } else if (!navigateToRestaurant && order.deliveryAddress.location != null) {
+                    if (navigateToStore && order.store.location != null) {
+                      MapLauncher.launchGoogleMaps(order.store.location!.lat, order.store.location!.lng);
+                    } else if (!navigateToStore && order.deliveryAddress.location != null) {
                       MapLauncher.launchGoogleMaps(order.deliveryAddress.location!.lat, order.deliveryAddress.location!.lng);
                     } else {
                       _showSnack('Location not available');
@@ -1078,7 +1089,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                     height: 48.h,
                     width: 48.h,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1C1C1E),
+                      color: AppColors.lightNeutralDark,
                       borderRadius: BorderRadius.circular(16.r),
                     ),
                     child: Icon(Icons.navigation_rounded, color: Colors.white, size: 18.sp),
@@ -1092,7 +1103,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                   height: 48.h,
                   width: 48.h,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1C1C1E),
+                    color: AppColors.lightNeutralDark,
                     borderRadius: BorderRadius.circular(16.r),
                   ),
                   child: Icon(Icons.call_rounded, color: Colors.white, size: 18.sp),
@@ -1108,7 +1119,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                   height: 48.h,
                   width: 48.h,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1C1C1E),
+                    color: AppColors.lightNeutralDark,
                     borderRadius: BorderRadius.circular(16.r),
                   ),
                   child: Icon(Icons.chat_bubble_rounded, color: Colors.white, size: 18.sp),
@@ -1193,7 +1204,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
       if (pos == null) {
         // No GPS yet — just show the muted grey placeholder
         return Container(
-          color: isDarkMode ? const Color(0xFF242f3e) : const Color(0xFFE8F2ED),
+          color: isDarkMode ? AppColors.mapPlaceholderDark : AppColors.mapPlaceholderLight,
           child: Center(
             child: Icon(
               Icons.two_wheeler_rounded,
@@ -1231,8 +1242,8 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
         fit: BoxFit.cover,
         width: double.infinity,
         height: double.infinity,
-        errorBuilder: (_, __, ___) => Container(
-          color: isDarkMode ? const Color(0xFF242f3e) : const Color(0xFFE8F2ED),
+        errorBuilder: (_, _, _) => Container(
+          color: isDarkMode ? AppColors.mapPlaceholderDark : AppColors.mapPlaceholderLight,
         ),
       );
     }
@@ -1246,7 +1257,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                 final pos = _currentPosition;
                 if (pos == null) {
                   return Container(
-                    color: isDarkMode ? const Color(0xFF242f3e) : const Color(0xFFE8F2ED),
+                    color: isDarkMode ? AppColors.mapPlaceholderDark : AppColors.mapPlaceholderLight,
                     child: Center(
                       child: Icon(
                         Icons.two_wheeler_rounded,
@@ -1287,13 +1298,12 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                       ),
                   },
                   circles: {
-                    if (pos != null)
-                      Circle(
+                    Circle(
                         circleId: const CircleId('live_location_pulse'),
                         center: LatLng(pos.latitude, pos.longitude),
                         radius: 50 + (_pulsePhase * 55),
-                        fillColor: const ui.Color.fromARGB(255, 250, 131, 57).withOpacity((1 - _pulsePhase)*0.11 ),
-                        strokeColor: const ui.Color.fromARGB(255, 41, 190, 30).withOpacity((1 - _pulsePhase) * 0.55),
+                        fillColor: AppColors.primary.withValues(alpha: (1 - _pulsePhase) * 0.16),
+                        strokeColor: AppColors.online.withValues(alpha: (1 - _pulsePhase) * 0.55),
                         strokeWidth: 3,
                       ),
                   }, 
@@ -1337,7 +1347,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                         color: Colors.white,
                         shape: BoxShape.circle,
                         boxShadow: [
-                          BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, 4)),
+                          BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 10, offset: const Offset(0, 4)),
                         ],
                       ),
                       child: Icon(Icons.my_location_rounded, color: Colors.black87, size: 22.sp),
@@ -1350,9 +1360,9 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                       final ordersState = ref.read(ordersControllerProvider);
                       if (ordersState is OrdersLoaded && ordersState.hasActiveOrder) {
                         final order = ordersState.currentOrder!;
-                        final navigateToRestaurant = order.currentPhase == 'en_route_to_pickup' || order.currentPhase == 'at_pickup';
-                        final lat = navigateToRestaurant ? order.restaurant.location?.lat : order.deliveryAddress.location?.lat;
-                        final lng = navigateToRestaurant ? order.restaurant.location?.lng : order.deliveryAddress.location?.lng;
+                        final navigateToStore = order.currentPhase == 'en_route_to_pickup' || order.currentPhase == 'at_pickup';
+                        final lat = navigateToStore ? order.store.location?.lat : order.deliveryAddress.location?.lat;
+                        final lng = navigateToStore ? order.store.location?.lng : order.deliveryAddress.location?.lng;
                         if (lat != null && lng != null) {
                           MapLauncher.launchGoogleMaps(lat, lng);
                           return;
@@ -1379,7 +1389,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                         color: Colors.white,
                         shape: BoxShape.circle,
                         boxShadow: [
-                          BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, 4)),
+                          BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 10, offset: const Offset(0, 4)),
                         ],
                       ),
                       child: Icon(Icons.navigation_rounded, color: Colors.blueAccent, size: 22.sp),
@@ -1393,142 +1403,4 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
       );
   }
 
-  Future<void> _showEmergencyHelpBottomSheet() async {
-    final theme = Theme.of(context);
-    final isDarkMode = theme.brightness == Brightness.dark;
-    final textColor = isDarkMode ? Colors.white : const Color(0xFF1E1E1E);
-
-    final result = await ref.read(supportRepositoryProvider).getEmergencyHelp();
-    if (!mounted) return;
-    final data = result.when(
-      success: (d) => d,
-      failure: (error) {
-        _showSnack(error.message);
-        return null;
-      },
-    );
-    if (data == null || !mounted) return;
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: theme.scaffoldBackgroundColor,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24.r))),
-      builder: (sheetContext) {
-        return Container(
-          padding: EdgeInsets.all(20.w),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40.w,
-                    height: 4.h,
-                    decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2.r)),
-                  ),
-                ),
-                SizedBox(height: 20.h),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'EMERGENCY HELP',
-                      style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.w900, color: textColor),
-                    ),
-                    Icon(Icons.report_problem_outlined, color: Colors.grey, size: 20.sp),
-                  ],
-                ),
-                SizedBox(height: 20.h),
-                _buildEmergencyOption(
-                  icon: Icons.local_hospital_outlined,
-                  iconColor: Colors.red,
-                  title: 'Medical Emergency',
-                  subtitle: 'Call an ambulance',
-                  phone: data['medicalEmergency'] as String?,
-                  textColor: textColor,
-                  theme: theme,
-                ),
-                _buildEmergencyOption(
-                  icon: Icons.warning_amber_rounded,
-                  iconColor: Colors.orange,
-                  title: 'Accident Helpline',
-                  subtitle: 'Report an accident',
-                  phone: data['accidentHelpline'] as String?,
-                  textColor: textColor,
-                  theme: theme,
-                ),
-                _buildEmergencyOption(
-                  icon: Icons.shield_outlined,
-                  iconColor: Colors.blue,
-                  title: 'Contact Police',
-                  subtitle: 'Nearest police support',
-                  phone: data['contactPolice'] as String?,
-                  textColor: textColor,
-                  theme: theme,
-                ),
-                _buildEmergencyOption(
-                  icon: Icons.verified_user_outlined,
-                  iconColor: Colors.green,
-                  title: 'Insurance',
-                  subtitle: 'Policy & claim help',
-                  phone: data['insurance'] as String?,
-                  textColor: textColor,
-                  theme: theme,
-                ),
-                SizedBox(height: 20.h),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildEmergencyOption({
-    required IconData icon,
-    required Color iconColor,
-    required String title,
-    required String subtitle,
-    required Color textColor,
-    required ThemeData theme,
-    String? phone,
-  }) {
-    final hasPhone = phone != null && phone.isNotEmpty;
-    return GestureDetector(
-      onTap: hasPhone ? () => _dial(phone) : null,
-      child: Container(
-        margin: EdgeInsets.only(bottom: 12.h),
-        padding: EdgeInsets.all(16.r),
-        decoration: BoxDecoration(
-          color: theme.cardColor,
-          borderRadius: BorderRadius.circular(16.r),
-          boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4)),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: EdgeInsets.all(10.r),
-              decoration: BoxDecoration(color: iconColor.withOpacity(0.1), shape: BoxShape.circle),
-              child: Icon(icon, color: iconColor, size: 20.sp),
-            ),
-            SizedBox(width: 16.w),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: TextStyle(fontSize: 15.sp, fontWeight: FontWeight.bold, color: textColor)),
-                  SizedBox(height: 2.h),
-                  Text(hasPhone ? phone : subtitle, style: TextStyle(fontSize: 12.sp, color: Colors.grey[500])),
-                ],
-              ),
-            ),
-            if (hasPhone) Icon(Icons.call_outlined, color: Colors.grey[400], size: 18.sp),
-          ],
-        ),
-      ),
-    );
-  }
 }

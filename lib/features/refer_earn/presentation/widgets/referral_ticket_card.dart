@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:food_user_application/core/constants/app_constants.dart';
 
 /// The referral ticket visual — used both while it's printing out of the
 /// machine and on the final result page.
@@ -10,13 +11,22 @@ class ReferralTicketCard extends StatelessWidget {
   final double width;
   final double height;
 
+  /// The admin-configured referral bonus, from `/referrals/stats`.
+  ///
+  /// This was hardcoded to ₹100 while every other refer screen already read
+  /// `stats.rewardAmount` — so the moment the admin changed the bonus, the
+  /// shared ticket image would promise a friend an amount the backend would
+  /// never pay.
+  final int rewardAmount;
+
   const ReferralTicketCard({
     super.key,
     required this.width,
     required this.height,
+    required this.rewardAmount,
   });
 
-  static const Color ticketColor = Color(0xFFE05F00); // AppColors.primaryDark
+  static const Color ticketColor = Color(0xFFFD9027); // AppColors.primary
 
   /// assets/image/referral_ticket.png is 417x520px. Callers should size
   /// this widget to that same ratio (e.g. height = width / aspectRatio) so
@@ -50,7 +60,7 @@ class ReferralTicketCard extends StatelessWidget {
           SizedBox(height: 6.h),
           _buildTicketLogo(),
           _buildMascot(),
-          _DashedDivider(color: Colors.white.withOpacity(0.35)),
+          _DashedDivider(color: Colors.white.withValues(alpha: 0.35)),
           Column(
             children: [
               Text(
@@ -74,7 +84,7 @@ class ReferralTicketCard extends StatelessWidget {
                   children: [
                     const TextSpan(text: 'Hey friend, '),
                     TextSpan(
-                      text: '₹100',
+                      text: '₹$rewardAmount',
                       style: const TextStyle(color: Color(0xFFFFD54F)),
                     ),
                     const TextSpan(text: '\nreferral cash for you.'),
@@ -113,7 +123,7 @@ class ReferralTicketCard extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'Appzeto',
+              AppConstants.brandName,
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 18.sp,
@@ -122,9 +132,9 @@ class ReferralTicketCard extends StatelessWidget {
               ),
             ),
             Text(
-              'Food',
+              AppConstants.brandSuffix,
               style: TextStyle(
-                color: Colors.white.withOpacity(0.85),
+                color: Colors.white.withValues(alpha: 0.85),
                 fontSize: 13.sp,
                 fontWeight: FontWeight.w500,
                 height: 1.1,

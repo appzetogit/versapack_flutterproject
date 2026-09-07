@@ -6,7 +6,6 @@
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
     <!--
@@ -19,11 +18,24 @@
     -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT"/>
+    <!--
+        Draws the incoming-order card on top of whatever the partner is using.
+        Android grants this only by hand (Settings > Display over other apps) and
+        Play Console requires a justification: a delivery partner has seconds to
+        answer an offer, and the alternative — a notification — is capped at
+        ~256dp by the platform and cannot show the order.
+    -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
     <application
-        android:label="Appzeto Food Delivery"
+        android:label="Versapack Delivery"
         android:name="${applicationName}"
-        android:icon="@mipmap/launcher_icon">
+        android:icon="@mipmap/ic_launcher">
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="high_importance_channel" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@mipmap/ic_launcher" />
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -64,20 +76,26 @@
             foregroundServiceType=location is mandatory from Android 14; the
             matching FOREGROUND_SERVICE_LOCATION permission is declared above.
         -->
+        <!--
+            Supersedes the firebase_messaging plugin's own service. It extends
+            that service and always calls through to it, so every existing Dart
+            handler still runs; this only adds a native path that can draw the
+            order card without starting a Flutter engine first.
+        -->
+        <service
+            android:name=".AppzetoMessagingService"
+            android:exported="false">
+            <intent-filter android:priority="1">
+                <action android:name="com.google.firebase.MESSAGING_EVENT"/>
+            </intent-filter>
+        </service>
+
         <service
             android:name=".RiderOnlineService"
             android:exported="false"
             android:stopWithTask="false"
             android:foregroundServiceType="location" />
 
-        <service
-            android:name="flutter.overlay.window.flutter_overlay_window.OverlayService"
-            android:exported="false"
-            android:foregroundServiceType="specialUse">
-            <property
-                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="Floating incoming-order bubble shown while backgrounded, like Uber/Rapido" />
-        </service>
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

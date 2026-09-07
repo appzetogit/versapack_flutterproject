@@ -6,7 +6,7 @@ import '../../features/auth/application/auth_controller.dart';
 import '../../features/auth/application/auth_state.dart';
 
 const _authRoutes = {'/phone-login', '/otp-verify', '/register', '/account-status'};
-const _prelaunchRoutes = {'/', '/onboarding'};
+const _prelaunchRoutes = {'/'};
 
 class RouterNotifier extends ChangeNotifier {
   RouterNotifier(this._ref) {

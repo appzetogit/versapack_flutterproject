@@ -7,11 +7,11 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/error/result.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../../../core/services/referral_tracking_service.dart';
 import '../../application/auth_controller.dart';
 import '../../application/auth_state.dart';
 import '../widgets/auth_widgets.dart';
+import 'package:food_user_application/core/theme/app_colors.dart';
 
 class RegistrationScreen extends ConsumerStatefulWidget {
   const RegistrationScreen({super.key, this.phone = ''});
@@ -33,6 +33,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
   }
 
   final _nameController = TextEditingController();
+  final _phoneController = TextEditingController();
   final _emailController = TextEditingController();
   final _addressController = TextEditingController();
   final _cityController = TextEditingController();
@@ -62,6 +63,12 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
   void initState() {
     super.initState();
     _loadReferralCode();
+    final initialPhone = widget.phone.isNotEmpty
+        ? widget.phone
+        : (ref.read(authControllerProvider) is AuthNeedsRegistration
+            ? (ref.read(authControllerProvider) as AuthNeedsRegistration).phone
+            : '');
+    _phoneController.text = initialPhone;
   }
 
   Future<void> _loadReferralCode() async {
@@ -76,6 +83,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
   @override
   void dispose() {
     _nameController.dispose();
+    _phoneController.dispose();
     _emailController.dispose();
     _addressController.dispose();
     _cityController.dispose();
@@ -117,7 +125,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
 
     final formData = FormData.fromMap({
       'name': _nameController.text.trim(),
-      'phone': _phone,
+      'phone': _phoneController.text.trim(),
       'countryCode': '+91',
       if (_emailController.text.trim().isNotEmpty)
         'email': _emailController.text.trim(),
@@ -161,6 +169,10 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_phoneController.text.isEmpty && _phone.isNotEmpty) {
+      _phoneController.text = _phone;
+    }
+
     return Scaffold(
       appBar: AppBar(title: const Text('Partner Registration')),
       body: SafeArea(
@@ -172,10 +184,22 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
               const AuthSectionTitle('Personal details'),
               _textField(_nameController, 'Full name', required: true),
               SizedBox(height: 12.h),
-              TextFormField(
-                initialValue: '+91 $_phone',
-                enabled: false,
-                decoration: authInputDecoration(context, label: 'Mobile number'),
+              _textField(
+                _phoneController,
+                'Mobile number',
+                required: true,
+                keyboardType: TextInputType.phone,
+                maxLength: 10,
+                validator: (value) {
+                  final v = (value ?? '').trim();
+                  if (v.isEmpty) {
+                    return 'Mobile number is required';
+                  }
+                  if (v.length < 8) {
+                    return 'Phone must be at least 8 digits';
+                  }
+                  return null;
+                },
               ),
               SizedBox(height: 12.h),
               _textField(
@@ -282,7 +306,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                 SizedBox(height: 12.h),
                 Text(
                   _errorText!,
-                  style: TextStyle(color: Colors.redAccent, fontSize: 13.sp),
+                  style: TextStyle(color: AppColors.error, fontSize: 13.sp),
                 ),
               ],
               SizedBox(height: 24.h),
@@ -350,10 +374,10 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                     : Container(
                         width: 48.w,
                         height: 48.w,
-                        color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                        color: AppColors.primary.withValues(alpha: 0.1),
                         child: Icon(
                           Icons.upload_file_rounded,
-                          color: AppTheme.primaryColor,
+                          color: AppColors.primary,
                           size: 22.sp,
                         ),
                       ),
@@ -369,7 +393,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                 file != null ? 'Change' : 'Upload',
                 style: TextStyle(
                   fontSize: 13.sp,
-                  color: AppTheme.primaryColor,
+                  color: AppColors.primary,
                   fontWeight: FontWeight.w600,
                 ),
               ),

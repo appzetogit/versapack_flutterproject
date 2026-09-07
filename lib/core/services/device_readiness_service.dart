@@ -3,7 +3,8 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
 
-import 'order_overlay_service.dart';
+import 'new_order_overlay_bridge.dart';
+
 
 /// One prerequisite for reliably receiving orders.
 class ReadinessCheck {
@@ -62,10 +63,20 @@ class DeviceReadinessService {
 
     final notifications = await Permission.notification.isGranted;
     final battery = await _call<bool>('isIgnoringBatteryOptimizations', true);
-    final overlay = await OrderOverlayService.hasPermission();
     final hasAutoStart = await hasAutoStartSettings();
+    final overlay = await NewOrderOverlayBridge.hasPermission();
 
     return [
+      ReadinessCheck(
+        id: 'overlay',
+        title: 'Display over other apps',
+        description:
+            'Shows the full order card on top of whatever you are doing, so you '
+            'can accept without opening the app. Without this you still get a '
+            'notification, but it cannot show the whole order.',
+        satisfied: overlay,
+        critical: true,
+      ),
       ReadinessCheck(
         id: 'notifications',
         title: 'Order notifications',
@@ -97,15 +108,6 @@ class DeviceReadinessService {
           satisfied: false,
           critical: true,
         ),
-      ReadinessCheck(
-        id: 'overlay',
-        title: 'Display over other apps',
-        description:
-            'Shows the order card on top of whatever you are doing, so you can '
-            'accept without opening the app.',
-        satisfied: overlay,
-        critical: false,
-      ),
     ];
   }
 
@@ -117,15 +119,15 @@ class DeviceReadinessService {
           await _call<bool>('openAppSettings', false);
         }
         break;
+      case 'overlay':
+        await NewOrderOverlayBridge.requestPermission();
+        break;
       case 'battery':
         await _call<bool>('requestIgnoreBatteryOptimizations', false);
         break;
       case 'autostart':
         final opened = await _call<bool>('openAutoStartSettings', false);
         if (!opened) await _call<bool>('openAppSettings', false);
-        break;
-      case 'overlay':
-        await OrderOverlayService.requestPermission();
         break;
     }
   }

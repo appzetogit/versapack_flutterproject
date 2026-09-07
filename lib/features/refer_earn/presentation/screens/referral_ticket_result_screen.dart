@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
@@ -8,6 +9,7 @@ import 'package:food_user_application/features/refer_earn/presentation/widgets/r
 import 'package:food_user_application/features/refer_earn/presentation/widgets/rotating_ticket_border.dart';
 import 'package:food_user_application/features/refer_earn/presentation/widgets/fire_particle_share_button.dart';
 import 'package:food_user_application/features/refer_earn/presentation/widgets/refer_earn_background.dart';
+import 'package:food_user_application/core/constants/app_constants.dart';
 
 /// The dedicated "here's your ticket" page shown right after the referral
 /// ticket finishes printing — just the ticket, the hand, and the share
@@ -57,9 +59,9 @@ class _ReferralTicketResultScreenState extends ConsumerState<ReferralTicketResul
     if (stats == null) return;
 
     if (stats.referralLink.isNotEmpty) {
-      Share.share('Join Suvio as a delivery partner — we both earn! ${stats.referralLink}');
+      SharePlus.instance.share(ShareParams(text: 'Join ${AppConstants.brandName} as a delivery partner — we both earn! ${stats.referralLink}'));
     } else if (stats.referralCode.isNotEmpty) {
-      Share.share('Join Suvio as a delivery partner. Use my referral code: ${stats.referralCode}');
+      SharePlus.instance.share(ShareParams(text: 'Join ${AppConstants.brandName} as a delivery partner. Use my referral code: ${stats.referralCode}'));
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Referral code not available right now.')),
@@ -85,12 +87,6 @@ class _ReferralTicketResultScreenState extends ConsumerState<ReferralTicketResul
           style: TextStyle(color: Colors.white, fontSize: 16.sp),
         ),
         centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.info_outline, color: Colors.white),
-            onPressed: () {},
-          ),
-        ],
       ),
       body: ReferEarnBackground(
         child: SafeArea(
@@ -146,6 +142,7 @@ class _ReferralTicketResultScreenState extends ConsumerState<ReferralTicketResul
                             child: ReferralTicketCard(
                               width: _ticketWidth,
                               height: _ticketHeight,
+                              rewardAmount: stats.rewardAmount,
                             ),
                           ),
                         ),
@@ -162,11 +159,13 @@ class _ReferralTicketResultScreenState extends ConsumerState<ReferralTicketResul
                         if (stats.referralCode.isNotEmpty) ...[
                           SizedBox(height: 8.h),
                           TextButton.icon(
-                            onPressed: () {
-                              // Optional: copy to clipboard
-                              // Clipboard.setData(ClipboardData(text: stats.referralCode));
+                            onPressed: () async {
+                              await Clipboard.setData(
+                                ClipboardData(text: stats.referralCode),
+                              );
+                              if (!context.mounted) return;
                               ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Code ${stats.referralCode} copied!')),
+                                SnackBar(content: Text('Code ${stats.referralCode} copied')),
                               );
                             },
                             icon: const Icon(Icons.copy, color: Colors.white, size: 16),

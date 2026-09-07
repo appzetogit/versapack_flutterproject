@@ -23,8 +23,8 @@ class ChatRepository {
         ApiEndpoints.chatMessages,
         data: {
           'peerRole': peerRole,
-          if (peerId != null) 'peerId': peerId,
-          if (orderId != null) 'orderId': orderId,
+          'peerId': ?peerId,
+          'orderId': ?orderId,
           'text': text,
         },
       );

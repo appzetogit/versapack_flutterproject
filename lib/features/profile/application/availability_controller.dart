@@ -133,12 +133,29 @@ class AvailabilityController extends Notifier<bool> {
       try {
         pos = await Geolocator.getCurrentPosition();
       } catch (_) {
+        offerLog('availability ping SKIPPED — no GPS fix available; '
+            'dispatch cannot place this rider');
         return; // No fix available at all — nothing useful to report.
       }
     }
-    service.lastPosition = pos;
+    final fix = pos;
+    service.lastPosition = fix;
     _lastPing = DateTime.now();
-    await _repository.updateAvailability(true, lat: pos.latitude, lng: pos.longitude);
+    final result = await _repository.updateAvailability(
+      true,
+      lat: fix.latitude,
+      lng: fix.longitude,
+    );
+    // Dispatch drops any rider whose server-side GPS is older than 45 minutes,
+    // and a dropped rider is never sent the offer at all. When no alert
+    // arrives, this line is what says whether the server actually knows where
+    // this partner is.
+    result.when(
+      success: (_) => offerLog(
+          'availability ping ok — online at ${fix.latitude}, ${fix.longitude}'),
+      failure: (e) => offerLog('availability ping FAILED: ${e.message} '
+          '— dispatch will treat this rider as stale'),
+    );
   }
 
   void _stopTracking() {

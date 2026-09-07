@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../../../../core/services/device_readiness_service.dart';
+import 'package:food_user_application/core/theme/app_colors.dart';
 
 /// Walks the rider through the device settings that decide whether they actually
 /// receive orders.
@@ -57,7 +58,7 @@ class _DeliveryReadinessScreenState extends State<DeliveryReadinessScreen>
                 Container(
                   padding: EdgeInsets.all(14.r),
                   decoration: BoxDecoration(
-                    color: Colors.amber.withValues(alpha: 0.12),
+                    color: AppColors.rating.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(12.r),
                   ),
                   child: Text(
@@ -95,8 +96,8 @@ class _DeliveryReadinessScreenState extends State<DeliveryReadinessScreen>
               color: unknown
                   ? Colors.blueGrey
                   : check.satisfied
-                      ? Colors.green
-                      : (check.critical ? Colors.red : Colors.orange),
+                      ? AppColors.success
+                      : (check.critical ? Colors.red : AppColors.warning),
               size: 22.sp,
             ),
             SizedBox(width: 12.w),

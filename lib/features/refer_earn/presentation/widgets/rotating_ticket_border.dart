@@ -96,7 +96,7 @@ class _RotatingBorderPainter extends CustomPainter {
     final basePaint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5
-      ..color = glowColor.withOpacity(0.18);
+      ..color = glowColor.withValues(alpha: 0.18);
     canvas.drawPath(path, basePaint);
 
     final rect = Offset.zero & size;
@@ -104,11 +104,11 @@ class _RotatingBorderPainter extends CustomPainter {
       transform: GradientRotation(progress * 2 * math.pi),
       colors: [
         Colors.transparent,
-        glowColor.withOpacity(0.5),
-        glowColor.withOpacity(0.95),
+        glowColor.withValues(alpha: 0.5),
+        glowColor.withValues(alpha: 0.95),
         Colors.white,
-        glowColor.withOpacity(0.95),
-        glowColor.withOpacity(0.5),
+        glowColor.withValues(alpha: 0.95),
+        glowColor.withValues(alpha: 0.5),
         Colors.transparent,
       ],
       stops: const [0.0, 0.55, 0.68, 0.75, 0.82, 0.95, 1.0],

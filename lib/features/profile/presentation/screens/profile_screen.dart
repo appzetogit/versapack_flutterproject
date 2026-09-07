@@ -13,6 +13,7 @@ import '../../../profile/data/profile_repository.dart';
 import '../../../wallet/data/wallet_repository.dart';
 import '../../../../core/theme/theme_mode_provider.dart';
 import 'delivery_readiness_screen.dart';
+import 'package:food_user_application/core/theme/app_colors.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -65,7 +66,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           children: [
             SizedBox(height: 12.h),
             ListTile(
-              leading: const Icon(Icons.logout, color: Colors.redAccent),
+              leading: const Icon(Icons.logout, color: AppColors.error),
               title: const Text('Log Out'),
               onTap: () async {
                 Navigator.of(sheetContext).pop();
@@ -73,7 +74,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.delete_outline, color: Colors.redAccent),
+              leading: const Icon(Icons.delete_outline, color: AppColors.error),
               title: const Text('Delete Account'),
               onTap: () async {
                 Navigator.of(sheetContext).pop();
@@ -114,7 +115,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ),
               );
             },
-            child: const Text('Delete', style: TextStyle(color: Colors.redAccent)),
+            child: const Text('Delete', style: TextStyle(color: AppColors.error)),
           ),
         ],
       ),
@@ -207,7 +208,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDarkMode = theme.brightness == Brightness.dark;
-    final textColor = isDarkMode ? Colors.white : const Color(0xFF1E1E1E);
+    final textColor = AppColors.of(context).textPrimary;
     final subTextColor = isDarkMode ? Colors.grey[400] : Colors.grey[600];
     final authState = ref.watch(authControllerProvider);
     final user = authState is AuthAuthenticated ? authState.user : null;
@@ -276,7 +277,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         padding: EdgeInsets.all(20.r),
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [theme.primaryColor, const Color(0xFFFF9853)],
+            colors: [theme.primaryColor, AppColors.primaryLight],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -383,7 +384,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           vertical: 5.h,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
+                          color: Colors.white.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(12.r),
                         ),
                         child: Text(
@@ -517,7 +518,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 padding: EdgeInsets.symmetric(horizontal: 20.w),
                 child: Divider(
                   height: 1,
-                  color: (subTextColor ?? Colors.grey).withOpacity(0.15),
+                  color: (subTextColor ?? Colors.grey).withValues(alpha: 0.15),
                 ),
               ),
           ],
@@ -544,10 +545,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             Container(
               padding: EdgeInsets.all(10.r),
               decoration: BoxDecoration(
-                color: Colors.green.withOpacity(0.1),
+                color: AppColors.success.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(14.r),
               ),
-              child: Icon(icon, color: Colors.green, size: 20.sp),
+              child: Icon(icon, color: AppColors.success, size: 20.sp),
             ),
             SizedBox(width: 16.w),
             Expanded(

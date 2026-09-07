@@ -7,7 +7,7 @@ plugins {
 }
 
 android {
-    namespace = "com.appzetofood.delivery"
+    namespace = "com.quickcommerce.delivery"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -23,7 +23,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.appzetofood.delivery"
+        applicationId = "com.versapack.delivery"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
@@ -53,4 +53,12 @@ dependencies {
     // guaranteed to be on THIS module's compile classpath — declaring it means the
     // app does not silently stop compiling when a plugin changes its dependencies.
     implementation("androidx.core:core-ktx:1.13.1")
+
+    // AppzetoMessagingService subclasses the firebase_messaging plugin's service
+    // so a new order can be drawn natively. The plugin pulls firebase-messaging
+    // in transitively, but only onto its OWN compile classpath — declaring it
+    // here is what puts RemoteMessage and FirebaseMessagingService on ours.
+    // Version comes from the BoM so it can never drift from the plugin's copy.
+    implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
+    implementation("com.google.firebase:firebase-messaging")
 }

@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
-import '../../../../core/theme/app_theme.dart';
 import '../../application/auth_controller.dart';
 import '../../application/auth_state.dart';
 import '../widgets/auth_widgets.dart';
+import 'package:food_user_application/core/theme/app_colors.dart';
 
 class AccountStatusScreen extends ConsumerStatefulWidget {
   const AccountStatusScreen({super.key});
@@ -44,13 +44,13 @@ class _AccountStatusScreenState extends ConsumerState<AccountStatusScreen> {
                 width: 96.w,
                 height: 96.w,
                 decoration: BoxDecoration(
-                  color: (isRejected ? Colors.redAccent : AppTheme.primaryColor)
+                  color: (isRejected ? AppColors.error : AppColors.primary)
                       .withValues(alpha: 0.12),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
                   isRejected ? Icons.cancel_rounded : Icons.hourglass_top_rounded,
-                  color: isRejected ? Colors.redAccent : AppTheme.primaryColor,
+                  color: isRejected ? AppColors.error : AppColors.primary,
                   size: 48.sp,
                 ),
               ),

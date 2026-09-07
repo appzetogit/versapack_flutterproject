@@ -7,6 +7,7 @@ import '../../../../core/error/result.dart';
 import '../../../../core/services/sound_service.dart';
 import '../../../main/presentation/screens/main_screen.dart';
 import '../../../wallet/data/wallet_repository.dart';
+import 'package:food_user_application/core/theme/app_colors.dart';
 
 const _monthAbbr = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -63,7 +64,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   num _tripTotal(Map<String, dynamic> t) =>
       (t['totalAmount'] ?? t['orderTotal'] ?? 0) as num;
 
-  String _tripRestaurant(Map<String, dynamic> t) =>
+  String _tripStore(Map<String, dynamic> t) =>
       (t['restaurantName'] ?? t['restaurant'] ?? 'Restaurant').toString();
 
   String _tripStatus(Map<String, dynamic> t) => (t['status'] ?? '').toString();
@@ -211,7 +212,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             padding: EdgeInsets.all(8.r),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.all(color: Colors.grey.withOpacity(0.3)),
+              border: Border.all(color: Colors.grey.withValues(alpha: 0.3)),
             ),
             child: Icon(
               Icons.card_giftcard,
@@ -413,9 +414,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   Widget _buildTripCard(Map<String, dynamic> trip, ThemeData theme, bool isDarkMode) {
     final status = _tripStatus(trip);
     final statusColor = switch (status.toLowerCase()) {
-      'completed' => const Color(0xFF1EBE5D),
-      'cancelled' => Colors.redAccent,
-      _ => Colors.orange,
+      'completed' => AppColors.online,
+      'cancelled' => AppColors.error,
+      _ => AppColors.warning,
     };
     final statusIcon = switch (status.toLowerCase()) {
       'completed' => Icons.check_circle_rounded,
@@ -442,7 +443,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                 width: 40.w,
                 height: 40.w,
                 margin: EdgeInsets.only(top: 2.h),
-                decoration: BoxDecoration(color: statusColor.withOpacity(0.12), shape: BoxShape.circle),
+                decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.12), shape: BoxShape.circle),
                 child: Icon(statusIcon, color: statusColor, size: 20.sp),
               ),
               SizedBox(width: 12.w),
@@ -454,7 +455,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                       children: [
                         Expanded(
                           child: Text(
-                            _tripRestaurant(trip),
+                            _tripStore(trip),
                             style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15.sp),
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -462,7 +463,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                         Container(
                           padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
                           decoration: BoxDecoration(
-                            color: statusColor.withOpacity(0.12),
+                            color: statusColor.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(12.r),
                           ),
                           child: Text(
@@ -504,7 +505,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                         Text(
                           '+₹${_tripEarning(trip).toStringAsFixed(0)}',
                           style: TextStyle(
-                            color: const Color(0xFF1EBE5D),
+                            color: AppColors.online,
                             fontWeight: FontWeight.w900,
                             fontSize: 15.sp,
                           ),
@@ -547,7 +548,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             boxShadow: isSelected && !isDarkMode
                 ? [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
+                      color: Colors.black.withValues(alpha: 0.05),
                       blurRadius: 10,
                       offset: const Offset(0, 2),
                     ),
@@ -584,7 +585,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         decoration: BoxDecoration(
           color: isDarkMode ? Colors.grey[900] : Colors.white,
           borderRadius: BorderRadius.circular(20.r),
-          border: Border.all(color: Colors.grey.withOpacity(0.2)),
+          border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
         ),
         child: Row(
           children: [

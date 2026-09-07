@@ -30,7 +30,7 @@ class ProfileRepository {
     'bankAccountNumber': accountNumber,
     'bankIfscCode': ifscCode,
     'bankName': bankName,
-    if (upiId != null) 'upiId': upiId,
+    'upiId': ?upiId,
   });
 
   Future<Result<DeliveryPartner, AppError>> uploadProfilePhotoBase64(
@@ -46,8 +46,8 @@ class ProfileRepository {
     // Backend reads `latitude`/`longitude` (DELIVERY_API_SPEC.md §3) — `lat`/`lng`
     // are silently ignored, leaving lastLat/lastLng unset and the partner
     // invisible to dispatch's nearby-partner radius search.
-    if (lat != null) 'latitude': lat,
-    if (lng != null) 'longitude': lng,
+    'latitude': ?lat,
+    'longitude': ?lng,
   });
 
   Future<Result<void, AppError>> deleteAccount() async {

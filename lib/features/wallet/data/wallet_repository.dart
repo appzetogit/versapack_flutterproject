@@ -5,6 +5,22 @@ import '../../../core/error/result.dart';
 import '../../../core/network/api_endpoints.dart';
 import '../../../core/network/dio_client.dart';
 
+/// Bumped whenever something happens that changes what the partner has earned.
+///
+/// Both earnings views are kept alive inside an IndexedStack, so their
+/// initState runs once at app start and never again — a delivery completed an
+/// hour later left "Today's Earning" showing the figure from launch. Screens
+/// watch this and refetch.
+final earningsRefreshProvider =
+    NotifierProvider<EarningsRefreshNotifier, int>(EarningsRefreshNotifier.new);
+
+class EarningsRefreshNotifier extends Notifier<int> {
+  @override
+  int build() => 0;
+
+  void bump() => state++;
+}
+
 class WalletRepository {
   WalletRepository(this._dio);
 
@@ -48,8 +64,8 @@ class WalletRepository {
     ApiEndpoints.tripHistory,
     query: {
       'period': period,
-      if (date != null) 'date': date,
-      if (status != null) 'status': status,
+      'date': ?date,
+      'status': ?status,
       'limit': limit,
     },
   );

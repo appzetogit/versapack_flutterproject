@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/error/result.dart';
 import '../../../../core/services/sound_service.dart';
 import '../../data/notifications_repository.dart';
+import 'package:food_user_application/core/theme/app_colors.dart';
 
 const _monthAbbr = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -84,7 +85,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Clear', style: TextStyle(color: Colors.redAccent)),
+            child: const Text('Clear', style: TextStyle(color: AppColors.error)),
           ),
         ],
       ),
@@ -119,8 +120,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDarkMode = theme.brightness == Brightness.dark;
-    final textColor = isDarkMode ? Colors.white : const Color(0xFF1E1E1E);
+    final textColor = AppColors.of(context).textPrimary;
 
     return Scaffold(
       appBar: AppBar(
@@ -162,11 +162,11 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
           if (_items.isNotEmpty)
             TextButton.icon(
               onPressed: _clearAll,
-              icon: Icon(Icons.delete_outline, color: Colors.red[400], size: 18.sp),
+              icon: Icon(Icons.delete_outline, color: AppColors.error, size: 18.sp),
               label: Text(
                 'Clear All',
                 style: TextStyle(
-                  color: Colors.red[400],
+                  color: AppColors.error,
                   fontSize: 14.sp,
                   fontWeight: FontWeight.w600,
                 ),
@@ -260,11 +260,11 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     return Container(
       padding: EdgeInsets.all(16.r),
       decoration: BoxDecoration(
-        color: isUnread ? theme.primaryColor.withOpacity(0.05) : theme.cardColor,
+        color: isUnread ? theme.primaryColor.withValues(alpha: 0.05) : theme.cardColor,
         borderRadius: BorderRadius.circular(20.r),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 20,
             offset: const Offset(0, 5),
           ),
@@ -332,7 +332,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
               shape: BoxShape.circle,
               gradient: RadialGradient(
                 colors: [
-                  theme.primaryColor.withOpacity(0.2),
+                  theme.primaryColor.withValues(alpha: 0.2),
                   Colors.transparent,
                 ],
                 radius: 0.8,

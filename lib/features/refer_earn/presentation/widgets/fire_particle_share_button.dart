@@ -26,9 +26,9 @@ class _FireParticleShareButtonState extends State<FireParticleShareButton>
   bool _pressed = false;
 
   static const List<Color> _emberColors = [
-    Color(0xFFFFD54F),
-    Color(0xFFFFA726),
-    Color(0xFFFF7043),
+    Color(0xFFFDB673),
+    Color(0xFFFD9027),
+    Color(0xFFD77A21),
   ];
 
   @override
@@ -109,19 +109,19 @@ class _FireParticleShareButtonState extends State<FireParticleShareButton>
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: theme.primaryColor.withOpacity(0.55),
+                          color: theme.primaryColor.withValues(alpha: 0.55),
                           blurRadius: 18,
                           spreadRadius: 1,
                           offset: const Offset(0, 6),
                         ),
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.35),
+                          color: Colors.black.withValues(alpha: 0.35),
                           blurRadius: 6,
                           offset: const Offset(0, 3),
                         ),
                       ],
                       border: Border.all(
-                        color: Colors.white.withOpacity(0.35),
+                        color: Colors.white.withValues(alpha: 0.35),
                         width: 1,
                       ),
                     ),
@@ -191,12 +191,12 @@ class _EmberFieldPainter extends CustomPainter {
               .clamp(0.0, 1.0);
 
       final glowPaint = Paint()
-        ..color = e.color.withOpacity(opacity * 0.9)
+        ..color = e.color.withValues(alpha: opacity * 0.9)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
       canvas.drawCircle(Offset(dx, dy), e.size, glowPaint);
 
       final corePaint = Paint()
-        ..color = Colors.white.withOpacity(opacity * 0.8);
+        ..color = Colors.white.withValues(alpha: opacity * 0.8);
       canvas.drawCircle(Offset(dx, dy), e.size * 0.4, corePaint);
     }
   }

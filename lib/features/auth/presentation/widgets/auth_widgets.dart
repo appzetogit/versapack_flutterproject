@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
-import '../../../../core/theme/app_theme.dart';
+import 'package:food_user_application/core/theme/app_colors.dart';
 
 class AuthPrimaryButton extends StatelessWidget {
   const AuthPrimaryButton({
@@ -25,9 +25,9 @@ class AuthPrimaryButton extends StatelessWidget {
       child: ElevatedButton(
         onPressed: isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppTheme.primaryColor,
-          foregroundColor: Colors.white,
-          disabledBackgroundColor: AppTheme.primaryColor.withValues(
+          backgroundColor: AppColors.primary,
+          foregroundColor: AppColors.onPrimary,
+          disabledBackgroundColor: AppColors.primary.withValues(
             alpha: 0.6,
           ),
           shape: RoundedRectangleBorder(
@@ -73,7 +73,7 @@ class AuthPrimaryButton extends StatelessWidget {
                       ),
                       child: Icon(
                         Icons.arrow_forward,
-                        color: AppTheme.primaryColor,
+                        color: AppColors.primary,
                         size: 20.sp,
                       ),
                     ),
@@ -93,7 +93,7 @@ InputDecoration authInputDecoration(
   Widget? prefix,
 }) {
   final isDark = Theme.of(context).brightness == Brightness.dark;
-  final fillColor = isDark ? AppTheme.darkCard : Colors.white;
+  final fillColor = isDark ? AppColors.darkSurface : Colors.white;
   return InputDecoration(
     labelText: label,
     hintText: hint,
@@ -112,11 +112,11 @@ InputDecoration authInputDecoration(
     ),
     focusedBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(14.r),
-      borderSide: const BorderSide(color: AppTheme.primaryColor, width: 1.6),
+      borderSide: const BorderSide(color: AppColors.primary, width: 1.6),
     ),
     errorBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(14.r),
-      borderSide: const BorderSide(color: Colors.redAccent),
+      borderSide: const BorderSide(color: AppColors.error),
     ),
   );
 }

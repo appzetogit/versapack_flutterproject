@@ -1,4 +1,4 @@
-package com.fooddelivery.app
+package com.quickcommerce.delivery
 
 import android.app.Notification
 import android.app.NotificationChannel

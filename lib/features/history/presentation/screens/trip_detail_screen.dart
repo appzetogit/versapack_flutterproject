@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/error/result.dart';
 import '../../../orders/data/models/delivery_order.dart';
 import '../../../orders/data/orders_repository.dart';
+import 'package:food_user_application/core/theme/app_colors.dart';
 
 /// A dedicated, receipt-styled detail view for a single Trip History entry
 /// (Completed / Pending / Cancelled). Deliberately distinct from
@@ -42,7 +43,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
 
   String get _status => _s('status');
   String get _restaurantName => _s('restaurantName', 'restaurant').isEmpty
-      ? 'Restaurant'
+      ? 'Store'
       : _s('restaurantName', 'restaurant');
   num get _earning => _f('deliveryEarning', 'earningAmount', 'amount');
   num get _total => _f('totalAmount', 'orderTotal');
@@ -86,7 +87,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
 
   _StatusTheme get _statusTheme => switch (_status.toLowerCase()) {
     'completed' => const _StatusTheme(
-        color: Color(0xFF1EBE5D),
+        color: AppColors.online,
         darkColor: Color(0xFF0E8A40),
         icon: Icons.check_circle_rounded,
         label: 'Delivered',
@@ -98,8 +99,8 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
         label: 'Cancelled',
       ),
     _ => const _StatusTheme(
-        color: Color(0xFFFF9F43),
-        darkColor: Color(0xFFC96F0F),
+        color: AppColors.warning,
+        darkColor: AppColors.pendingText,
         icon: Icons.schedule_rounded,
         label: 'Pending',
       ),
@@ -109,7 +110,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDarkMode = theme.brightness == Brightness.dark;
-    final textColor = isDarkMode ? Colors.white : const Color(0xFF1E1E1E);
+    final textColor = AppColors.of(context).textPrimary;
     final subTextColor = isDarkMode ? Colors.grey[400]! : Colors.grey[600]!;
     final scaffoldColor = theme.scaffoldBackgroundColor;
     final st = _statusTheme;
@@ -142,7 +143,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                         Text(
                           'TRIP RECEIPT',
                           style: TextStyle(
-                            color: Colors.white.withOpacity(0.85),
+                            color: Colors.white.withValues(alpha: 0.85),
                             fontWeight: FontWeight.w800,
                             fontSize: 13.sp,
                             letterSpacing: 1.4,
@@ -167,14 +168,14 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                   if (_time.isNotEmpty || _date.isNotEmpty)
                     Text(
                       [_date, _time].where((e) => e.isNotEmpty).join(' · '),
-                      style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 12.sp),
+                      style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: 12.sp),
                     ),
                   SizedBox(height: 10.h),
                   if (_displayOrderId.isNotEmpty)
                     Container(
                       padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 6.h),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.18),
+                        color: Colors.white.withValues(alpha: 0.18),
                         borderRadius: BorderRadius.circular(20.r),
                       ),
                       child: Text(
@@ -199,13 +200,13 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                       textColor: textColor,
                       subTextColor: subTextColor,
                       accentColor: st.color,
-                      restaurantName: order?.restaurant.name.isNotEmpty == true
-                          ? order!.restaurant.name
+                      restaurantName: order?.store.name.isNotEmpty == true
+                          ? order!.store.name
                           : _restaurantName,
-                      restaurantAddress: order?.restaurant.address ?? '',
-                      restaurantPhone: order?.restaurant.phone,
-                      onCallRestaurant: order?.restaurant.phone != null && order!.restaurant.phone!.isNotEmpty
-                          ? () => _dial(order.restaurant.phone!)
+                      restaurantAddress: order?.store.address ?? '',
+                      storePhone: order?.store.phone,
+                      onCallStore: order?.store.phone != null && order!.store.phone!.isNotEmpty
+                          ? () => _dial(order.store.phone!)
                           : null,
                       items: order?.items ?? const [],
                       total: order?.total ?? _total.toDouble(),
@@ -336,8 +337,8 @@ class _ReceiptTicket extends StatelessWidget {
     required this.accentColor,
     required this.restaurantName,
     required this.restaurantAddress,
-    required this.restaurantPhone,
-    required this.onCallRestaurant,
+    required this.storePhone,
+    required this.onCallStore,
     required this.items,
     required this.total,
     required this.earning,
@@ -351,8 +352,8 @@ class _ReceiptTicket extends StatelessWidget {
   final Color accentColor;
   final String restaurantName;
   final String restaurantAddress;
-  final String? restaurantPhone;
-  final VoidCallback? onCallRestaurant;
+  final String? storePhone;
+  final VoidCallback? onCallStore;
   final List<OrderItem> items;
   final double total;
   final double earning;
@@ -365,7 +366,7 @@ class _ReceiptTicket extends StatelessWidget {
         color: surfaceColor,
         borderRadius: BorderRadius.circular(24.r),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 20, offset: const Offset(0, 8)),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 20, offset: const Offset(0, 8)),
         ],
       ),
       padding: EdgeInsets.all(20.r),
@@ -378,7 +379,7 @@ class _ReceiptTicket extends StatelessWidget {
                 width: 40.w,
                 height: 40.w,
                 decoration: BoxDecoration(
-                  color: accentColor.withOpacity(0.12),
+                  color: accentColor.withValues(alpha: 0.12),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(Icons.storefront_rounded, color: accentColor, size: 20.sp),
@@ -403,9 +404,9 @@ class _ReceiptTicket extends StatelessWidget {
                   ],
                 ),
               ),
-              if (onCallRestaurant != null)
+              if (onCallStore != null)
                 IconButton(
-                  onPressed: onCallRestaurant,
+                  onPressed: onCallStore,
                   icon: Icon(Icons.call_rounded, color: accentColor, size: 20.sp),
                 ),
             ],
@@ -422,7 +423,7 @@ class _ReceiptTicket extends StatelessWidget {
                     Icon(
                       item.isVeg ? Icons.circle_outlined : Icons.change_history_outlined,
                       size: 12.sp,
-                      color: item.isVeg ? Colors.green : Colors.red,
+                      color: item.isVeg ? AppColors.success : Colors.red,
                     ),
                     SizedBox(width: 8.w),
                     Expanded(
@@ -446,7 +447,7 @@ class _ReceiptTicket extends StatelessWidget {
               style: TextStyle(fontSize: 12.sp, color: subTextColor, fontStyle: FontStyle.italic),
             ),
           SizedBox(height: 12.h),
-          _DashedLine(color: subTextColor.withOpacity(0.4)),
+          _DashedLine(color: subTextColor.withValues(alpha: 0.4)),
           SizedBox(height: 12.h),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -473,7 +474,7 @@ class _ReceiptTicket extends StatelessWidget {
             width: double.infinity,
             padding: EdgeInsets.symmetric(vertical: 14.h),
             decoration: BoxDecoration(
-              color: accentColor.withOpacity(0.12),
+              color: accentColor.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(16.r),
             ),
             child: Column(
@@ -513,7 +514,7 @@ class _Notched extends StatelessWidget {
         children: [
           Align(
             alignment: Alignment.center,
-            child: _DashedLine(color: Colors.grey.withOpacity(0.4)),
+            child: _DashedLine(color: Colors.grey.withValues(alpha: 0.4)),
           ),
           Positioned(
             left: -20.r,

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 
@@ -10,6 +11,15 @@ import '../constants/app_constants.dart';
 /// of DELIVERY_API_SPEC.md. Polling `/orders/available` remains the
 /// required fallback — this is a convenience layer on top, not a
 /// replacement for it.
+/// One tag for the whole new-order offer path, across transports.
+///
+/// An offer that never reaches the partner can die in six places — the rider is
+/// filtered out by dispatch, the socket is down, the push is dropped, the
+/// payload is unreadable, the controller de-dupes it, the alert is withdrawn —
+/// and every one of them looks identical from the outside: no alert. Grep
+/// `adb logcat | grep '\[offer\]'` and the surviving line says which.
+void offerLog(String message) => debugPrint('[offer] $message');
+
 class SocketService {
   io.Socket? _socket;
 
@@ -66,20 +76,33 @@ class SocketService {
     final socket = _socket!;
 
     socket.onConnect((_) {
+      offerLog('socket connected — joining delivery room $partnerId');
       _connectionController.add(true);
       socket.emit('join-delivery', partnerId);
     });
-    socket.onDisconnect((_) => _connectionController.add(false));
-    socket.onConnectError((_) => _connectionController.add(false));
+    socket.onDisconnect((_) {
+      offerLog('socket DISCONNECTED — realtime offers cannot arrive');
+      _connectionController.add(false);
+    });
+    socket.onConnectError((e) {
+      offerLog('socket connect error: $e');
+      _connectionController.add(false);
+    });
 
-    socket.on(
-      'new_order_available',
-      (data) => _newOrderController.add(_asMap(data)),
-    );
+    socket.on('new_order_available', (data) {
+      offerLog('socket new_order_available ${_orderRef(data)}');
+      _newOrderController.add(_asMap(data));
+    });
     // Primary dispatch broadcasts use 'new_order'; re-offer rounds use
     // 'new_order_available' — both feed the same incoming-order stream.
-    socket.on('new_order', (data) => _newOrderController.add(_asMap(data)));
-    socket.on('order_claimed', (data) => _orderClaimedController.add(_asMap(data)));
+    socket.on('new_order', (data) {
+      offerLog('socket new_order ${_orderRef(data)}');
+      _newOrderController.add(_asMap(data));
+    });
+    socket.on('order_claimed', (data) {
+      offerLog('socket order_claimed ${_orderRef(data)}');
+      _orderClaimedController.add(_asMap(data));
+    });
     socket.on(
       'order_deassigned',
       (data) => _orderDeassignedController.add(_asMap(data)),
@@ -124,11 +147,11 @@ class SocketService {
       'orderId': orderId,
       'lat': lat,
       'lng': lng,
-      if (userId != null) 'userId': userId,
-      if (restaurantId != null) 'restaurantId': restaurantId,
-      if (heading != null) 'heading': heading,
-      if (speed != null) 'speed': speed,
-      if (accuracy != null) 'accuracy': accuracy,
+      'userId': ?userId,
+      'restaurantId': ?restaurantId,
+      'heading': ?heading,
+      'speed': ?speed,
+      'accuracy': ?accuracy,
     });
   }
 
@@ -140,7 +163,7 @@ class SocketService {
   }) {
     _socket?.emit('chat:typing', {
       'toRole': toRole,
-      if (toId != null) 'toId': toId,
+      'toId': ?toId,
       'conversationId': conversationId,
       'typing': typing,
     });
@@ -168,6 +191,15 @@ class SocketService {
     if (data is Map<String, dynamic>) return data;
     if (data is Map) return Map<String, dynamic>.from(data);
     return <String, dynamic>{};
+  }
+
+  /// Just enough of an event to follow one order through the log without
+  /// dumping a whole payload on every emit.
+  String _orderRef(dynamic data) {
+    final map = _asMap(data);
+    if (map.isEmpty) return '(unreadable payload: $data)';
+    final id = map['orderMongoId'] ?? map['_id'] ?? map['orderId'];
+    return '${map['orderDisplayId'] ?? map['orderNumber'] ?? ''} id=$id';
   }
 }
 

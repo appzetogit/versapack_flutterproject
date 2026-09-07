@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../../core/services/haptic_service.dart';
+import 'package:food_user_application/core/theme/app_colors.dart';
 
 Future<String?> showOtpBottomSheet(BuildContext context, {required String customerName}) {
   return showDialog<String>(
@@ -78,7 +79,7 @@ class _OtpBottomSheetContentState extends State<OtpBottomSheetContent> {
                   color: Color(0xFFE8F5E9),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(Icons.lock_outline_rounded, color: const Color(0xFF1EBE5D), size: 20.sp),
+                child: Icon(Icons.lock_outline_rounded, color: AppColors.online, size: 20.sp),
               ),
               SizedBox(width: 10.w),
               Expanded(
@@ -144,14 +145,14 @@ class _OtpBottomSheetContentState extends State<OtpBottomSheetContent> {
                         borderRadius: BorderRadius.circular(16.r),
                         border: Border.all(
                           color: isFocused
-                              ? const Color(0xFF1EBE5D)
+                              ? AppColors.online
                               : (char.isNotEmpty ? const Color(0xFF86EFAC) : Colors.grey[300]!),
                           width: isFocused ? 2.0 : 1.0,
                         ),
                         boxShadow: isFocused
                             ? [
                                 BoxShadow(
-                                  color: const Color(0xFF1EBE5D).withOpacity(0.2),
+                                  color: AppColors.online.withValues(alpha: 0.2),
                                   blurRadius: 8,
                                   offset: const Offset(0, 2),
                                 )
@@ -164,7 +165,7 @@ class _OtpBottomSheetContentState extends State<OtpBottomSheetContent> {
                         style: TextStyle(
                           fontSize: 24.sp,
                           fontWeight: FontWeight.bold,
-                          color: const Color(0xFF1E1E1E),
+                          color: AppColors.lightTextPrimary,
                         ),
                       ),
                     );

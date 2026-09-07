@@ -7,6 +7,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../application/orders_controller.dart';
 import '../../application/orders_state.dart';
 import '../../data/models/delivery_order.dart';
+import 'package:food_user_application/core/theme/app_colors.dart';
+import 'package:food_user_application/features/orders/presentation/widgets/product_line_tile.dart';
 
 enum _StepState { done, current, pending }
 
@@ -48,14 +50,14 @@ class OrderDetailScreen extends ConsumerWidget {
         state: _StepState.done,
       ),
       _TimelineStep(
-        title: 'Reached Restaurant',
+        title: 'Reached Store',
         subtitle: 'Arrived at pickup location',
         icon: Icons.storefront_outlined,
         state: phaseIndex >= 1 ? _StepState.done : _StepState.pending,
       ),
       _TimelineStep(
         title: 'Order Picked Up',
-        subtitle: 'Collected order from restaurant',
+        subtitle: 'Collected order from store',
         icon: Icons.shopping_bag_outlined,
         state: phaseIndex >= 2 ? _StepState.done : _StepState.pending,
       ),
@@ -109,7 +111,7 @@ class OrderDetailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final isDarkMode = theme.brightness == Brightness.dark;
-    final textColor = isDarkMode ? Colors.white : const Color(0xFF1E1E1E);
+    final textColor = AppColors.of(context).textPrimary;
     final subTextColor = isDarkMode ? Colors.grey[400] : Colors.grey[600];
 
     final ordersState = ref.watch(ordersControllerProvider);
@@ -168,17 +170,17 @@ class OrderDetailScreen extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _sectionTitle('Restaurant', textColor),
+                        _sectionTitle('Store', textColor),
                         SizedBox(height: 8.h),
-                        _infoRow(Icons.storefront_outlined, order.restaurant.name, textColor, bold: true),
-                        if (order.restaurant.address.isNotEmpty)
-                          _infoRow(Icons.place_outlined, order.restaurant.address, subTextColor),
-                        if (order.restaurant.phone != null && order.restaurant.phone!.isNotEmpty)
+                        _infoRow(Icons.storefront_outlined, order.store.name, textColor, bold: true),
+                        if (order.store.address.isNotEmpty)
+                          _infoRow(Icons.place_outlined, order.store.address, subTextColor),
+                        if (order.store.phone != null && order.store.phone!.isNotEmpty)
                           _infoRow(
                             Icons.call_outlined,
-                            order.restaurant.phone!,
+                            order.store.phone!,
                             subTextColor,
-                            onTap: () => _dial(order.restaurant.phone!),
+                            onTap: () => _dial(order.store.phone!),
                           ),
                       ],
                     ),
@@ -212,46 +214,14 @@ class OrderDetailScreen extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _sectionTitle('Items', textColor),
-                        SizedBox(height: 8.h),
+                        _sectionTitle(order.itemsSummary, textColor),
+                        SizedBox(height: 4.h),
                         ...order.items.map(
-                          (item) => Padding(
-                            padding: EdgeInsets.symmetric(vertical: 6.h),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  item.isVeg ? Icons.circle_outlined : Icons.change_history_outlined,
-                                  size: 14.sp,
-                                  color: item.isVeg ? Colors.green : Colors.red,
-                                ),
-                                SizedBox(width: 8.w),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        '${item.quantity} x ${item.name}',
-                                        style: TextStyle(fontSize: 13.sp, fontWeight: FontWeight.w600, color: textColor),
-                                      ),
-                                      if (item.variantName != null && item.variantName!.isNotEmpty)
-                                        Text(
-                                          item.variantName!,
-                                          style: TextStyle(fontSize: 11.sp, color: subTextColor),
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                                Text(
-                                  '₹${(item.price * item.quantity).toStringAsFixed(0)}',
-                                  style: TextStyle(fontSize: 13.sp, fontWeight: FontWeight.w700, color: textColor),
-                                ),
-                              ],
-                            ),
-                          ),
+                          (item) => ProductLineTile(item: item, dense: true),
                         ),
-                        if (order.cookingNote != null && order.cookingNote!.isNotEmpty) ...[
+                        if (order.storeNote != null && order.storeNote!.isNotEmpty) ...[
                           SizedBox(height: 8.h),
-                          _infoRow(Icons.restaurant_menu_outlined, order.cookingNote!, subTextColor),
+                          _infoRow(Icons.storefront_outlined, order.storeNote!, subTextColor),
                         ],
                         Divider(height: 24.h),
                         Row(
@@ -401,7 +371,7 @@ class _TimelineTile extends StatelessWidget {
     final Color iconColor;
     switch (step.state) {
       case _StepState.done:
-        circleColor = Colors.green;
+        circleColor = AppColors.success;
         iconColor = Colors.white;
         break;
       case _StepState.current:
@@ -431,7 +401,7 @@ class _TimelineTile extends StatelessWidget {
                   child: Container(
                     width: 2,
                     margin: EdgeInsets.symmetric(vertical: 2.h),
-                    color: step.state == _StepState.done ? Colors.green : Colors.grey[300],
+                    color: step.state == _StepState.done ? AppColors.success : Colors.grey[300],
                   ),
                 ),
             ],

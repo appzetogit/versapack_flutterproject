@@ -94,7 +94,7 @@ class AuthRepository {
     try {
       await _dio.post(
         ApiEndpoints.logout,
-        data: {if (refreshToken != null) 'refreshToken': refreshToken},
+        data: {'refreshToken': ?refreshToken},
       );
     } catch (_) {
       // Ignore network errors on logout — tokens are cleared locally regardless.

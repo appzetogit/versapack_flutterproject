@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:food_user_application/features/orders/application/orders_controller.dart';
+import 'package:food_user_application/core/theme/app_colors.dart';
 
 class NoNetworkOverlay extends ConsumerStatefulWidget {
   const NoNetworkOverlay({super.key});
@@ -43,7 +44,7 @@ class _NoNetworkOverlayState extends ConsumerState<NoNetworkOverlay> {
             BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
               child: Container(
-                color: Colors.black.withOpacity(0.4),
+                color: Colors.black.withValues(alpha: 0.4),
               ),
             ),
             
@@ -58,7 +59,7 @@ class _NoNetworkOverlayState extends ConsumerState<NoNetworkOverlay> {
                     borderRadius: BorderRadius.circular(28),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
+                        color: Colors.black.withValues(alpha: 0.2),
                         blurRadius: 20,
                         offset: const Offset(0, 10),
                       ),
@@ -82,7 +83,7 @@ class _NoNetworkOverlayState extends ConsumerState<NoNetworkOverlay> {
                               style: TextStyle(
                                 fontSize: 22,
                                 fontWeight: FontWeight.w900,
-                                color: Color(0xFFF04438),
+                                color: AppColors.error,
                               ),
                             ),
                             TextSpan(
@@ -107,7 +108,7 @@ class _NoNetworkOverlayState extends ConsumerState<NoNetworkOverlay> {
                             width: 24,
                             height: 3,
                             decoration: BoxDecoration(
-                              color: const Color(0xFFF04438),
+                              color: AppColors.error,
                               borderRadius: BorderRadius.circular(2),
                             ),
                           ),
@@ -116,7 +117,7 @@ class _NoNetworkOverlayState extends ConsumerState<NoNetworkOverlay> {
                             width: 4,
                             height: 3,
                             decoration: const BoxDecoration(
-                              color: Color(0xFFF04438),
+                              color: AppColors.error,
                               shape: BoxShape.circle,
                             ),
                           ),
@@ -146,7 +147,7 @@ class _NoNetworkOverlayState extends ConsumerState<NoNetworkOverlay> {
                         child: ElevatedButton(
                           onPressed: _isChecking ? null : _handleTryAgain,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFF04438),
+                            backgroundColor: AppColors.error,
                             foregroundColor: Colors.white,
                             elevation: 0,
                             shape: RoundedRectangleBorder(
@@ -231,13 +232,13 @@ class _NoNetworkOverlayState extends ConsumerState<NoNetworkOverlay> {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          // Background soft pink/peach circle
+          // Background soft circle
           Container(
             width: 110,
             height: 110,
             decoration: const BoxDecoration(
               shape: BoxShape.circle,
-              color: Color(0xFFFFF0EB),
+              color: AppColors.errorBg,
             ),
           ),
           
@@ -249,7 +250,7 @@ class _NoNetworkOverlayState extends ConsumerState<NoNetworkOverlay> {
               width: 45,
               height: 25,
               decoration: BoxDecoration(
-                color: const Color(0xFFFFE3DC).withOpacity(0.8),
+                color: AppColors.errorBg.withValues(alpha: 0.8),
                 borderRadius: BorderRadius.circular(15),
               ),
             ),
@@ -261,7 +262,7 @@ class _NoNetworkOverlayState extends ConsumerState<NoNetworkOverlay> {
               width: 40,
               height: 22,
               decoration: BoxDecoration(
-                color: const Color(0xFFFFE3DC).withOpacity(0.8),
+                color: AppColors.errorBg.withValues(alpha: 0.8),
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
@@ -271,17 +272,17 @@ class _NoNetworkOverlayState extends ConsumerState<NoNetworkOverlay> {
           const Positioned(
             left: 28,
             top: 25,
-            child: Icon(Icons.close_rounded, size: 10, color: Color(0xFFFFA07A)),
+            child: Icon(Icons.close_rounded, size: 10, color: AppColors.errorText),
           ),
           const Positioned(
             right: 35,
             bottom: 25,
-            child: Icon(Icons.close_rounded, size: 10, color: Color(0xFFFFA07A)),
+            child: Icon(Icons.close_rounded, size: 10, color: AppColors.errorText),
           ),
           const Positioned(
             left: 50,
             top: 15,
-            child: Icon(Icons.star_rate_rounded, size: 12, color: Color(0xFFFFA07A)),
+            child: Icon(Icons.star_rate_rounded, size: 12, color: AppColors.errorText),
           ),
           
           // Central White Circle with Wifi-Off icon
@@ -291,10 +292,10 @@ class _NoNetworkOverlayState extends ConsumerState<NoNetworkOverlay> {
             decoration: BoxDecoration(
               color: Colors.white,
               shape: BoxShape.circle,
-              border: Border.all(color: const Color(0xFFFFF0EB), width: 3),
+              border: Border.all(color: AppColors.errorBg, width: 3),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFFF04438).withOpacity(0.12),
+                  color: AppColors.error.withValues(alpha: 0.12),
                   blurRadius: 15,
                   spreadRadius: 2,
                 ),
@@ -304,7 +305,7 @@ class _NoNetworkOverlayState extends ConsumerState<NoNetworkOverlay> {
               child: Icon(
                 Icons.wifi_off_rounded,
                 size: 38,
-                color: Color(0xFFF04438),
+                color: AppColors.error,
               ),
             ),
           ),

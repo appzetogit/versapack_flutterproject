@@ -6,7 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:food_user_application/core/router/app_router.dart';
 import 'package:food_user_application/core/services/fcm_service.dart';
-import 'package:food_user_application/core/services/order_overlay_service.dart';
+import 'package:food_user_application/core/services/location_service.dart';
+import 'package:food_user_application/core/services/new_order_overlay_bridge.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:food_user_application/core/services/referral_tracking_service.dart';
 import 'package:food_user_application/core/theme/app_theme.dart';
 import 'package:food_user_application/core/theme/theme_mode_provider.dart';
@@ -15,45 +17,40 @@ import 'package:food_user_application/features/orders/application/incoming_order
 import 'package:food_user_application/features/orders/application/orders_controller.dart';
 import 'package:food_user_application/features/orders/application/orders_state.dart';
 import 'package:food_user_application/features/orders/application/pending_customer_rating_controller.dart';
-import 'package:food_user_application/features/orders/data/models/delivery_order.dart';
 import 'package:food_user_application/features/orders/presentation/screens/active_trip_screen.dart';
 import 'package:food_user_application/features/orders/presentation/screens/incoming_order_screen.dart';
 import 'package:food_user_application/core/presentation/widgets/no_network_overlay.dart';
 import 'package:food_user_application/core/services/network_controller.dart';
 import 'package:food_user_application/features/orders/presentation/screens/rate_customer_screen.dart';
+import 'package:food_user_application/core/constants/app_constants.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  runApp(const ProviderScope(child: FoodDeliveryApp()));
+  runApp(const ProviderScope(child: QuickCommerceDeliveryApp()));
 }
 
-/// Entry point for the overlay bubble's separate Flutter engine — must stay
-/// top-level in this file with this exact name/pragma, since the native
-/// `OverlayService` resolves "overlayMain" from the app's default
-/// entrypoint library (main.dart), not by scanning every file.
-@pragma('vm:entry-point')
-void overlayMain() {
-  runApp(const OrderBubbleApp());
-}
-
-class FoodDeliveryApp extends ConsumerStatefulWidget {
-  const FoodDeliveryApp({super.key});
+class QuickCommerceDeliveryApp extends ConsumerStatefulWidget {
+  const QuickCommerceDeliveryApp({super.key});
 
   @override
-  ConsumerState<FoodDeliveryApp> createState() => _FoodDeliveryAppState();
+  ConsumerState<QuickCommerceDeliveryApp> createState() => _QuickCommerceDeliveryAppState();
 }
 
-class _FoodDeliveryAppState extends ConsumerState<FoodDeliveryApp>
+/// Bumped only if a future release needs to re-ask everyone.
+const _permissionsAskedKey = 'permissions_requested_v1';
+
+class _QuickCommerceDeliveryAppState extends ConsumerState<QuickCommerceDeliveryApp>
     with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    Future.microtask(() {
+    Future.microtask(() async {
       ref.read(fcmServiceProvider).initialize();
       ReferralTrackingService.initialize();
-      _consumePendingOverlayOrder();
+      await _requestFirstLaunchPermissions();
+      _consumeOverlayHandoff();
     });
   }
 
@@ -66,8 +63,10 @@ class _FoodDeliveryAppState extends ConsumerState<FoodDeliveryApp>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      _consumePendingOverlayOrder();
-      // Re-checks full-screen-intent / overlay permissions on every resume,
+      // Tapping the overlay resumes an already-running app rather than starting
+      // it, so the handoff has to be picked up here as well as at launch.
+      _consumeOverlayHandoff();
+      // Re-checks the full-screen-intent permission on every resume,
       // not just cold start — catches a rider who dismissed the Settings
       // prompt the first time or toggled it manually while the app was
       // backgrounded (see FcmService.ensureAndroidAlertPermissions).
@@ -86,22 +85,44 @@ class _FoodDeliveryAppState extends ConsumerState<FoodDeliveryApp>
     }
   }
 
-  /// Surfaces an order that arrived as a home-screen bubble (app was
-  /// backgrounded) into the same in-app IncomingOrderScreen shown for the
-  /// foreground/socket path, and dismisses the bubble now that the app is
-  /// in front.
-  Future<void> _consumePendingOverlayOrder() async {
-    await OrderOverlayService.close();
-    final data = await OrderOverlayService.consumePendingOrder();
-    if (data == null || !mounted) return;
-    
-    final order = DeliveryOrder.fromRealtimePayload(data);
-    final incomingController = ref.read(incomingOrderControllerProvider.notifier);
-    
-    incomingController.show(order);
-    if (data['autoAccept'] == true) {
-      incomingController.accept();
+  /// Asks for everything the app needs, once, on the first launch after install.
+  ///
+  /// These used to be requested at the point of use — location when the rider
+  /// tapped Go Online, the overlay when the readiness screen was opened — which
+  /// put a permission dialog in the middle of the one action that has to be
+  /// instant, and left a rider who never opened that screen silently unable to
+  /// receive an order card.
+  ///
+  /// The flag is written BEFORE the prompts rather than after: if the rider
+  /// dismisses one and the app is killed, this must not re-prompt on every
+  /// launch forever. Anything still missing is surfaced by the readiness
+  /// screen, which is the place built for it.
+  Future<void> _requestFirstLaunchPermissions() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(_permissionsAskedKey) == true) return;
+    await prefs.setBool(_permissionsAskedKey, true);
+
+    // Runtime dialogs first — they are quick and can be answered in place.
+    await ref.read(fcmServiceProvider).ensureAndroidAlertPermissions();
+    await ref.read(locationServiceProvider).ensurePermissions();
+
+    // "Display over other apps" last, deliberately: it cannot be granted by a
+    // dialog, so it throws the rider out to a Settings screen. Doing it after
+    // the in-place prompts means they answer everything else first.
+    if (!await NewOrderOverlayBridge.hasPermission()) {
+      await NewOrderOverlayBridge.requestPermission();
     }
+  }
+
+  /// Picks up whatever the native overlay left for us: the order the partner
+  /// tapped, and any they rejected while the app was not running.
+  Future<void> _consumeOverlayHandoff() async {
+    final controller = ref.read(incomingOrderControllerProvider.notifier);
+    unawaited(controller.flushOverlayRejections());
+
+    final handoff = await NewOrderOverlayBridge.consumeLaunchOrder();
+    if (handoff == null || !mounted) return;
+    await controller.showById(handoff.orderId, autoAccept: handoff.autoAccept);
   }
 
   @override
@@ -116,7 +137,7 @@ class _FoodDeliveryAppState extends ConsumerState<FoodDeliveryApp>
       splitScreenMode: true,
       builder: (context, child) {
         return MaterialApp.router(
-          title: 'Appzeto Food Delivery',
+          title: AppConstants.title,
           debugShowCheckedModeBanner: false,
           theme: AppTheme.lightTheme,
           darkTheme: AppTheme.darkTheme,
@@ -128,7 +149,7 @@ class _FoodDeliveryAppState extends ConsumerState<FoodDeliveryApp>
               value: isDarkMode ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
               child: Stack(
                 children: [
-                  if (routedChild != null) routedChild,
+                  ?routedChild,
                 Consumer(
                   builder: (context, ref, _) {
                     final ordersState = ref.watch(ordersControllerProvider);
@@ -138,8 +159,9 @@ class _FoodDeliveryAppState extends ConsumerState<FoodDeliveryApp>
                     final showTrip = ref.watch(
                       activeTripVisibilityControllerProvider,
                     );
-                    if (!hasActiveOrder || !showTrip)
+                    if (!hasActiveOrder || !showTrip) {
                       return const SizedBox.shrink();
+                    }
                     return const ActiveTripScreen();
                   },
                 ),

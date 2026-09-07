@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/error/result.dart';
 import '../../../core/services/socket_service.dart';
 import '../data/models/delivery_order.dart';
+import '../../wallet/data/wallet_repository.dart';
 import '../data/orders_repository.dart';
 import 'orders_state.dart';
 import 'pending_customer_rating_controller.dart';
@@ -227,6 +228,10 @@ class OrdersController extends Notifier<OrdersState> {
         ref.read(socketServiceProvider).leaveTracking(orderId);
         state = const OrdersLoaded(availableOrders: [], currentOrder: null);
         refreshAvailable();
+        // Today's Earning is a different screen that is already built and
+        // alive; without this it keeps showing whatever it fetched at launch
+        // until the partner switches tabs.
+        ref.read(earningsRefreshProvider.notifier).bump();
         if (previousOrder != null && previousOrder.id == orderId) {
           ref
               .read(pendingCustomerRatingControllerProvider.notifier)

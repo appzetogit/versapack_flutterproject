@@ -6,9 +6,10 @@ import 'package:food_user_application/features/auth/application/auth_controller.
 import 'package:food_user_application/features/auth/application/auth_state.dart';
 import 'package:food_user_application/features/main/presentation/screens/main_screen.dart';
 import 'package:food_user_application/features/wallet/data/wallet_repository.dart';
-import 'package:go_router/go_router.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import '../../../../core/services/sound_service.dart';
+import 'package:food_user_application/core/theme/app_colors.dart';
+import 'package:food_user_application/core/constants/app_constants.dart';
 
 class PocketScreen extends ConsumerStatefulWidget {
   const PocketScreen({super.key});
@@ -18,7 +19,7 @@ class PocketScreen extends ConsumerStatefulWidget {
 }
 
 class _PocketScreenState extends ConsumerState<PocketScreen> {
-  static const Color _onlineGreen = Color(0xFF1EBE5D);
+  static const Color _onlineGreen = AppColors.online;
 
   bool _loading = true;
   String? _error;
@@ -241,7 +242,7 @@ class _PocketScreenState extends ConsumerState<PocketScreen> {
           'order_id': orderId,
           'amount': razorpay['amount'],
           'currency': razorpay['currency'] ?? 'INR',
-          'name': 'Suvio Delivery Partner',
+          'name': AppConstants.title,
           'description': 'Cash deposit to company',
           'prefill': {
             if (user?.name != null) 'name': user!.name,
@@ -309,9 +310,12 @@ class _PocketScreenState extends ConsumerState<PocketScreen> {
     ref.listen<int>(mainTabIndexProvider, (previous, next) {
       if (next == 1 && previous != 1) _loadAll();
     });
+    // And immediately on completion, so the figure is already right if this
+    // tab happens to be the one on screen.
+    ref.listen<int>(earningsRefreshProvider, (_, _) => _loadAll());
     final theme = Theme.of(context);
     final isDarkMode = theme.brightness == Brightness.dark;
-    final textColor = isDarkMode ? Colors.white : const Color(0xFF1E1E1E);
+    final textColor = AppColors.of(context).textPrimary;
     final subTextColor = isDarkMode ? Colors.grey[400] : Colors.grey[600];
 
     return Scaffold(
@@ -343,6 +347,18 @@ class _PocketScreenState extends ConsumerState<PocketScreen> {
         ),
         centerTitle: false,
       ),
+      // SizedBox.expand is load-bearing, not decoration.
+      //
+      // Scaffold hands its body LOOSE constraints (0 <= h <= 731). Under those,
+      // RefreshIndicator's internal Stack sizes to its largest child, and the
+      // SingleChildScrollView inside it shrink-wraps to ITS child — each
+      // waiting on the other, and the pair collapsed to zero height. The body
+      // was laid out with real space, the cards were built, and nothing was
+      // painted: a blank Pocket screen with no error to explain it.
+      //
+      // Forcing tight constraints gives the scroll view a definite height to
+      // fill, which is what every other screen gets for free by having a
+      // full-bleed child.
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
@@ -354,17 +370,13 @@ class _PocketScreenState extends ConsumerState<PocketScreen> {
                   },
                   child: SingleChildScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
-                    padding: EdgeInsets.only(
-                      left: 20.w,
-                      right: 20.w,
-                      top: 10.h,
-                      bottom: 120.h,
-                    ),
+                    padding: EdgeInsets.fromLTRB(20.w, 10.h, 20.w, 120.h),
                     child: Column(
                       children: [
                         _buildWeeklyEarningsCard(theme),
                         SizedBox(height: 16.h),
-                        _buildWalletBalanceCard(theme, isDarkMode, textColor, subTextColor),
+                        _buildWalletBalanceCard(
+                            theme, isDarkMode, textColor, subTextColor),
                         SizedBox(height: 16.h),
                         Row(
                           children: [
@@ -375,18 +387,22 @@ class _PocketScreenState extends ConsumerState<PocketScreen> {
                                 subTextColor: subTextColor,
                                 icon: Icons.local_shipping_outlined,
                                 label: "Today's Trips",
-                                value: '${(_todayEarnings?['totalOrders'] as num?)?.toInt() ?? 0}',
+                                value:
+                                    '${(_todayEarnings?['totalOrders'] as num?)?.toInt() ?? 0}',
                                 footer:
                                     '₹${((_todayEarnings?['totalEarnings'] as num?) ?? 0).toStringAsFixed(0)} earned',
                                 footerColor: _onlineGreen,
                               ),
                             ),
                             SizedBox(width: 16.w),
-                            Expanded(child: _buildRatingCard(theme, textColor, subTextColor)),
+                            Expanded(
+                                child: _buildRatingCard(
+                                    theme, textColor, subTextColor)),
                           ],
                         ),
                         SizedBox(height: 16.h),
-                        _buildEarningsBreakupCard(theme, textColor, subTextColor),
+                        _buildEarningsBreakupCard(
+                            theme, textColor, subTextColor),
                       ],
                     ),
                   ),
@@ -430,8 +446,8 @@ class _PocketScreenState extends ConsumerState<PocketScreen> {
       label: 'Rating',
       value: rating != null ? rating.toStringAsFixed(2) : '—',
       footer: totalRatings > 0 ? '$totalRatings ratings' : 'No ratings yet',
-      footerColor: Colors.amber[700]!,
-      valueColor: Colors.amber[700],
+      footerColor: AppColors.primaryDark,
+      valueColor: AppColors.primaryDark,
     );
   }
 
@@ -467,7 +483,7 @@ class _PocketScreenState extends ConsumerState<PocketScreen> {
       padding: EdgeInsets.all(20.r),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [theme.primaryColor, const Color(0xFFFF9853)],
+          colors: [theme.primaryColor, AppColors.primaryLight],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -479,7 +495,7 @@ class _PocketScreenState extends ConsumerState<PocketScreen> {
           Text(
             'This Week',
             style: TextStyle(
-              color: Colors.white.withOpacity(0.9),
+              color: Colors.white.withValues(alpha: 0.9),
               fontWeight: FontWeight.w700,
               fontSize: 13.sp,
             ),
@@ -498,7 +514,7 @@ class _PocketScreenState extends ConsumerState<PocketScreen> {
           Text(
             'Earnings ₹${totalEarning.toStringAsFixed(0)} · Bonus ₹${totalBonus.toStringAsFixed(0)}',
             style: TextStyle(
-              color: Colors.white.withOpacity(0.85),
+              color: Colors.white.withValues(alpha: 0.85),
               fontSize: 11.sp,
               fontWeight: FontWeight.w600,
             ),
@@ -518,7 +534,7 @@ class _PocketScreenState extends ConsumerState<PocketScreen> {
                     (d) => Text(
                       d,
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.8),
+                        color: Colors.white.withValues(alpha: 0.8),
                         fontSize: 10.sp,
                         fontWeight: FontWeight.w600,
                       ),
@@ -530,7 +546,7 @@ class _PocketScreenState extends ConsumerState<PocketScreen> {
             Text(
               'No earnings yet this week',
               style: TextStyle(
-                color: Colors.white.withOpacity(0.85),
+                color: Colors.white.withValues(alpha: 0.85),
                 fontSize: 12.sp,
                 fontWeight: FontWeight.w600,
               ),
@@ -607,7 +623,7 @@ class _PocketScreenState extends ConsumerState<PocketScreen> {
           ),
           if (cashInHand > 0) ...[
             SizedBox(height: 16.h),
-            Divider(height: 1, color: subTextColor?.withOpacity(0.2)),
+            Divider(height: 1, color: subTextColor?.withValues(alpha: 0.2)),
             SizedBox(height: 16.h),
             Row(
               children: [
@@ -793,7 +809,7 @@ class _WeeklyChartPainter extends CustomPainter {
       ..shader = LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
-        colors: [Colors.white.withOpacity(0.25), Colors.white.withOpacity(0.0)],
+        colors: [Colors.white.withValues(alpha: 0.25), Colors.white.withValues(alpha: 0.0)],
       ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
     canvas.drawPath(fillPath, fillPaint);
 
@@ -809,7 +825,7 @@ class _WeeklyChartPainter extends CustomPainter {
     canvas.drawCircle(
       points.last,
       7,
-      Paint()..color = Colors.white.withOpacity(0.35),
+      Paint()..color = Colors.white.withValues(alpha: 0.35),
     );
   }
 

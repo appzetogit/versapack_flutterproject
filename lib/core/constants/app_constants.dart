@@ -1,14 +1,30 @@
-import 'dart:io';
-
-import 'package:food_user_application/features/language/domain/models/language_listing_model.dart';
 
 class AppConstants {
-  static const String title = 'Appzeto Delivery';
+  AppConstants._();
+
+  static const String title = 'Versapack Delivery';
+
+  /// Consumer-facing brand, used in share text, the referral ticket and the
+  /// Razorpay checkout sheet. Change it here, not at the call sites.
+  static const String brandName = 'Versapack Delivery';
+
+  /// Second line of the stacked wordmark on the referral ticket.
+  static const String brandSuffix = 'Delivery';
   static const String appFontFamily = 'Latin';
 
-  static const String apiHost = 'https://suvio.appzeto.com';
+  /// Backend origin.
+  ///
+  /// Overridable at build time so a staging build never needs a code edit:
+  ///   flutter build apk --dart-define=API_HOST=https://api.example.com
+  static const String apiHost = String.fromEnvironment(
+    'API_HOST',
+    defaultValue: 'https://versapack.in',
+  );
+
   static const String baseUrl = '$apiHost/api/v1';
 
+  /// Turns a backend-relative upload path (`/uploads/...`) into a full URL,
+  /// leaving absolute and data URLs untouched.
   static String resolveMediaUrl(String? raw) {
     final v = (raw ?? '').trim();
     if (v.isEmpty) return '';
@@ -21,32 +37,12 @@ class AppConstants {
     return '$apiHost$path';
   }
 
-  static String firbaseApiKey = (Platform.isAndroid)
-      ? "AIzaSyC_twLhO7C21HdRBvoZvedceka0jdLCUjc"
-      : "ios firebase api key";
+  /// Google Maps key used for the Static Maps preview. The SDK map itself
+  /// reads its key from the native manifests, not from here.
+  static const String mapKey = String.fromEnvironment(
+    'MAPS_API_KEY',
+    defaultValue: 'AIzaSyArBbII2fgAuVaycfkEAm1GcuyvKPTSWyc',
+  );
 
-  static String firebaseAppId = (Platform.isAndroid)
-      ? "1:592916974677:android:5366c1825a27cf201518dc"
-      : "ios firebase app id";
-
-  static String firebasemessagingSenderId = (Platform.isAndroid)
-      ? "592916974677"
-      : "ios firebase sender id";
-
-  static String firebaseProjectId = (Platform.isAndroid)
-      ? "flutterfoodapp-e6742"
-      : "ios firebase project id";
-
-  static String mapKey = (Platform.isAndroid)
-      ? 'AIzaSyArBbII2fgAuVaycfkEAm1GcuyvKPTSWyc'
-      : 'your ios map key';
-
-  static const String stripPublishKey = '';
-
-  static List<LocaleLanguageList> languageList = [
-    LocaleLanguageList(name: 'English', lang: 'en'),
-  ];
-
-  static String packageName = 'com.appzetofood.delivery';
-  static String signKey = '';
+  static const String packageName = 'com.quickcommerce.delivery';
 }

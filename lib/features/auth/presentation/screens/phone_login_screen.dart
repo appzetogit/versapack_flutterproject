@@ -4,9 +4,9 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/error/result.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../application/auth_controller.dart';
 import '../widgets/auth_widgets.dart';
+import 'package:food_user_application/core/theme/app_colors.dart';
 
 class PhoneLoginScreen extends ConsumerStatefulWidget {
   const PhoneLoginScreen({super.key});
@@ -54,10 +54,10 @@ class _PhoneLoginScreenState extends ConsumerState<PhoneLoginScreen> {
           Container(
             padding: EdgeInsets.all(6.w),
             decoration: BoxDecoration(
-              color: AppTheme.primaryColor.withValues(alpha: 0.1),
+              color: AppColors.primary.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, size: 16.sp, color: AppTheme.primaryColor),
+            child: Icon(icon, size: 16.sp, color: AppColors.primary),
           ),
           SizedBox(width: 6.w),
           Expanded(
@@ -112,7 +112,7 @@ class _PhoneLoginScreenState extends ConsumerState<PhoneLoginScreen> {
                     children: [
                       TextSpan(
                         text: 'Partner',
-                        style: TextStyle(color: AppTheme.primaryColor),
+                        style: TextStyle(color: AppColors.primary),
                       ),
                     ],
                   ),
@@ -172,7 +172,7 @@ class _PhoneLoginScreenState extends ConsumerState<PhoneLoginScreen> {
                   SizedBox(height: 10.h),
                   Text(
                     _errorText!,
-                    style: TextStyle(color: Colors.redAccent, fontSize: 13.sp),
+                    style: TextStyle(color: AppColors.error, fontSize: 13.sp),
                   ),
                 ],
                 SizedBox(height: 28.h),

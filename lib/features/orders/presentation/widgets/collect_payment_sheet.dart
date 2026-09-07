@@ -7,6 +7,7 @@ import 'package:food_user_application/features/auth/application/auth_controller.
 import 'package:food_user_application/features/auth/application/auth_state.dart';
 import 'package:food_user_application/features/orders/data/models/delivery_order.dart';
 import 'package:food_user_application/features/orders/data/orders_repository.dart';
+import 'package:food_user_application/core/theme/app_colors.dart';
 
 class CollectPaymentSheet extends ConsumerStatefulWidget {
   const CollectPaymentSheet({super.key, required this.order});
@@ -52,7 +53,7 @@ class _CollectPaymentSheetState extends ConsumerState<CollectPaymentSheet> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDarkMode = theme.brightness == Brightness.dark;
-    final textColor = isDarkMode ? Colors.white : const Color(0xFF1E1E1E);
+    final textColor = AppColors.of(context).textPrimary;
     final subTextColor = isDarkMode ? Colors.grey[400] : Colors.grey[600];
     final order = widget.order;
     final authState = ref.watch(authControllerProvider);
@@ -88,7 +89,7 @@ class _CollectPaymentSheetState extends ConsumerState<CollectPaymentSheet> {
                 padding: EdgeInsets.symmetric(vertical: 24.h),
                 child: Column(
                   children: [
-                    Icon(Icons.check_circle, color: Colors.green, size: 48.sp),
+                    Icon(Icons.check_circle, color: AppColors.success, size: 48.sp),
                     SizedBox(height: 12.h),
                     Text(
                       'Delivery Completed',
@@ -132,13 +133,13 @@ class _CollectPaymentSheetState extends ConsumerState<CollectPaymentSheet> {
                       ? SizedBox(
                           width: 16.w,
                           height: 16.w,
-                          child: const CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onPrimary),
                         )
                       : const Icon(Icons.check_circle_outline_rounded),
                   label: const Text('Payment Received'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: theme.primaryColor,
-                    foregroundColor: Colors.white,
+                    foregroundColor: AppColors.onPrimary,
                     minimumSize: Size(double.infinity, 48.h),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
                   ),
@@ -150,14 +151,14 @@ class _CollectPaymentSheetState extends ConsumerState<CollectPaymentSheet> {
                   label: const Text('Show QR to Customer'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: theme.primaryColor,
-                    foregroundColor: Colors.white,
+                    foregroundColor: AppColors.onPrimary,
                     minimumSize: Size(double.infinity, 48.h),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
                   ),
                 ),
               if (_error != null) ...[
                 SizedBox(height: 8.h),
-                Text(_error!, style: const TextStyle(color: Colors.redAccent, fontSize: 12)),
+                Text(_error!, style: const TextStyle(color: AppColors.error, fontSize: 12)),
               ],
               SizedBox(height: 12.h),
               OutlinedButton.icon(

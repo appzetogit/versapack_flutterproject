@@ -4,6 +4,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import 'package:food_user_application/core/error/result.dart';
 import 'package:food_user_application/features/support/data/support_repository.dart';
+import 'package:food_user_application/core/theme/app_colors.dart';
 
 class SupportTicketScreen extends ConsumerStatefulWidget {
   const SupportTicketScreen({super.key});
@@ -43,7 +44,7 @@ class _SupportTicketScreenState extends ConsumerState<SupportTicketScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Support ticket submitted successfully!'),
-            backgroundColor: Colors.green,
+            backgroundColor: AppColors.success,
           ),
         );
         context.pop();
@@ -53,7 +54,7 @@ class _SupportTicketScreenState extends ConsumerState<SupportTicketScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(error.message),
-            backgroundColor: Colors.red,
+            backgroundColor: AppColors.error,
           ),
         );
       },
@@ -62,25 +63,9 @@ class _SupportTicketScreenState extends ConsumerState<SupportTicketScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final c = AppColors.of(context);
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        centerTitle: true,
-        title: Text(
-          'Open Ticket',
-          style: TextStyle(
-            color: Colors.black87,
-            fontSize: 18.sp,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black87),
-          onPressed: () => context.pop(),
-        ),
-      ),
+      appBar: AppBar(centerTitle: true, title: const Text('Open Ticket')),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: EdgeInsets.all(24.w),
@@ -94,7 +79,7 @@ class _SupportTicketScreenState extends ConsumerState<SupportTicketScreen> {
                   style: TextStyle(
                     fontSize: 20.sp,
                     fontWeight: FontWeight.w800,
-                    color: Colors.black87,
+                    color: c.textPrimary,
                   ),
                 ),
                 SizedBox(height: 8.h),
@@ -102,7 +87,7 @@ class _SupportTicketScreenState extends ConsumerState<SupportTicketScreen> {
                   'Please provide as much detail as possible so we can help you better.',
                   style: TextStyle(
                     fontSize: 14.sp,
-                    color: Colors.grey[600],
+                    color: c.textSecondary,
                     height: 1.5,
                   ),
                 ),
@@ -112,7 +97,7 @@ class _SupportTicketScreenState extends ConsumerState<SupportTicketScreen> {
                   style: TextStyle(
                     fontSize: 14.sp,
                     fontWeight: FontWeight.w600,
-                    color: Colors.black87,
+                    color: c.textPrimary,
                   ),
                 ),
                 SizedBox(height: 8.h),
@@ -131,7 +116,7 @@ class _SupportTicketScreenState extends ConsumerState<SupportTicketScreen> {
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12.r),
-                      borderSide: const BorderSide(color: Color(0xFFE85B17)),
+                      borderSide: const BorderSide(color: AppColors.primary),
                     ),
                     filled: true,
                     fillColor: Colors.grey[50],
@@ -149,7 +134,7 @@ class _SupportTicketScreenState extends ConsumerState<SupportTicketScreen> {
                   style: TextStyle(
                     fontSize: 14.sp,
                     fontWeight: FontWeight.w600,
-                    color: Colors.black87,
+                    color: c.textPrimary,
                   ),
                 ),
                 SizedBox(height: 8.h),
@@ -169,7 +154,7 @@ class _SupportTicketScreenState extends ConsumerState<SupportTicketScreen> {
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12.r),
-                      borderSide: const BorderSide(color: Color(0xFFE85B17)),
+                      borderSide: const BorderSide(color: AppColors.primary),
                     ),
                     filled: true,
                     fillColor: Colors.grey[50],
@@ -191,7 +176,7 @@ class _SupportTicketScreenState extends ConsumerState<SupportTicketScreen> {
                   child: ElevatedButton(
                     onPressed: _isSubmitting ? null : _submitTicket,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFE85B17),
+                      backgroundColor: AppColors.primary,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(27.r),
                       ),
@@ -202,7 +187,7 @@ class _SupportTicketScreenState extends ConsumerState<SupportTicketScreen> {
                             width: 24.r,
                             height: 24.r,
                             child: const CircularProgressIndicator(
-                              color: Colors.white,
+                              color: AppColors.onPrimary,
                               strokeWidth: 2,
                             ),
                           )
@@ -211,7 +196,7 @@ class _SupportTicketScreenState extends ConsumerState<SupportTicketScreen> {
                             style: TextStyle(
                               fontSize: 16.sp,
                               fontWeight: FontWeight.bold,
-                              color: Colors.white,
+                              color: AppColors.onPrimary,
                             ),
                           ),
                   ),

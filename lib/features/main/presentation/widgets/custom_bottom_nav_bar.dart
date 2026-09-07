@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:food_user_application/core/services/haptic_service.dart';
+import 'package:food_user_application/core/theme/app_colors.dart';
 
 class CustomBottomNavBar extends StatelessWidget {
   final int currentIndex;
@@ -18,8 +19,8 @@ class CustomBottomNavBar extends StatelessWidget {
     final isDarkMode = theme.brightness == Brightness.dark;
 
     // Use opposite theme for background: white for dark mode, dark for light mode
-    final bgColor = isDarkMode ? Colors.white : const Color(0xFF161925); // backgroundDark equivalent
-    final unselectedColor = isDarkMode ? const Color(0xFF161925) : Colors.white;
+    final bgColor = isDarkMode ? Colors.white : AppColors.darkSurface; // backgroundDark equivalent
+    final unselectedColor = isDarkMode ? AppColors.darkSurface : Colors.white;
 
     return Container(
       // margin and padding to float and align items
@@ -30,7 +31,7 @@ class CustomBottomNavBar extends StatelessWidget {
         borderRadius: BorderRadius.circular(40.r),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -111,7 +112,8 @@ class CustomBottomNavBar extends StatelessWidget {
           children: [
             Icon(
               isActive ? activeIcon : icon,
-              color: isActive ? Colors.white : unselectedColor,
+              // Near-black on the golden pill: white would not be legible.
+              color: isActive ? AppColors.onPrimary : unselectedColor,
               size: isActive ? 24.sp : 24.sp,
             ),
             if (!isActive) ...[

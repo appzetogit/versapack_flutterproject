@@ -110,9 +110,9 @@ class OrdersRepository {
       final res = await _dio.post(
         ApiEndpoints.collectQr(orderId),
         data: {
-          if (name != null) 'name': name,
-          if (email != null) 'email': email,
-          if (phone != null) 'phone': phone,
+          'name': ?name,
+          'email': ?email,
+          'phone': ?phone,
         },
       );
       return Result.success(res.data['data'] as Map<String, dynamic>);

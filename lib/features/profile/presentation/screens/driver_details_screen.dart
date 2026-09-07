@@ -9,6 +9,7 @@ import '../../../auth/application/auth_controller.dart';
 import '../../../auth/application/auth_state.dart';
 import '../../../auth/data/models/delivery_partner.dart';
 import '../../data/profile_repository.dart';
+import 'package:food_user_application/core/theme/app_colors.dart';
 
 class DriverDetailsScreen extends ConsumerWidget {
   const DriverDetailsScreen({super.key});
@@ -17,8 +18,8 @@ class DriverDetailsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final isDarkMode = theme.brightness == Brightness.dark;
-    final textColor = isDarkMode ? Colors.white : const Color(0xFF1E1E1E);
-    final bgColor = isDarkMode ? const Color(0xFF161925) : const Color(0xFFF9FAFB);
+    final textColor = AppColors.of(context).textPrimary;
+    final bgColor = isDarkMode ? AppColors.darkSurface : AppColors.lightBackground;
     final authState = ref.watch(authControllerProvider);
     final user = authState is AuthAuthenticated ? authState.user : null;
 
@@ -47,7 +48,7 @@ class DriverDetailsScreen extends ConsumerWidget {
               margin: EdgeInsets.only(right: 20.w),
               padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
               decoration: BoxDecoration(
-                color: Colors.green.withOpacity(0.1),
+                color: AppColors.success.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(20.r),
               ),
               child: Row(
@@ -64,7 +65,7 @@ class DriverDetailsScreen extends ConsumerWidget {
                   Text(
                     _partnerId(user),
                     style: TextStyle(
-                      color: Colors.green,
+                      color: AppColors.success,
                       fontSize: 12.sp,
                       fontWeight: FontWeight.w800,
                     ),
@@ -142,10 +143,10 @@ class DriverDetailsScreen extends ConsumerWidget {
 
   (IconData, Color, String) _statusInfo(DeliveryPartner? user) {
     if (user == null) return (Icons.hourglass_empty, Colors.grey, 'Unknown');
-    if (user.isApproved) return (Icons.check_circle_outline, Colors.green, 'Approved');
-    if (user.isRejected) return (Icons.cancel_outlined, Colors.redAccent, 'Rejected');
+    if (user.isApproved) return (Icons.check_circle_outline, AppColors.success, 'Approved');
+    if (user.isRejected) return (Icons.cancel_outlined, AppColors.error, 'Rejected');
     if (user.isDeactivated) return (Icons.block, Colors.grey, 'Deactivated');
-    return (Icons.access_time, Colors.orange, 'Pending');
+    return (Icons.access_time, AppColors.warning, 'Pending');
   }
 
   Widget _buildProfileCard(ThemeData theme, Color textColor, DeliveryPartner? user) {
@@ -162,7 +163,7 @@ class DriverDetailsScreen extends ConsumerWidget {
         borderRadius: BorderRadius.circular(24.r),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 15,
             offset: const Offset(0, 5),
           ),
@@ -202,7 +203,7 @@ class DriverDetailsScreen extends ConsumerWidget {
                         ),
                         if (user?.isApproved == true) ...[
                           SizedBox(width: 6.w),
-                          Icon(Icons.verified, color: Colors.green, size: 18.sp),
+                          Icon(Icons.verified, color: AppColors.success, size: 18.sp),
                         ],
                       ],
                     ),
@@ -227,7 +228,7 @@ class DriverDetailsScreen extends ConsumerWidget {
                 child: Container(
                   padding: EdgeInsets.symmetric(vertical: 12.h),
                   decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.1),
+                    color: statusColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(30.r),
                   ),
                   child: Row(
@@ -252,9 +253,9 @@ class DriverDetailsScreen extends ConsumerWidget {
                 child: Container(
                   padding: EdgeInsets.symmetric(vertical: 12.h),
                   decoration: BoxDecoration(
-                    color: Colors.grey.withOpacity(0.05),
+                    color: Colors.grey.withValues(alpha: 0.05),
                     borderRadius: BorderRadius.circular(30.r),
-                    border: Border.all(color: Colors.grey.withOpacity(0.2)),
+                    border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -288,7 +289,7 @@ class DriverDetailsScreen extends ConsumerWidget {
         borderRadius: BorderRadius.circular(20.r),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 15,
             offset: const Offset(0, 5),
           ),
@@ -311,7 +312,7 @@ class DriverDetailsScreen extends ConsumerWidget {
               Container(
                 padding: EdgeInsets.all(4.r),
                 decoration: BoxDecoration(
-                  color: theme.primaryColor.withOpacity(0.1),
+                  color: theme.primaryColor.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(Icons.star_border, color: theme.primaryColor, size: 14.sp),
@@ -340,7 +341,7 @@ class DriverDetailsScreen extends ConsumerWidget {
         borderRadius: BorderRadius.circular(20.r),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 15,
             offset: const Offset(0, 5),
           ),
@@ -363,7 +364,7 @@ class DriverDetailsScreen extends ConsumerWidget {
               Container(
                 padding: EdgeInsets.all(4.r),
                 decoration: BoxDecoration(
-                  color: Colors.grey.withOpacity(0.1),
+                  color: Colors.grey.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(Icons.star_border, color: Colors.grey, size: 14.sp),
@@ -399,7 +400,7 @@ class DriverDetailsScreen extends ConsumerWidget {
         borderRadius: BorderRadius.circular(20.r),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 15,
             offset: const Offset(0, 5),
           ),
@@ -410,7 +411,7 @@ class DriverDetailsScreen extends ConsumerWidget {
           Container(
             padding: EdgeInsets.all(12.r),
             decoration: BoxDecoration(
-              color: theme.primaryColor.withOpacity(0.1),
+              color: theme.primaryColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(16.r),
             ),
             child: Icon(Icons.motorcycle, color: theme.primaryColor, size: 28.sp),
@@ -468,7 +469,7 @@ class DriverDetailsScreen extends ConsumerWidget {
       child: Container(
         padding: EdgeInsets.all(24.r),
         decoration: BoxDecoration(
-          color: const Color(0xFF10141D),
+          color: AppColors.darkBackground,
           borderRadius: BorderRadius.circular(24.r),
         ),
         child: Column(
@@ -502,7 +503,7 @@ class DriverDetailsScreen extends ConsumerWidget {
                 Container(
                   padding: EdgeInsets.all(12.r),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.1),
+                    color: Colors.white.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12.r),
                   ),
                   child: Icon(Icons.account_balance, color: Colors.white, size: 24.sp),
@@ -726,7 +727,7 @@ class _BankEditDialogState extends State<_BankEditDialog> {
               onPressed: _saving ? null : _submit,
               style: ElevatedButton.styleFrom(
                 backgroundColor: theme.primaryColor,
-                foregroundColor: Colors.white,
+                foregroundColor: AppColors.onPrimary,
                 padding: EdgeInsets.symmetric(vertical: 16.h),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16.r),
@@ -794,7 +795,7 @@ class _BankEditDialogState extends State<_BankEditDialog> {
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16.r),
-          borderSide: const BorderSide(color: Colors.redAccent, width: 1),
+          borderSide: const BorderSide(color: AppColors.error, width: 1),
         ),
       ),
       validator: isRequired

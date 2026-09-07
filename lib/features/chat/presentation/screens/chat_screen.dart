@@ -9,6 +9,7 @@ import 'package:food_user_application/core/services/socket_service.dart';
 import 'package:food_user_application/features/chat/data/chat_repository.dart';
 import 'package:food_user_application/features/chat/data/models/chat_message.dart';
 import 'package:food_user_application/features/orders/data/models/delivery_order.dart';
+import 'package:food_user_application/core/theme/app_colors.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
   const ChatScreen({super.key, required this.order});
@@ -177,8 +178,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDarkMode = theme.brightness == Brightness.dark;
-    final bgColor = isDarkMode ? const Color(0xFF121212) : const Color(0xFFF5F5F5);
-    final textColor = isDarkMode ? Colors.white : const Color(0xFF1E1E1E);
+    final bgColor = isDarkMode ? AppColors.darkBackground : AppColors.lightSurfaceVariant;
+    final textColor = AppColors.of(context).textPrimary;
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -234,7 +235,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           if (_error != null)
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 4.h),
-              child: Text(_error!, style: const TextStyle(color: Colors.redAccent, fontSize: 12)),
+              child: Text(_error!, style: const TextStyle(color: AppColors.error, fontSize: 12)),
             ),
           SafeArea(
             top: false,
@@ -273,9 +274,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       child: _sending
                           ? Padding(
                               padding: EdgeInsets.all(12.r),
-                              child: const CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              child: const CircularProgressIndicator(strokeWidth: 2, color: AppColors.onPrimary),
                             )
-                          : const Icon(Icons.send_rounded, color: Colors.white),
+                          : const Icon(Icons.send_rounded, color: AppColors.onPrimary),
                     ),
                   ),
                 ],
@@ -290,7 +291,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   Widget _buildBubble(ThemeData theme, bool isDarkMode, ChatMessage message) {
     final isMine = message.isFromDeliveryPartner;
     final bubbleColor = isMine ? theme.primaryColor : (isDarkMode ? Colors.white10 : Colors.white);
-    final textColor = isMine ? Colors.white : (isDarkMode ? Colors.white : Colors.black87);
+    final textColor = isMine
+        ? AppColors.onPrimary
+        : (isDarkMode ? Colors.white : AppColors.lightTextPrimary);
 
     return Align(
       alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
@@ -307,7 +310,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             bottomRight: Radius.circular(isMine ? 4.r : 16.r),
           ),
           boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 6, offset: const Offset(0, 2)),
+            BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 6, offset: const Offset(0, 2)),
           ],
         ),
         child: Text(message.text, style: TextStyle(color: textColor, fontSize: 14.sp)),
