@@ -49,6 +49,15 @@ class AuthApi {
     return Map<String, dynamic>.from(response.data as Map);
   }
 
+  /// Registers this device for push, independently of signing in.
+  ///
+  /// `verify-otp` carries the token too, but it only ever runs on a *fresh*
+  /// login — a seller who is already signed in when the app starts would never
+  /// register a device, and so would never receive a push.
+  Future<void> saveFcmToken(String token) async {
+    await _dio.post<dynamic>('/fcm-tokens/mobile/save', data: {'token': token});
+  }
+
   Future<void> logout({required String refreshToken, String? fcmToken}) async {
     await _dio.post<dynamic>(
       '/food/auth/logout',

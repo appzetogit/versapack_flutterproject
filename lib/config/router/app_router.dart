@@ -22,14 +22,13 @@ import 'package:quick_commerce_seller/features/feedback/presentation/views/feedb
 import 'package:quick_commerce_seller/features/home/presentation/views/home_screen.dart';
 import 'package:quick_commerce_seller/features/inventory/presentation/views/add_product_screen.dart';
 import 'package:quick_commerce_seller/features/inventory/presentation/views/categories_screen.dart';
-import 'package:quick_commerce_seller/features/inventory/presentation/views/inventory_screen.dart';
+import 'package:quick_commerce_seller/features/inventory/presentation/views/product_details_screen.dart';
 import 'package:quick_commerce_seller/features/inventory/presentation/views/products_screen.dart';
 import 'package:quick_commerce_seller/features/explore/presentation/views/explore_screen.dart';
 import 'package:quick_commerce_seller/features/main_layout/presentation/views/main_shell.dart';
 import 'package:quick_commerce_seller/features/notifications/presentation/views/notifications_screen.dart';
 import 'package:quick_commerce_seller/features/offers/presentation/views/create_coupon_screen.dart';
 import 'package:quick_commerce_seller/features/offers/presentation/views/offers_screen.dart';
-import 'package:quick_commerce_seller/features/onboarding/presentation/views/onboarding_screen.dart';
 import 'package:quick_commerce_seller/features/orders/presentation/views/order_details_screen.dart';
 import 'package:quick_commerce_seller/features/orders/presentation/views/order_history_screen.dart';
 import 'package:quick_commerce_seller/features/orders/presentation/views/orders_screen.dart';
@@ -50,8 +49,6 @@ final GlobalKey<NavigatorState> _ordersNavigatorKey = GlobalKey<NavigatorState>(
 );
 final GlobalKey<NavigatorState> _productsNavigatorKey =
     GlobalKey<NavigatorState>(debugLabel: 'products');
-final GlobalKey<NavigatorState> _inventoryNavigatorKey =
-    GlobalKey<NavigatorState>(debugLabel: 'inventory');
 final GlobalKey<NavigatorState> _exploreNavigatorKey =
     GlobalKey<NavigatorState>(debugLabel: 'explore');
 
@@ -60,13 +57,8 @@ final GlobalKey<NavigatorState> _exploreNavigatorKey =
 const String splashRoute = '/';
 
 /// Routes reachable while logged out.
-///
-/// [splashRoute] is deliberately **not** in here. Listing it made the redirect
-/// treat a logged-out seller sitting on the splash as already somewhere valid,
-/// which is exactly how the app hung there forever.
 const Set<String> _publicRoutes = {
   '/login',
-  '/onboarding',
   '/registration',
   '/registration-success',
 };
@@ -103,20 +95,13 @@ String? resolveRedirect({
     return null;
   }
 
-  // The phone verified but no store is attached to it. Without this branch the
-  // seller fell through to the public-route check below, which sees `/login` in
-  // the public set and answers "stay put" — leaving them on the sign-in screen
-  // with nothing to advance them.
+  // The phone verified but no store is attached to it.
   if (auth is AuthNeedsRegistration) {
     const allowed = {'/registration', '/registration-success'};
     return allowed.contains(location) ? null : '/registration';
   }
 
   // Logged out or mid-OTP.
-  if (!hasSeenOnboarding && auth is AuthLoggedOut) {
-    return location == '/onboarding' ? null : '/onboarding';
-  }
-  if (location == '/onboarding') return '/login';
   if (isSplash) return '/login';
   if (_publicRoutes.contains(location)) return null;
   return '/login';
@@ -132,7 +117,6 @@ final goRouterProvider = Provider<GoRouter>((ref) {
     refreshListenable: refresh,
     routes: [
       GoRoute(path: '/', builder: (_, _) => const SplashScreen()),
-      GoRoute(path: '/onboarding', builder: (_, _) => const OnboardingScreen()),
       GoRoute(path: '/login', builder: (_, _) => const LoginScreen()),
       GoRoute(
         path: '/registration',
@@ -154,12 +138,25 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       // Global Sub-routes
       GoRoute(path: '/analytics', builder: (_, _) => const AnalyticsScreen()),
       GoRoute(
-        path: '/add-product',
-        builder: (_, _) => const AddProductScreen(),
+        path: '/product-details/:productId',
+        builder: (_, state) =>
+            ProductDetailsScreen(productId: state.pathParameters['productId']!),
       ),
       GoRoute(
-        path: '/order-details',
-        builder: (_, _) => const OrderDetailsScreen(),
+        path: '/add-product',
+        builder: (_, _) => const AddProductScreen(),
+        routes: [
+          GoRoute(
+            path: ':productId',
+            builder: (_, state) =>
+                AddProductScreen(productId: state.pathParameters['productId']),
+          ),
+        ],
+      ),
+      GoRoute(
+        path: '/order-details/:orderId',
+        builder: (_, state) =>
+            OrderDetailsScreen(orderId: state.pathParameters['orderId']!),
       ),
       GoRoute(
         path: '/order-history',
@@ -223,15 +220,6 @@ final goRouterProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: '/products',
                 builder: (_, _) => const ProductsScreen(),
-              ),
-            ],
-          ),
-          StatefulShellBranch(
-            navigatorKey: _inventoryNavigatorKey,
-            routes: [
-              GoRoute(
-                path: '/inventory',
-                builder: (_, _) => const InventoryScreen(),
               ),
             ],
           ),

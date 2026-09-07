@@ -226,7 +226,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         ),
         const SizedBox(height: 2),
         Text(
-          'Seller',
+          'Quick Seller',
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
@@ -261,7 +261,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             decoration: BoxDecoration(
               color: context.surface,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFFFC400), width: 1.5),
+              border: Border.all(color: const Color(0xFFFD9027), width: 1.5),
             ),
             child: Row(
               children: [
@@ -340,7 +340,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             child: ElevatedButton(
               onPressed: _submitting ? null : _requestOtp,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFFC400),
+                backgroundColor: const Color(0xFFFD9027),
                 foregroundColor: const Color(0xFF181C2E),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -397,7 +397,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               decoration: BoxDecoration(
                 color: context.surface,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFFFC400), width: 1.5),
+                border: Border.all(color: const Color(0xFFFD9027), width: 1.5),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -443,7 +443,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               Container(
                 padding: const EdgeInsets.all(2),
                 decoration: const BoxDecoration(
-                  color: Color(0xFFFFC400),
+                  color: Color(0xFFFD9027),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(Icons.check, size: 12, color: Colors.white),
@@ -530,7 +530,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: const BorderSide(
-                  color: Color(0xFFFFC400),
+                  color: Color(0xFFFD9027),
                   width: 1.5,
                 ),
               ),
@@ -550,7 +550,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             child: ElevatedButton(
               onPressed: _submitting ? null : () => _verifyOtp(state.phone),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFFC400),
+                backgroundColor: const Color(0xFFFD9027),
                 foregroundColor: const Color(0xFF181C2E),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -618,7 +618,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           child: ElevatedButton(
             onPressed: () => context.push('/registration'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFFFC400),
+              backgroundColor: const Color(0xFFFD9027),
               foregroundColor: const Color(0xFF181C2E),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -672,7 +672,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               _requestOtp();
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFFFC400),
+              backgroundColor: const Color(0xFFFD9027),
             ),
             child: const Text(
               'Login',

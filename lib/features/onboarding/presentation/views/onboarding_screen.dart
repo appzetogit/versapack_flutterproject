@@ -153,7 +153,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                                       ),
                                       child: Center(
                                         child: Text(
-                                          'appzeto',
+                                          'Versapack',
                                           style: TextStyle(
                                             fontWeight: FontWeight.bold,
                                             fontSize: 12,

@@ -50,12 +50,20 @@ class OutletTimingsController extends AsyncNotifier<List<DayTimingModel>> {
     return _repository.getOutletTimings();
   }
 
-  Future<void> updateTimings(List<DayTimingModel> timings) async {
-    state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() async {
+  /// Returns whether the server accepted the schedule.
+  ///
+  /// Deliberately does not push a loading or error state. The screen this
+  /// serves is a form built from [state]; flipping it to a spinner and then to
+  /// an error page would throw away the seller's unsaved edits at the exact
+  /// moment they need to correct them.
+  Future<bool> updateTimings(List<DayTimingModel> timings) async {
+    try {
       await _repository.updateOutletTimings(timings);
-      return timings;
-    });
+      state = AsyncValue.data(timings);
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 }
 

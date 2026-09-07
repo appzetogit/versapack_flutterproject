@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:quick_commerce_seller/config/theme/app_palette.dart';
 import 'package:quick_commerce_seller/features/orders/domain/order_model.dart';
 import 'package:quick_commerce_seller/features/orders/presentation/controllers/orders_controller.dart';
+import 'package:quick_commerce_seller/features/notifications/presentation/controllers/notifications_controller.dart';
 
 class OrdersScreen extends ConsumerStatefulWidget {
   const OrdersScreen({super.key});
@@ -91,7 +92,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
               ),
             ),
             Text(
-              'Seller',
+              'Quick Seller',
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
@@ -113,25 +114,27 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                 ),
                 onPressed: () => context.push('/notifications'),
               ),
-              Positioned(
-                right: 8,
-                top: 8,
-                child: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFEF4444),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Text(
-                    '3',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
+              // Hidden at zero: a badge reading "0" is worse than no badge.
+              if (ref.watch(unreadNotificationsCountProvider) > 0)
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFEF4444),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Text(
+                      '${ref.watch(unreadNotificationsCountProvider)}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),
-              ),
             ],
           ),
         ],
@@ -186,7 +189,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                             borderRadius: BorderRadius.circular(10),
                             border: Border.all(
                               color: isSelected
-                                  ? const Color(0xFFFFC400)
+                                  ? const Color(0xFFFD9027)
                                   : context.borderColor,
                               width: isSelected ? 1.5 : 1.0,
                             ),
@@ -318,31 +321,37 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                 return today.map((o) => _buildOrderCard(_cardFor(o))).toList();
               })(),
 
-              const SizedBox(height: 16),
-              // Section: Yesterday
-              Text(
-                'Yesterday',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  color: context.textSecondary,
-                ),
-              ),
-              const SizedBox(height: 10),
+              // Section: Yesterday — header included only when it has orders
+              // under it. Rendering it unconditionally left a bare heading
+              // floating over empty space on every account with no older
+              // orders, which reads as content that failed to load.
               ...(() {
                 final all =
                     ref.watch(ordersControllerProvider).value ?? const [];
                 final now = DateTime.now();
-                final earlier = all.where(
-                  (o) =>
-                      !(o.createdAt.year == now.year &&
-                          o.createdAt.month == now.month &&
-                          o.createdAt.day == now.day),
-                );
-                if (earlier.isEmpty) return <Widget>[];
-                return earlier
-                    .map((o) => _buildOrderCard(_cardFor(o)))
+                final earlier = all
+                    .where(
+                      (o) =>
+                          !(o.createdAt.year == now.year &&
+                              o.createdAt.month == now.month &&
+                              o.createdAt.day == now.day),
+                    )
                     .toList();
+                if (earlier.isEmpty) return <Widget>[];
+
+                return <Widget>[
+                  const SizedBox(height: 16),
+                  Text(
+                    'Yesterday',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: context.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  ...earlier.map((o) => _buildOrderCard(_cardFor(o))),
+                ];
               })(),
 
               const SizedBox(height: 24),
@@ -586,7 +595,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                     // Action Button
                     if (isOutlined)
                       OutlinedButton(
-                        onPressed: () => context.push('/order-details'),
+                        onPressed: () => context.push('/order-details/${o['orderId']}'),
                         style: OutlinedButton.styleFrom(
                           side: BorderSide(color: context.borderColor),
                           shape: RoundedRectangleBorder(
@@ -608,9 +617,9 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                       )
                     else
                       ElevatedButton(
-                        onPressed: () => context.push('/order-details'),
+                        onPressed: () => context.push('/order-details/${o['orderId']}'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFFFC400),
+                          backgroundColor: const Color(0xFFFD9027),
                           foregroundColor: const Color(0xFF181C2E),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),

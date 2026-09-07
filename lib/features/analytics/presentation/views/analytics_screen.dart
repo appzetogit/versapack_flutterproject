@@ -5,6 +5,11 @@ import 'package:go_router/go_router.dart';
 import 'package:quick_commerce_seller/config/theme/app_palette.dart';
 import 'package:quick_commerce_seller/features/analytics/data/api_analytics_repository.dart';
 import 'package:quick_commerce_seller/features/analytics/domain/analytics_model.dart';
+import 'package:intl/intl.dart';
+import 'package:quick_commerce_seller/features/explore/presentation/controllers/explore_controller.dart';
+import 'package:quick_commerce_seller/features/orders/domain/order_model.dart';
+import 'package:quick_commerce_seller/features/orders/presentation/controllers/orders_controller.dart';
+import 'package:quick_commerce_seller/features/notifications/presentation/controllers/notifications_controller.dart';
 
 class AnalyticsScreen extends ConsumerStatefulWidget {
   const AnalyticsScreen({super.key});
@@ -14,7 +19,28 @@ class AnalyticsScreen extends ConsumerStatefulWidget {
 }
 
 class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
-  final String _selectedDate = 'Today, 4 May';
+  /// Today's real date. It used to read "Today, 4 May" on every device on
+  /// every day of the year.
+  String get _selectedDate =>
+      'Today, ${DateFormat('d MMM').format(DateTime.now())}';
+
+  /// Compact money for a chart axis: ₹0, ₹450, ₹5.2K, ₹1.4L.
+  static String _axisLabel(double value) {
+    if (value <= 0) return '₹0';
+    if (value >= 100000) return '₹${(value / 100000).toStringAsFixed(1)}L';
+    if (value >= 1000) return '₹${(value / 1000).toStringAsFixed(1)}K';
+    return '₹${value.round()}';
+  }
+
+  /// Weekday names for the seven days the chart covers: a rolling window
+  /// ending today, matching `weeklySalesProvider`, oldest first.
+  static List<String> _chartDayLabels() {
+    final today = DateTime.now();
+    return [
+      for (var i = 6; i >= 0; i--)
+        DateFormat('EEE').format(today.subtract(Duration(days: i))),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -56,7 +82,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
               ),
             ),
             Text(
-              'Seller',
+              'Quick Seller',
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
@@ -78,30 +104,32 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                 ),
                 onPressed: () => context.push('/notifications'),
               ),
-              Positioned(
-                right: 8,
-                top: 8,
-                child: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFEF4444),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Text(
-                    '3',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
+              // Hidden at zero: a badge reading "0" is worse than no badge.
+              if (ref.watch(unreadNotificationsCountProvider) > 0)
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFEF4444),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Text(
+                      '${ref.watch(unreadNotificationsCountProvider)}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),
-              ),
             ],
           ),
         ],
       ),
-      drawer: _buildDrawer(context),
+      drawer: _buildDrawer(context, ref),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
@@ -135,42 +163,52 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                       ],
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: context.surface,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: const Color(0xFFFFC400),
-                        width: 1.5,
+                  // Flexible now that the date is real: "Today, 4 May" and
+                  // "Today, 15 Aug" are different widths, and the fixed chip
+                  // overflowed on the longer ones at large text scales.
+                  Flexible(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
                       ),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.calendar_today_outlined,
-                          size: 14,
-                          color: context.textPrimary,
+                      decoration: BoxDecoration(
+                        color: context.surface,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: const Color(0xFFFD9027),
+                          width: 1.5,
                         ),
-                        const SizedBox(width: 6),
-                        Text(
-                          _selectedDate,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.calendar_today_outlined,
+                            size: 14,
                             color: context.textPrimary,
                           ),
-                        ),
-                        const SizedBox(width: 4),
-                        Icon(
-                          Icons.keyboard_arrow_down_rounded,
-                          size: 16,
-                          color: context.textPrimary,
-                        ),
-                      ],
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              _selectedDate,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: context.textPrimary,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Icon(
+                            Icons.keyboard_arrow_down_rounded,
+                            size: 16,
+                            color: context.textPrimary,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],
@@ -374,6 +412,16 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
   }
 
   Widget _buildSalesOverviewCard() {
+    final summary = ref.watch(analyticsSummaryProvider).value;
+    final dailySales = ref.watch(weeklySalesProvider);
+    // The plot area reserves 10% headroom (see _SalesLineChartPainter), so the
+    // value at the very top of the grid is peak/0.9. Labelling with the raw
+    // peak would put every gridline slightly off the line it describes.
+    final peak = dailySales.isEmpty
+        ? 0.0
+        : dailySales.reduce((a, b) => a > b ? a : b);
+    final axisMax = peak <= 0 ? 0.0 : peak / 0.9;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -439,26 +487,39 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Text(
-                '₹58,420.00',
+                summary == null
+                    ? '—'
+                    : '₹${summary.totalSales.toStringAsFixed(2)}',
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w900,
                   color: context.textPrimary,
                 ),
               ),
-              Icon(
-                Icons.arrow_upward_rounded,
-                size: 14,
-                color: Color(0xFF10B981),
-              ),
-              Text(
-                '16.3% vs Last Week',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF10B981),
+              // Only drawn when the backend actually resolved a prior period to
+              // compare against. A trend is a claim about the past; inventing
+              // one is worse than leaving the row short.
+              if (summary?.salesTrendPercent != null) ...[
+                Icon(
+                  summary!.salesTrendPercent! < 0
+                      ? Icons.arrow_downward_rounded
+                      : Icons.arrow_upward_rounded,
+                  size: 14,
+                  color: summary.salesTrendPercent! < 0
+                      ? const Color(0xFFDC2626)
+                      : const Color(0xFF10B981),
                 ),
-              ),
+                Text(
+                  '${summary.salesTrendPercent!.abs().toStringAsFixed(1)}% vs Last Week',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: summary.salesTrendPercent! < 0
+                        ? const Color(0xFFDC2626)
+                        : const Color(0xFF10B981),
+                  ),
+                ),
+              ],
             ],
           ),
           const SizedBox(height: 16),
@@ -470,45 +531,21 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
             child: Row(
               children: [
                 // Y-Axis Labels
+                // Scaled to the week actually being drawn. The old fixed
+                // ₹0–20K ladder described no real quantity and did not match
+                // the line beside it, which the painter scales to the peak.
                 Column(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text(
-                      '₹20K',
-                      style: TextStyle(
-                        fontSize: 9,
-                        color: context.textSecondary,
+                    for (var tick = 4; tick >= 0; tick--)
+                      Text(
+                        _axisLabel(axisMax * tick / 4),
+                        style: TextStyle(
+                          fontSize: 9,
+                          color: context.textSecondary,
+                        ),
                       ),
-                    ),
-                    Text(
-                      '₹15K',
-                      style: TextStyle(
-                        fontSize: 9,
-                        color: context.textSecondary,
-                      ),
-                    ),
-                    Text(
-                      '₹10K',
-                      style: TextStyle(
-                        fontSize: 9,
-                        color: context.textSecondary,
-                      ),
-                    ),
-                    Text(
-                      '₹5K',
-                      style: TextStyle(
-                        fontSize: 9,
-                        color: context.textSecondary,
-                      ),
-                    ),
-                    Text(
-                      '₹0',
-                      style: TextStyle(
-                        fontSize: 9,
-                        color: context.textSecondary,
-                      ),
-                    ),
                   ],
                 ),
                 const SizedBox(width: 8),
@@ -518,83 +555,30 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                       Expanded(
                         child: CustomPaint(
                           size: Size.infinite,
-                          painter: _SalesLineChartPainter(),
+                          painter: _SalesLineChartPainter(
+                            ref.watch(weeklySalesProvider),
+                          ),
                         ),
                       ),
                       const SizedBox(height: 6),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Expanded(
-                            child: Text(
-                              'Mon',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: context.textSecondary,
+                          // Generated from the same seven days the chart
+                          // plots — a rolling window ending today, not a fixed
+                          // Mon–Sun week. The static labels mislabelled every
+                          // point on any day that was not Sunday.
+                          for (final day in _chartDayLabels())
+                            Expanded(
+                              child: Text(
+                                day,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: context.textSecondary,
+                                ),
                               ),
                             ),
-                          ),
-                          Expanded(
-                            child: Text(
-                              'Tue',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: context.textSecondary,
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            child: Text(
-                              'Wed',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: context.textSecondary,
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            child: Text(
-                              'Thu',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: context.textSecondary,
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            child: Text(
-                              'Fri',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: context.textSecondary,
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            child: Text(
-                              'Sat',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: context.textSecondary,
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            child: Text(
-                              'Sun',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: context.textSecondary,
-                              ),
-                            ),
-                          ),
                         ],
                       ),
                     ],
@@ -608,50 +592,42 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
     );
   }
 
+  /// Live status split for the donut. Empty buckets are dropped so the legend
+  /// does not list five zeroes for a store with no orders.
+  Map<_OrderBucket, int> get _statusCounts {
+    final active = ref.watch(ordersControllerProvider).value ?? const [];
+    final past = ref.watch(orderHistoryProvider).value ?? const [];
+
+    final counts = <_OrderBucket, int>{};
+    for (final o in [...active, ...past]) {
+      final bucket = switch (o.status) {
+        OrderStatus.delivered => _OrderBucket.completed,
+        OrderStatus.preparing => _OrderBucket.preparing,
+        OrderStatus.ready => _OrderBucket.ready,
+        OrderStatus.cancelled => _OrderBucket.cancelled,
+        OrderStatus.newOrder => _OrderBucket.pending,
+      };
+      counts[bucket] = (counts[bucket] ?? 0) + 1;
+    }
+    return counts;
+  }
+
   Widget _buildBreakdownCardsRow() {
+    final statusCounts = _statusCounts;
+    final totalOrders = statusCounts.values.fold<int>(0, (a, b) => a + b);
     final categories = [
-      {
-        'name': 'Fruits & Vegetables',
-        'amount': '₹18,450',
-        'pct': '31.6%',
-        'val': 0.316,
-        'icon': Icons.lunch_dining_rounded,
-      },
-      {
-        'name': 'Dairy & Eggs',
-        'amount': '₹12,230',
-        'pct': '20.9%',
-        'val': 0.209,
-        'icon': Icons.local_cafe_rounded,
-      },
-      {
-        'name': 'Grocery & Staples',
-        'amount': '₹10,850',
-        'pct': '18.6%',
-        'val': 0.186,
-        'icon': Icons.shopping_bag_outlined,
-      },
-      {
-        'name': 'Snacks & Munchies',
-        'amount': '₹7,890',
-        'pct': '13.5%',
-        'val': 0.135,
-        'icon': Icons.fastfood_rounded,
-      },
-      {
-        'name': 'Beverages',
-        'amount': '₹5,000',
-        'pct': '8.6%',
-        'val': 0.086,
-        'icon': Icons.local_drink_rounded,
-      },
-      {
-        'name': 'Personal Care',
-        'amount': '₹4,000',
-        'pct': '6.8%',
-        'val': 0.068,
-        'icon': Icons.sanitizer_rounded,
-      },
+      for (final c in ref.watch(categorySalesProvider))
+        {
+          'name': c.name,
+          'amount': NumberFormat.currency(
+            locale: 'en_IN',
+            symbol: '₹',
+            decimalDigits: 0,
+          ).format(c.revenue),
+          'pct': '${(c.share * 100).toStringAsFixed(1)}%',
+          'val': c.share,
+          'icon': Icons.category_rounded,
+        },
     ];
 
     return Column(
@@ -763,7 +739,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                             value: cat['val'] as double,
                             backgroundColor: const Color(0xFFF3F4F6),
                             valueColor: const AlwaysStoppedAnimation<Color>(
-                              Color(0xFFFFC400),
+                              Color(0xFFFD9027),
                             ),
                             minHeight: 5,
                           ),
@@ -810,13 +786,13 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                     children: [
                       CustomPaint(
                         size: const Size(140, 140),
-                        painter: _OrdersDonutChartPainter(),
+                        painter: _OrdersDonutChartPainter(statusCounts),
                       ),
                       Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text(
-                            '48',
+                            '$totalOrders',
                             style: TextStyle(
                               fontSize: 22,
                               fontWeight: FontWeight.w900,
@@ -839,27 +815,17 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
               const SizedBox(height: 16),
 
               // Breakdown Legends List
-              _buildDonutLegend(
-                const Color(0xFF10B981),
-                'Completed',
-                '20 (41.7%)',
-              ),
-              const SizedBox(height: 6),
-              _buildDonutLegend(
-                const Color(0xFFFFC400),
-                'Preparing',
-                '12 (25.0%)',
-              ),
-              const SizedBox(height: 6),
-              _buildDonutLegend(const Color(0xFF2563EB), 'Ready', '8 (16.7%)'),
-              const SizedBox(height: 6),
-              _buildDonutLegend(
-                const Color(0xFF8B5CF6),
-                'Cancelled',
-                '4 (8.3%)',
-              ),
-              const SizedBox(height: 6),
-              _buildDonutLegend(const Color(0xFF9CA3AF), 'Others', '4 (8.3%)'),
+              for (final entry in statusCounts.entries) ...[
+                _buildDonutLegend(
+                  entry.key.color,
+                  entry.key.label,
+                  totalOrders == 0
+                      ? '0'
+                      : '${entry.value} '
+                            '(${(entry.value / totalOrders * 100).toStringAsFixed(1)}%)',
+                ),
+                const SizedBox(height: 6),
+              ],
             ],
           ),
         ),
@@ -907,51 +873,61 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
     );
   }
 
+  /// One order in the shape the row below was written against.
+  Map<String, dynamic> _recentRowFor(OrderModel o) {
+    final (label, bg, fg) = switch (o.status) {
+      OrderStatus.newOrder => (
+        'New',
+        const Color(0xFFFEF3C7),
+        const Color(0xFFD97706),
+      ),
+      OrderStatus.preparing => (
+        'Preparing',
+        const Color(0xFFFEF3C7),
+        const Color(0xFFD97706),
+      ),
+      OrderStatus.ready => (
+        'Ready',
+        const Color(0xFFEFF6FF),
+        const Color(0xFF2563EB),
+      ),
+      OrderStatus.delivered => (
+        'Completed',
+        const Color(0xFFECFDF5),
+        const Color(0xFF059669),
+      ),
+      OrderStatus.cancelled => (
+        'Cancelled',
+        const Color(0xFFFEE2E2),
+        const Color(0xFFDC2626),
+      ),
+    };
+
+    final count = o.items.fold<int>(0, (n, i) => n + i.quantity);
+
+    return {
+      'id': o.orderNumber.isEmpty ? o.id : o.orderNumber,
+      'customer': o.customer.name,
+      'status': label,
+      'statusBg': bg,
+      'statusColor': fg,
+      'amount': '₹${o.totalAmount.toStringAsFixed(2)}',
+      'items': '$count item${count == 1 ? '' : 's'}',
+      'stateText': label,
+      'stateColor': fg,
+      'time': DateFormat('h:mm a').format(o.createdAt.toLocal()),
+      'iconBg': bg,
+      'iconColor': fg,
+    };
+  }
+
   Widget _buildRecentOrdersCard(BuildContext context) {
-    final recent = [
-      {
-        'id': '#AZ12678',
-        'customer': 'Rohit Sharma',
-        'status': 'New',
-        'statusBg': const Color(0xFFFEF3C7),
-        'statusColor': const Color(0xFFD97706),
-        'amount': '₹685.00',
-        'items': '12 items',
-        'stateText': 'Preparing',
-        'stateColor': const Color(0xFFD97706),
-        'time': '10:30 AM',
-        'iconBg': const Color(0xFFFEF3C7),
-        'iconColor': const Color(0xFFD97706),
-      },
-      {
-        'id': '#AZ12677',
-        'customer': 'Neha Verma',
-        'status': 'Accepted',
-        'statusBg': const Color(0xFFECFDF5),
-        'statusColor': const Color(0xFF059669),
-        'amount': '₹452.50',
-        'items': '8 items',
-        'stateText': 'Ready',
-        'stateColor': const Color(0xFF2563EB),
-        'time': '10:22 AM',
-        'iconBg': const Color(0xFFECFDF5),
-        'iconColor': const Color(0xFF059669),
-      },
-      {
-        'id': '#AZ12676',
-        'customer': 'Amit Patel',
-        'status': 'Completed',
-        'statusBg': const Color(0xFFECFDF5),
-        'statusColor': const Color(0xFF059669),
-        'amount': '₹299.00',
-        'items': '6 items',
-        'stateText': 'Completed',
-        'stateColor': const Color(0xFF10B981),
-        'time': '09:45 AM',
-        'iconBg': const Color(0xFFECFDF5),
-        'iconColor': const Color(0xFF10B981),
-      },
-    ];
+    // The five most recent orders across both lists, newest first.
+    final active = ref.watch(ordersControllerProvider).value ?? const [];
+    final past = ref.watch(orderHistoryProvider).value ?? const [];
+    final all = [...active, ...past]
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    final recent = all.take(5).map(_recentRowFor).toList();
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -1129,29 +1105,33 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
     );
   }
 
-  Widget _buildDrawer(BuildContext context) {
+  Widget _buildDrawer(BuildContext context, WidgetRef ref) {
+    final store = ref.watch(storeProfileProvider).value;
     return Drawer(
       child: ListView(
         padding: EdgeInsets.zero,
         children: [
-          const DrawerHeader(
-            decoration: BoxDecoration(color: Color(0xFFFFC400)),
+          DrawerHeader(
+            decoration: const BoxDecoration(color: Color(0xFFFD9027)),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 Text(
-                  'Fresh Mart Superstore',
-                  style: TextStyle(
+                  store?.name ?? 'Your store',
+                  style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: Color(0xFF181C2E),
                   ),
                 ),
-                SizedBox(height: 4),
+                const SizedBox(height: 4),
                 Text(
-                  'Online • Quick Commerce Seller',
-                  style: TextStyle(fontSize: 12, color: Color(0xFF181C2E)),
+                  (store?.isOnline ?? false) ? 'Online' : 'Offline',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF181C2E),
+                  ),
                 ),
               ],
             ),
@@ -1202,17 +1182,6 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
           ),
           ListTile(
             leading: const Icon(
-              Icons.widgets_outlined,
-              color: Color(0xFF181C2E),
-            ),
-            title: const Text('Inventory'),
-            onTap: () {
-              Navigator.pop(context);
-              context.go('/inventory');
-            },
-          ),
-          ListTile(
-            leading: const Icon(
               Icons.settings_outlined,
               color: Color(0xFF181C2E),
             ),
@@ -1229,6 +1198,11 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
 }
 
 class _SalesLineChartPainter extends CustomPainter {
+  const _SalesLineChartPainter(this.values);
+
+  /// Delivered revenue per day, oldest first.
+  final List<double> values;
+
   @override
   void paint(Canvas canvas, Size size) {
     final gridPaint = Paint()
@@ -1240,14 +1214,17 @@ class _SalesLineChartPainter extends CustomPainter {
       canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
     }
 
+    if (values.isEmpty) return;
+
+    // Scaled against the best day. A week with no sales has no line to draw —
+    // a flat one at any height would state something that did not happen.
+    final peak = values.reduce((a, b) => a > b ? a : b);
+    if (peak <= 0) return;
+
+    final step = values.length == 1 ? 0.0 : size.width / (values.length - 1);
     final points = [
-      Offset(0, size.height * 0.8),
-      Offset(size.width * 0.16, size.height * 0.65),
-      Offset(size.width * 0.33, size.height * 0.45),
-      Offset(size.width * 0.5, size.height * 0.55),
-      Offset(size.width * 0.66, size.height * 0.38),
-      Offset(size.width * 0.83, size.height * 0.12),
-      Offset(size.width, size.height * 0.6),
+      for (var i = 0; i < values.length; i++)
+        Offset(step * i, size.height * (1 - (values[i] / peak)) * 0.9),
     ];
 
     final path = Path();
@@ -1266,21 +1243,21 @@ class _SalesLineChartPainter extends CustomPainter {
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
         colors: [
-          const Color(0xFFFFC400).withValues(alpha: 0.35),
-          const Color(0xFFFFC400).withValues(alpha: 0.0),
+          const Color(0xFFFD9027).withValues(alpha: 0.35),
+          const Color(0xFFFD9027).withValues(alpha: 0.0),
         ],
       ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
 
     canvas.drawPath(fillPath, fillPaint);
 
     final linePaint = Paint()
-      ..color = const Color(0xFFFFC400)
+      ..color = const Color(0xFFFD9027)
       ..strokeWidth = 2.8
       ..style = PaintingStyle.stroke;
 
     canvas.drawPath(path, linePaint);
 
-    final dotPaint = Paint()..color = const Color(0xFFFFC400);
+    final dotPaint = Paint()..color = const Color(0xFFFD9027);
     final innerDotPaint = Paint()..color = Colors.white;
 
     for (final pt in points) {
@@ -1290,10 +1267,29 @@ class _SalesLineChartPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _SalesLineChartPainter oldDelegate) =>
+      oldDelegate.values != values;
+}
+
+/// The five slices the orders donut can show, with the colour each is drawn in.
+enum _OrderBucket {
+  completed('Completed', Color(0xFF10B981)),
+  preparing('Preparing', Color(0xFFFD9027)),
+  ready('Ready', Color(0xFF2563EB)),
+  pending('Pending', Color(0xFF8B5CF6)),
+  cancelled('Cancelled', Color(0xFF9CA3AF));
+
+  const _OrderBucket(this.label, this.color);
+
+  final String label;
+  final Color color;
 }
 
 class _OrdersDonutChartPainter extends CustomPainter {
+  const _OrdersDonutChartPainter(this.counts);
+
+  final Map<_OrderBucket, int> counts;
+
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
@@ -1304,12 +1300,15 @@ class _OrdersDonutChartPainter extends CustomPainter {
 
     double startAngle = -math.pi / 2;
 
+    final total = counts.values.fold<int>(0, (a, b) => a + b);
+    if (total == 0) return;
+
     final slices = [
-      {'sweep': 2 * math.pi * 0.417, 'color': const Color(0xFF10B981)},
-      {'sweep': 2 * math.pi * 0.250, 'color': const Color(0xFFFFC400)},
-      {'sweep': 2 * math.pi * 0.167, 'color': const Color(0xFF2563EB)},
-      {'sweep': 2 * math.pi * 0.083, 'color': const Color(0xFF8B5CF6)},
-      {'sweep': 2 * math.pi * 0.083, 'color': const Color(0xFF9CA3AF)},
+      for (final entry in counts.entries)
+        {
+          'sweep': 2 * math.pi * (entry.value / total),
+          'color': entry.key.color,
+        },
     ];
 
     for (final slice in slices) {
@@ -1327,5 +1326,6 @@ class _OrdersDonutChartPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _OrdersDonutChartPainter oldDelegate) =>
+      oldDelegate.counts != counts;
 }

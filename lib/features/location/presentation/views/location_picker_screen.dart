@@ -300,7 +300,7 @@ class _LocationPickerScreenState extends ConsumerState<LocationPickerScreen> {
                     ? null
                     : () => Navigator.of(context).pop(picked),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFFFC400),
+                  backgroundColor: const Color(0xFFFD9027),
                   disabledBackgroundColor: const Color(0xFFFDE68A),
                   foregroundColor: const Color(0xFF181C2E),
                   elevation: 0,

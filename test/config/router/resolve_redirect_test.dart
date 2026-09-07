@@ -62,10 +62,10 @@ void main() {
       }
     });
 
-    test('a first-run seller leaves the splash for onboarding', () {
+    test('a first-run seller leaves the splash for login', () {
       expect(
         redirect(const AuthLoggedOut(), splashRoute, hasSeenOnboarding: false),
-        '/onboarding',
+        '/login',
       );
     });
 

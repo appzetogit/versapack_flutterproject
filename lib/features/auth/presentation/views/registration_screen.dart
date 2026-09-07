@@ -95,27 +95,14 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
     'Brand / Manufacturer',
   ];
 
-  /// Platform categories from the backend, falling back to the bundled names
-  /// only when the call fails — `cuisines` is optional server-side, so a dead
-  /// category list must not block onboarding.
+  /// Platform categories, from the backend only.
+  ///
+  /// There used to be eleven bundled names here as a fallback, which let a
+  /// seller register against a category the platform does not have. `cuisines`
+  /// is optional server-side, so an empty list is the honest failure: the
+  /// picker simply has nothing to offer and onboarding still completes.
   List<String> get _businessCategories =>
-      ref.watch(registrationCategoriesProvider).value?.isNotEmpty == true
-      ? ref.watch(registrationCategoriesProvider).value!
-      : _fallbackCategories;
-
-  static const List<String> _fallbackCategories = [
-    'Grocery & Staples',
-    'Fruits & Vegetables',
-    'Dairy, Bread & Eggs',
-    'Snacks & Munchies',
-    'Beverages & Juices',
-    'Personal Care & Beauty',
-    'Home & Cleaning',
-    'Baby Care',
-    'Bakery & Confectionery',
-    'Meat & Seafood',
-    'Frozen Foods',
-  ];
+      ref.watch(registrationCategoriesProvider).value ?? const [];
 
   final List<String> _subCategories = [
     'General Retail',
@@ -559,13 +546,13 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                         color: isCompleted
                             ? const Color(0xFF16A34A)
                             : (isActive
-                                  ? const Color(0xFFFFC400)
+                                  ? const Color(0xFFFD9027)
                                   : Colors.white),
                         border: Border.all(
                           color: isCompleted
                               ? const Color(0xFF16A34A)
                               : (isActive
-                                    ? const Color(0xFFFFC400)
+                                    ? const Color(0xFFFD9027)
                                     : const Color(0xFFD1D5DB)),
                           width: 2,
                         ),
@@ -1125,7 +1112,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                     _locating ? 'Getting location…' : 'Use Current Location',
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFFC400),
+                    backgroundColor: const Color(0xFFFD9027),
                     foregroundColor: const Color(0xFF1F2937),
                     textStyle: const TextStyle(
                       fontWeight: FontWeight.w800,
@@ -1357,7 +1344,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                           icon: const Icon(
                             Icons.remove_rounded,
                             size: 18,
-                            color: Color(0xFFFFC400),
+                            color: Color(0xFFFD9027),
                           ),
                           onPressed: () {
                             if (_estimatedDeliveryTime > 10) {
@@ -1382,7 +1369,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                           icon: const Icon(
                             Icons.add_rounded,
                             size: 18,
-                            color: Color(0xFFFFC400),
+                            color: Color(0xFFFD9027),
                           ),
                           onPressed: () {
                             if (_estimatedDeliveryTime < 120) {
@@ -1436,7 +1423,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
                           color: isSelected
-                              ? const Color(0xFFFFC400)
+                              ? const Color(0xFFFD9027)
                               : const Color(0xFFE5E7EB),
                           width: isSelected ? 1.8 : 1.0,
                         ),
@@ -2039,11 +2026,11 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
       child: Container(
         height: 48,
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFFFC400) : Colors.white,
+          color: isSelected ? const Color(0xFFFD9027) : Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isSelected
-                ? const Color(0xFFFFC400)
+                ? const Color(0xFFFD9027)
                 : const Color(0xFF16A34A),
             width: 1.5,
           ),
@@ -2305,7 +2292,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFFFFC400), width: 1.8),
+        borderSide: const BorderSide(color: Color(0xFFFD9027), width: 1.8),
       ),
     );
   }
@@ -2360,7 +2347,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                     }
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFFC400),
+                    backgroundColor: const Color(0xFFFD9027),
                     foregroundColor: const Color(0xFF1F2937),
                     textStyle: const TextStyle(
                       fontWeight: FontWeight.w800,
@@ -2431,7 +2418,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                     ? null
                     : (isLastStep ? _submitRegistration : _nextStep),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFFFC400),
+                  backgroundColor: const Color(0xFFFD9027),
                   foregroundColor: const Color(0xFF1F2937),
                   elevation: 0,
                   shape: RoundedRectangleBorder(

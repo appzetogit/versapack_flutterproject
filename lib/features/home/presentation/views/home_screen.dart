@@ -3,8 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:quick_commerce_seller/core/widgets/app_toast.dart';
+import 'package:quick_commerce_seller/features/explore/domain/store_settings_model.dart';
 import 'package:quick_commerce_seller/features/explore/presentation/controllers/explore_controller.dart';
 import 'package:quick_commerce_seller/config/theme/app_palette.dart';
+import 'package:quick_commerce_seller/features/analytics/data/api_analytics_repository.dart';
+import 'package:quick_commerce_seller/features/analytics/domain/analytics_model.dart';
+import 'package:quick_commerce_seller/features/orders/presentation/controllers/orders_controller.dart';
+import 'package:quick_commerce_seller/features/notifications/presentation/controllers/notifications_controller.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -59,7 +64,7 @@ class HomeScreen extends ConsumerWidget {
               ),
             ),
             Text(
-              'Seller',
+              'Quick Seller',
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
@@ -81,25 +86,27 @@ class HomeScreen extends ConsumerWidget {
                 ),
                 onPressed: () => context.push('/notifications'),
               ),
-              Positioned(
-                right: 8,
-                top: 8,
-                child: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFEF4444),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Text(
-                    '3',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
+              // Hidden at zero: a badge reading "0" is worse than no badge.
+              if (ref.watch(unreadNotificationsCountProvider) > 0)
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFEF4444),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Text(
+                      '${ref.watch(unreadNotificationsCountProvider)}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),
-              ),
             ],
           ),
         ],
@@ -124,17 +131,17 @@ class HomeScreen extends ConsumerWidget {
               // Today's Overview Section
               _buildTodaysOverviewHeader(context),
               const SizedBox(height: 12),
-              _buildMetricsRow(),
+              _buildMetricsRow(ref),
               const SizedBox(height: 20),
 
               // Order Summary Card
-              _buildOrderSummaryCard(context),
+              _buildOrderSummaryCard(context, ref),
               const SizedBox(height: 20),
 
               // Sales Analytics & Top Selling Items Section
-              _buildSalesAnalyticsCard(context),
+              _buildSalesAnalyticsCard(context, ref),
               const SizedBox(height: 16),
-              _buildTopSellingItemsCard(context),
+              _buildTopSellingItemsCard(context, ref),
               const SizedBox(height: 20),
 
               // Promotional Banner Card
@@ -171,11 +178,11 @@ class HomeScreen extends ConsumerWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFC400),
+        color: const Color(0xFFFD9027),
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFFFC400).withValues(alpha: 0.3),
+            color: const Color(0xFFFD9027).withValues(alpha: 0.3),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -254,9 +261,118 @@ class HomeScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 14),
           _buildStoreStatusToggle(context, ref, isOnline, isKnown: isKnown),
+          const SizedBox(height: 8),
+          _buildTodayHours(context, ref),
         ],
       ),
     );
+  }
+
+  /// Today's opening hours, under the availability switch.
+  ///
+  /// Separate from the Online/Offline toggle on purpose: that switch is a
+  /// manual override for right now, while this is the schedule. Showing both
+  /// is what lets a seller tell "I paused the shop" apart from "we are outside
+  /// today's hours". Tapping opens the editor, so the schedule is always one
+  /// tap from the screen the seller starts on.
+  Widget _buildTodayHours(BuildContext context, WidgetRef ref) {
+    final timings = ref.watch(outletTimingsProvider).value;
+    // Never guesses. Until the real schedule arrives the row says so, rather
+    // than showing default 09:00–22:00 hours the seller never set.
+    final todayName = DateFormat('EEEE').format(DateTime.now());
+    final forToday =
+        timings?.where((t) => t.dayName == todayName) ??
+        const <DayTimingModel>[];
+    final DayTimingModel? today = forToday.isEmpty ? null : forToday.first;
+
+    final String label;
+    if (timings == null) {
+      label = 'Loading hours…';
+    } else if (today == null) {
+      label = 'Hours not set';
+    } else if (!today.isOpen) {
+      label = 'Closed today';
+    } else {
+      label = '${_hhmmToDisplay(context, today.openTime)} – '
+          '${_hhmmToDisplay(context, today.closeTime)}';
+    }
+
+    return InkWell(
+      onTap: () => context.push('/outlet-timings'),
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.45),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.schedule_rounded,
+              size: 16,
+              color: Color(0xFF181C2E),
+            ),
+            const SizedBox(width: 8),
+            // Flexible, not fixed: at 320dp with 1.5x text this label and the
+            // hours together overflowed the row by 55px. The label truncates
+            // first — the icon already says what the row is about, and the
+            // hours themselves are the part worth reading.
+            const Flexible(
+              child: Text(
+                "Today's hours",
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF181C2E),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                label,
+                textAlign: TextAlign.right,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF3F4451),
+                ),
+              ),
+            ),
+            const Icon(
+              Icons.chevron_right_rounded,
+              size: 18,
+              color: Color(0xFF3F4451),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Weekday names for the seven days the sales chart covers: a rolling window
+  /// ending today, matching `weeklySalesProvider`, oldest first.
+  static List<String> _chartDayLabels() {
+    final today = DateTime.now();
+    return [
+      for (var i = 6; i >= 0; i--)
+        DateFormat('EEE').format(today.subtract(Duration(days: i))),
+    ];
+  }
+
+  /// "22:00" → "10:00 PM", following the device's clock setting.
+  static String _hhmmToDisplay(BuildContext context, String value) {
+    final m = RegExp(r'^(\d{1,2}):(\d{2})$').firstMatch(value.trim());
+    if (m == null) return value;
+    final hour = int.parse(m.group(1)!);
+    final minute = int.parse(m.group(2)!);
+    if (hour > 23 || minute > 59) return value;
+    return TimeOfDay(hour: hour, minute: minute).format(context);
   }
 
   /// Shop Open/Closed switch. Writes through the same provider as the
@@ -391,7 +507,26 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildMetricsRow() {
+  /// Rupees, grouped the Indian way (₹1,08,645 rather than ₹108,645) and
+  /// without paise — every figure on this screen is a headline, not a receipt.
+  static String _money(double amount) =>
+      NumberFormat.currency(
+        locale: 'en_IN',
+        symbol: '₹',
+        decimalDigits: 0,
+      ).format(amount);
+
+  Widget _buildMetricsRow(WidgetRef ref) {
+    final summary =
+        ref.watch(analyticsSummaryProvider).value ??
+        const AnalyticsSummary.empty();
+    final isLoading = ref.watch(analyticsSummaryProvider).isLoading;
+
+    // A null trend means there is no previous day to compare against. Showing
+    // "0%" there would read as "flat", which is a different claim.
+    String? trend(double? percent) =>
+        percent == null ? null : '${percent.abs().toStringAsFixed(0)}%';
+
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
@@ -402,8 +537,9 @@ class HomeScreen extends ConsumerWidget {
             icon: Icons.shopping_bag_outlined,
             iconColor: const Color(0xFFD97706),
             label: 'Total Orders',
-            value: '24',
-            percentage: '12%',
+            value: isLoading ? '—' : '${summary.totalOrders}',
+            percentage: trend(summary.ordersTrendPercent),
+            isDown: (summary.ordersTrendPercent ?? 0) < 0,
           ),
           const SizedBox(width: 12),
           _buildMetricTile(
@@ -412,8 +548,9 @@ class HomeScreen extends ConsumerWidget {
             icon: Icons.account_balance_wallet_outlined,
             iconColor: const Color(0xFF059669),
             label: 'Total Earnings',
-            value: '₹8,645',
-            percentage: '8%',
+            value: isLoading ? '—' : _money(summary.totalSales),
+            percentage: trend(summary.salesTrendPercent),
+            isDown: (summary.salesTrendPercent ?? 0) < 0,
           ),
           const SizedBox(width: 12),
           _buildMetricTile(
@@ -422,8 +559,8 @@ class HomeScreen extends ConsumerWidget {
             icon: Icons.trending_up_rounded,
             iconColor: const Color(0xFF7C3AED),
             label: 'Avg. Order Value',
-            value: '₹360',
-            percentage: '5%',
+            value: isLoading ? '—' : _money(summary.averageOrderValue),
+            percentage: null,
           ),
           const SizedBox(width: 12),
           _buildMetricTile(
@@ -432,8 +569,8 @@ class HomeScreen extends ConsumerWidget {
             icon: Icons.people_outline_rounded,
             iconColor: const Color(0xFF2563EB),
             label: 'New Customers',
-            value: '18',
-            percentage: '10%',
+            value: isLoading ? '—' : '${summary.newCustomers}',
+            percentage: null,
           ),
         ],
       ),
@@ -447,7 +584,8 @@ class HomeScreen extends ConsumerWidget {
     required Color iconColor,
     required String label,
     required String value,
-    required String percentage,
+    required String? percentage,
+    bool isDown = false,
   }) {
     return Container(
       width: 135,
@@ -486,34 +624,43 @@ class HomeScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 6),
-          Row(
-            children: [
-              const Icon(
-                Icons.arrow_upward_rounded,
-                size: 11,
-                color: Color(0xFF10B981),
-              ),
-              const SizedBox(width: 2),
-              Expanded(
-                child: Text(
-                  '$percentage vs yesterday',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF10B981),
+          // No comparison exists for a store's first day, so the row is left
+          // blank rather than claiming a flat 0%.
+          if (percentage != null)
+            Row(
+              children: [
+                Icon(
+                  isDown
+                      ? Icons.arrow_downward_rounded
+                      : Icons.arrow_upward_rounded,
+                  size: 11,
+                  color: isDown
+                      ? const Color(0xFFDC2626)
+                      : const Color(0xFF10B981),
+                ),
+                const SizedBox(width: 2),
+                Expanded(
+                  child: Text(
+                    '$percentage vs yesterday',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: isDown
+                          ? const Color(0xFFDC2626)
+                          : const Color(0xFF10B981),
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
         ],
       ),
     );
   }
 
-  Widget _buildOrderSummaryCard(BuildContext context) {
+  Widget _buildOrderSummaryCard(BuildContext context, WidgetRef ref) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -566,7 +713,7 @@ class HomeScreen extends ConsumerWidget {
                   icon: Icons.assignment_outlined,
                   iconColor: const Color(0xFFD97706),
                   iconBg: const Color(0xFFFEF3C7),
-                  count: '8',
+                  count: '${ref.watch(newOrdersCountProvider)}',
                   label: 'New Orders',
                   isActive: true,
                 ),
@@ -576,7 +723,7 @@ class HomeScreen extends ConsumerWidget {
                   icon: Icons.access_time_rounded,
                   iconColor: const Color(0xFFD97706),
                   iconBg: const Color(0xFFFFFBEB),
-                  count: '6',
+                  count: '${ref.watch(preparingOrdersCountProvider)}',
                   label: 'Preparing',
                   isActive: false,
                 ),
@@ -586,7 +733,7 @@ class HomeScreen extends ConsumerWidget {
                   icon: Icons.local_shipping_outlined,
                   iconColor: const Color(0xFF2563EB),
                   iconBg: const Color(0xFFEFF6FF),
-                  count: '5',
+                  count: '${ref.watch(readyOrdersCountProvider)}',
                   label: 'Ready',
                   isActive: false,
                 ),
@@ -596,7 +743,7 @@ class HomeScreen extends ConsumerWidget {
                   icon: Icons.check_circle_outline_rounded,
                   iconColor: const Color(0xFF059669),
                   iconBg: const Color(0xFFECFDF5),
-                  count: '3',
+                  count: '${ref.watch(completedOrdersCountProvider)}',
                   label: 'Completed',
                   isActive: false,
                 ),
@@ -606,7 +753,7 @@ class HomeScreen extends ConsumerWidget {
                   icon: Icons.cancel_outlined,
                   iconColor: const Color(0xFFDC2626),
                   iconBg: const Color(0xFFFEF2F2),
-                  count: '2',
+                  count: '${ref.watch(cancelledOrdersCountProvider)}',
                   label: 'Cancelled',
                   isActive: false,
                 ),
@@ -632,7 +779,7 @@ class HomeScreen extends ConsumerWidget {
       decoration: BoxDecoration(
         border: isActive
             ? const Border(
-                bottom: BorderSide(color: Color(0xFFFFC400), width: 2.5),
+                bottom: BorderSide(color: Color(0xFFFD9027), width: 2.5),
               )
             : null,
       ),
@@ -673,7 +820,11 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildSalesAnalyticsCard(BuildContext context) {
+  Widget _buildSalesAnalyticsCard(BuildContext context, WidgetRef ref) {
+    final weekly = ref.watch(analyticsSummaryForProvider(7));
+    final week = weekly.value ?? const AnalyticsSummary.empty();
+    final dailySales = ref.watch(weeklySalesProvider);
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -724,26 +875,34 @@ class HomeScreen extends ConsumerWidget {
             spacing: 6,
             children: [
               Text(
-                '₹56,420',
+                weekly.isLoading ? '—' : _money(week.totalSales),
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
                   color: context.textPrimary,
                 ),
               ),
-              Icon(
-                Icons.arrow_upward_rounded,
-                size: 13,
-                color: Color(0xFF10B981),
-              ),
-              Text(
-                '15% vs last week',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF10B981),
+              if (week.salesTrendPercent != null) ...[
+                Icon(
+                  week.salesTrendPercent! < 0
+                      ? Icons.arrow_downward_rounded
+                      : Icons.arrow_upward_rounded,
+                  size: 13,
+                  color: week.salesTrendPercent! < 0
+                      ? const Color(0xFFDC2626)
+                      : const Color(0xFF10B981),
                 ),
-              ),
+                Text(
+                  '${week.salesTrendPercent!.abs().toStringAsFixed(0)}% vs last week',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: week.salesTrendPercent! < 0
+                        ? const Color(0xFFDC2626)
+                        : const Color(0xFF10B981),
+                  ),
+                ),
+              ],
             ],
           ),
           Text(
@@ -756,7 +915,7 @@ class HomeScreen extends ConsumerWidget {
           SizedBox(
             height: 90,
             width: double.infinity,
-            child: CustomPaint(painter: _SalesChartPainter()),
+            child: CustomPaint(painter: _SalesChartPainter(dailySales)),
           ),
           const SizedBox(height: 6),
 
@@ -764,55 +923,17 @@ class HomeScreen extends ConsumerWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Expanded(
-                child: Text(
-                  'Mon',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 10, color: context.textSecondary),
+              // Generated from the seven days the chart actually plots — a
+              // rolling window ending today. Fixed Mon–Sun labels put today's
+              // figure under "Sun" on every day except Sunday.
+              for (final day in _chartDayLabels())
+                Expanded(
+                  child: Text(
+                    day,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 10, color: context.textSecondary),
+                  ),
                 ),
-              ),
-              Expanded(
-                child: Text(
-                  'Tue',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 10, color: context.textSecondary),
-                ),
-              ),
-              Expanded(
-                child: Text(
-                  'Wed',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 10, color: context.textSecondary),
-                ),
-              ),
-              Expanded(
-                child: Text(
-                  'Thu',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 10, color: context.textSecondary),
-                ),
-              ),
-              Expanded(
-                child: Text(
-                  'Fri',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 10, color: context.textSecondary),
-                ),
-              ),
-              Expanded(
-                child: Text(
-                  'Sat',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 10, color: context.textSecondary),
-                ),
-              ),
-              Expanded(
-                child: Text(
-                  'Sun',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 10, color: context.textSecondary),
-                ),
-              ),
             ],
           ),
         ],
@@ -820,33 +941,8 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildTopSellingItemsCard(BuildContext context) {
-    final topItems = [
-      {
-        'name': 'Paneer Butter Masala',
-        'orders': '45 orders',
-        'rating': '4.8',
-        'icon': Icons.lunch_dining_rounded,
-      },
-      {
-        'name': 'Veg Biryani',
-        'orders': '32 orders',
-        'rating': '4.6',
-        'icon': Icons.rice_bowl_rounded,
-      },
-      {
-        'name': 'Hakka Noodles',
-        'orders': '28 orders',
-        'rating': '4.5',
-        'icon': Icons.ramen_dining_rounded,
-      },
-      {
-        'name': 'Chicken Pizza',
-        'orders': '25 orders',
-        'rating': '4.7',
-        'icon': Icons.local_pizza_rounded,
-      },
-    ];
+  Widget _buildTopSellingItemsCard(BuildContext context, WidgetRef ref) {
+    final topItems = ref.watch(topSellingItemsProvider);
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -897,9 +993,9 @@ class HomeScreen extends ConsumerWidget {
                             color: const Color(0xFFFEF3C7),
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: Icon(
-                            item['icon'] as IconData,
-                            color: const Color(0xFFD97706),
+                          child: const Icon(
+                            Icons.inventory_2_outlined,
+                            color: Color(0xFFD97706),
                             size: 20,
                           ),
                         ),
@@ -909,7 +1005,7 @@ class HomeScreen extends ConsumerWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                item['name'].toString(),
+                                item.name,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
@@ -920,39 +1016,10 @@ class HomeScreen extends ConsumerWidget {
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                item['orders'].toString(),
+                                '${item.units} sold',
                                 style: TextStyle(
                                   fontSize: 10,
                                   color: context.textSecondary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFECFDF5),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                Icons.star_rounded,
-                                size: 11,
-                                color: Color(0xFF10B981),
-                              ),
-                              const SizedBox(width: 2),
-                              Text(
-                                item['rating'].toString(),
-                                style: const TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF059669),
                                 ),
                               ),
                             ],
@@ -983,7 +1050,7 @@ class HomeScreen extends ConsumerWidget {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: const BoxDecoration(
-              color: Color(0xFFFFC400),
+              color: Color(0xFFFD9027),
               shape: BoxShape.circle,
             ),
             child: const Icon(
@@ -1022,7 +1089,7 @@ class HomeScreen extends ConsumerWidget {
             child: ElevatedButton(
               onPressed: () => context.push('/offers'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFFC400),
+                backgroundColor: const Color(0xFFFD9027),
                 foregroundColor: const Color(0xFF181C2E),
                 padding: const EdgeInsets.symmetric(
                   horizontal: 10,
@@ -1055,13 +1122,6 @@ class HomeScreen extends ConsumerWidget {
         'color': const Color(0xFF10B981),
         'bg': const Color(0xFFECFDF5),
         'route': '/add-product',
-      },
-      {
-        'label': 'Manage\nInventory',
-        'icon': Icons.widgets_outlined,
-        'color': const Color(0xFFF59E0B),
-        'bg': const Color(0xFFFFFBEB),
-        'route': '/inventory',
       },
       {
         'label': 'Manage\nOffers',
@@ -1150,7 +1210,7 @@ class HomeScreen extends ConsumerWidget {
         padding: EdgeInsets.zero,
         children: [
           DrawerHeader(
-            decoration: const BoxDecoration(color: Color(0xFFFFC400)),
+            decoration: const BoxDecoration(color: Color(0xFFFD9027)),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.end,
@@ -1203,24 +1263,16 @@ class HomeScreen extends ConsumerWidget {
           ),
           ListTile(
             leading: const Icon(
-              Icons.inventory_2_outlined,
-              color: Color(0xFF181C2E),
-            ),
-            title: const Text('Inventory'),
-            onTap: () {
-              Navigator.pop(context);
-              context.go('/inventory');
-            },
-          ),
-          ListTile(
-            leading: const Icon(
               Icons.account_balance_wallet_outlined,
               color: Color(0xFF181C2E),
             ),
             title: const Text('Payouts'),
             onTap: () {
               Navigator.pop(context);
-              context.go('/payouts');
+              // push, not go: /payouts is a full screen, not a tab. `go`
+              // replaced the stack, leaving Back with nothing to pop and the
+              // app closing instead of returning here.
+              context.push('/payouts');
             },
           ),
           ListTile(
@@ -1241,16 +1293,25 @@ class HomeScreen extends ConsumerWidget {
 }
 
 class _SalesChartPainter extends CustomPainter {
+  const _SalesChartPainter(this.values);
+
+  /// One revenue figure per day, oldest first.
+  final List<double> values;
+
   @override
   void paint(Canvas canvas, Size size) {
+    if (values.isEmpty) return;
+
+    // Scale against the best day so the line uses the full height. A week with
+    // no sales has no shape to draw, and a flat line at the top would imply
+    // the opposite of what happened.
+    final peak = values.reduce((a, b) => a > b ? a : b);
+    if (peak <= 0) return;
+
+    final step = values.length == 1 ? 0.0 : size.width / (values.length - 1);
     final points = [
-      Offset(0, size.height * 0.7),
-      Offset(size.width * 0.16, size.height * 0.55),
-      Offset(size.width * 0.33, size.height * 0.6),
-      Offset(size.width * 0.5, size.height * 0.65),
-      Offset(size.width * 0.66, size.height * 0.3),
-      Offset(size.width * 0.83, size.height * 0.45),
-      Offset(size.width, size.height * 0.2),
+      for (var i = 0; i < values.length; i++)
+        Offset(step * i, size.height * (1 - (values[i] / peak)) * 0.9),
     ];
 
     final path = Path();
@@ -1269,21 +1330,21 @@ class _SalesChartPainter extends CustomPainter {
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
         colors: [
-          const Color(0xFFFFC400).withValues(alpha: 0.35),
-          const Color(0xFFFFC400).withValues(alpha: 0.0),
+          const Color(0xFFFD9027).withValues(alpha: 0.35),
+          const Color(0xFFFD9027).withValues(alpha: 0.0),
         ],
       ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
 
     canvas.drawPath(fillPath, fillPaint);
 
     final linePaint = Paint()
-      ..color = const Color(0xFFFFC400)
+      ..color = const Color(0xFFFD9027)
       ..strokeWidth = 2.5
       ..style = PaintingStyle.stroke;
 
     canvas.drawPath(path, linePaint);
 
-    final dotPaint = Paint()..color = const Color(0xFFFFC400);
+    final dotPaint = Paint()..color = const Color(0xFFFD9027);
     final innerDotPaint = Paint()..color = Colors.white;
 
     for (final pt in points) {
@@ -1293,5 +1354,6 @@ class _SalesChartPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _SalesChartPainter oldDelegate) =>
+      oldDelegate.values != values;
 }

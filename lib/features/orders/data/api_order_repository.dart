@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:quick_commerce_seller/core/logging/push_log.dart';
 import 'package:quick_commerce_seller/features/orders/domain/order_model.dart';
 import 'package:quick_commerce_seller/features/orders/domain/order_repository.dart';
 
@@ -29,23 +30,57 @@ class ApiOrderRepository implements OrderRepository {
 
   @override
   Future<OrderModel?> getOrderById(String orderId) async {
-    final response = await _dio.get<dynamic>(
-      '/food/restaurant/orders/$orderId',
-    );
-    final data = response.data;
-    if (data is! Map) return null;
-    // The single-order route wraps its payload one level deeper than the list.
-    final raw = data['order'] is Map ? data['order'] : data;
-    return _toOrder(Map<String, dynamic>.from(raw as Map));
+    pushLog('order API request', 'GET /food/restaurant/orders/$orderId');
+    try {
+      final response = await _dio.get<dynamic>(
+        '/food/restaurant/orders/$orderId',
+      );
+      final data = response.data;
+      if (data is! Map) {
+        pushLog('order API response', 'unusable payload (${data.runtimeType})');
+        return null;
+      }
+      // The single-order route wraps its payload one level deeper than the list.
+      final raw = data['order'] is Map ? data['order'] : data;
+      final order = _toOrder(Map<String, dynamic>.from(raw as Map));
+      pushLog(
+        'order API response',
+        '${order.orderNumber} status=${order.status.name} '
+            'items=${order.items.length} total=${order.totalAmount}',
+      );
+      return order;
+    } on DioException catch (e) {
+      pushLog('order API failed', '${e.response?.statusCode} ${e.message}');
+      rethrow;
+    }
   }
 
   @override
   Future<void> updateOrderStatus(String orderId, OrderStatus status) async {
-    await _dio.patch<dynamic>(
-      '/food/restaurant/orders/$orderId/status',
-      // The field is `orderStatus`; a plain `status` is rejected by the schema.
-      data: {'orderStatus': _toWireStatus(status)},
+    final wire = _toWireStatus(status);
+    // Accept and reject are the two the seller is asked about by name; the log
+    // says which so a failed tap is not ambiguous in the trace.
+    final action = switch (status) {
+      OrderStatus.newOrder => 'accept',
+      OrderStatus.cancelled => 'reject',
+      _ => 'status',
+    };
+
+    pushLog(
+      '$action API request',
+      'PATCH /food/restaurant/orders/$orderId/status orderStatus=$wire',
     );
+    try {
+      final response = await _dio.patch<dynamic>(
+        '/food/restaurant/orders/$orderId/status',
+        // The field is `orderStatus`; a plain `status` is rejected by the schema.
+        data: {'orderStatus': wire},
+      );
+      pushLog('$action API response', 'ok ${response.statusCode}');
+    } on DioException catch (e) {
+      pushLog('$action API failed', '${e.response?.statusCode} ${e.message}');
+      rethrow;
+    }
   }
 
   Future<List<OrderModel>> _list({required String status}) async {
@@ -100,6 +135,7 @@ class ApiOrderRepository implements OrderRepository {
               // variant name wins when the product has one.
               variant:
                   _nullIfEmpty(e['variantName']) ?? _nullIfEmpty(e['packSize']),
+              imageUrl: _nullIfEmpty(e['image'] ?? e['imageUrl']),
               addons: _asList(e['addons'])
                   .map((a) => (a['name'] ?? '').toString())
                   .where((s) => s.isNotEmpty)
@@ -119,11 +155,50 @@ class ApiOrderRepository implements OrderRepository {
       deliveryFee: _asNum(pricing['deliveryFee'])?.toDouble() ?? 0,
       discount: _asNum(pricing['discount'])?.toDouble() ?? 0,
       totalAmount: _asNum(pricing['total'])?.toDouble() ?? 0,
-      paymentMethod: (payment['method'] ?? 'cash').toString(),
+      // Left empty when the backend did not say, so the screen can print
+      // "Not specified". Defaulting to 'cash' told the seller how an order was
+      // paid for on no evidence — and a prepaid order shown as cash is how a
+      // seller ends up asking for money twice.
+      paymentMethod: (payment['method'] ?? '').toString(),
       deliveryRiderName: _nullIfEmpty(partner['name'] ?? partner['fullName']),
       deliveryRiderPhone: _nullIfEmpty(partner['phone']),
+      storeName: _nullIfEmpty(
+        _asMap(json['restaurantId'])['name'] ?? json['restaurantName'],
+      ),
+      // Road distance is what a rider actually travels; the straight-line
+      // `distanceKm` is a fee input and reads short to a seller. Preferred, but
+      // either is better than showing nothing.
+      distanceKm: (_asNum(pricing['roadDistanceKm']) ?? _asNum(pricing['distanceKm']))
+          ?.toDouble(),
+      durationMinutes: _asNum(pricing['roadDurationMins'])?.round(),
+      // Populated by the single-order route, which joins the restaurant's
+      // `location`; absent from the list route, so the map only appears on the
+      // details screen.
+      storeLat: _latOf(_asMap(json['restaurantId'])['location']),
+      storeLng: _lngOf(_asMap(json['restaurantId'])['location']),
+      customerLat: _latOf(address['location']),
+      customerLng: _lngOf(address['location']),
     );
   }
+
+  /// GeoJSON stores a Point as `[longitude, latitude]` — the reverse of how
+  /// every map widget wants it. Reading index 0 as the latitude puts an Indore
+  /// store somewhere off the coast of Somalia, so the order matters.
+  static List<num>? _coordsOf(dynamic location) {
+    final raw = _asMap(location)['coordinates'];
+    if (raw is! List || raw.length < 2) return null;
+    final lng = _asNum(raw[0]);
+    final lat = _asNum(raw[1]);
+    if (lng == null || lat == null) return null;
+    // [0, 0] is the backend's "never set" default, not a real position.
+    if (lat == 0 && lng == 0) return null;
+    if (lat.abs() > 90 || lng.abs() > 180) return null;
+    return [lng, lat];
+  }
+
+  static double? _latOf(dynamic location) => _coordsOf(location)?[1].toDouble();
+
+  static double? _lngOf(dynamic location) => _coordsOf(location)?[0].toDouble();
 
   /// Backend lifecycle → the five states this app draws.
   ///

@@ -19,9 +19,9 @@ import 'package:quick_commerce_seller/features/payouts/domain/payout_repository.
 
 /// Centralized Dependency Injection Repository Providers.
 ///
-/// Note: To integrate with real backend API services in Phase 2,
-/// replace the return statements here with production API repository implementations
-/// (e.g. `HttpOrderRepository(ref.watch(dioProvider))`).
+/// Every repository here is backed by the live API over the shared [dioProvider].
+/// There is no mock implementation left in the app, and none should be added —
+/// a screen that renders invented data is indistinguishable from one that works.
 
 final orderRepositoryProvider = Provider<OrderRepository>((ref) {
   return ApiOrderRepository(ref.watch(dioProvider));

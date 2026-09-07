@@ -3,6 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:quick_commerce_seller/core/widgets/app_toast.dart';
 import 'package:quick_commerce_seller/config/theme/app_palette.dart';
+import 'package:dio/dio.dart';
+import 'package:quick_commerce_seller/core/network/api_exception.dart';
+import 'package:quick_commerce_seller/features/inventory/presentation/controllers/inventory_controller.dart';
+import 'package:quick_commerce_seller/features/inventory/presentation/widgets/category_form_dialog.dart';
+import 'package:quick_commerce_seller/features/notifications/presentation/controllers/notifications_controller.dart';
 
 class CategoriesScreen extends ConsumerStatefulWidget {
   const CategoriesScreen({super.key});
@@ -19,68 +24,7 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
   /// while the dialog's TextField is still mounted and throws.
   final TextEditingController _nameDialogController = TextEditingController();
 
-  final List<Map<String, dynamic>> _categoryList = [
-    {
-      'name': 'Fruits & Vegetables',
-      'count': '24 Products',
-      'status': 'Active',
-      'isInactive': false,
-      'icon': Icons.lunch_dining_rounded,
-    },
-    {
-      'name': 'Dairy & Eggs',
-      'count': '16 Products',
-      'status': 'Active',
-      'isInactive': false,
-      'icon': Icons.local_cafe_rounded,
-    },
-    {
-      'name': 'Grocery & Staples',
-      'count': '32 Products',
-      'status': 'Active',
-      'isInactive': false,
-      'icon': Icons.shopping_bag_outlined,
-    },
-    {
-      'name': 'Snacks & Munchies',
-      'count': '18 Products',
-      'status': 'Active',
-      'isInactive': false,
-      'icon': Icons.fastfood_rounded,
-    },
-    {
-      'name': 'Beverages',
-      'count': '12 Products',
-      'status': 'Active',
-      'isInactive': false,
-      'icon': Icons.local_drink_rounded,
-    },
-    {
-      'name': 'Personal Care',
-      'count': '14 Products',
-      'status': 'Active',
-      'isInactive': false,
-      'icon': Icons.sanitizer_rounded,
-    },
-    {
-      'name': 'Household Essentials',
-      'count': '12 Products',
-      'status': 'Inactive',
-      'isInactive': true,
-      'icon': Icons.cleaning_services_rounded,
-    },
-    {
-      'name': 'Baby Care',
-      'count': '8 Products',
-      'status': 'Active',
-      'isInactive': false,
-      'icon': Icons.child_care_rounded,
-    },
-  ];
-
   String _query = '';
-
-  /// null = all, true = inactive only, false = active only.
   bool? _inactiveFilter;
 
   @override
@@ -98,6 +42,21 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
     super.dispose();
   }
 
+  /// The store's real categories, mapped into the shape this screen's cards
+  /// were written against. Previously a hardcoded list whose add/rename/delete
+  /// only ever mutated memory, so every change vanished on reload.
+  List<Map<String, dynamic>> get _categoryList => [
+    for (final c in ref.watch(categoriesControllerProvider).value ?? const [])
+      {
+        'id': c.id,
+        'name': c.name,
+        'count': '${c.itemCount} Product${c.itemCount == 1 ? '' : 's'}',
+        'status': c.isActive ? 'Active' : 'Inactive',
+        'isInactive': !c.isActive,
+        'icon': Icons.category_rounded,
+      },
+  ];
+
   List<Map<String, dynamic>> get _visibleCategories {
     final query = _query.toLowerCase();
     return _categoryList.where((cat) {
@@ -112,15 +71,20 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
     }).toList();
   }
 
-  void _setActive(Map<String, dynamic> cat, bool active) {
-    setState(() {
-      cat['isInactive'] = !active;
-      cat['status'] = active ? 'Active' : 'Inactive';
-    });
-    AppToast.show(
-      context,
-      '"${cat['name']}" is now ${active ? 'active' : 'inactive'}',
-    );
+  Future<void> _setActive(Map<String, dynamic> cat, bool active) async {
+    try {
+      await ref
+          .read(categoriesControllerProvider.notifier)
+          .toggleActive(cat['id'].toString(), active);
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        '"${cat['name']}" is now ${active ? 'active' : 'inactive'}',
+      );
+    } catch (_) {
+      if (!mounted) return;
+      AppToast.showError(context, 'Could not update "${cat['name']}".');
+    }
   }
 
   void _showRenameDialog(Map<String, dynamic> cat) {
@@ -147,11 +111,23 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
           ),
         ],
       ),
-    ).then((confirmed) {
+    ).then((confirmed) async {
       final name = _nameDialogController.text.trim();
       if (confirmed != true || name.isEmpty || !mounted) return;
-      setState(() => cat['name'] = name);
-      AppToast.showSuccess(context, 'Category renamed to "$name"');
+      try {
+        await ref
+            .read(categoriesControllerProvider.notifier)
+            .rename(cat['id'].toString(), name);
+        if (!mounted) return;
+        // Renaming an approved category sends it back for re-approval.
+        AppToast.showSuccess(
+          context,
+          'Renamed to "$name" — it returns for admin approval',
+        );
+      } catch (_) {
+        if (!mounted) return;
+        AppToast.showError(context, 'Could not rename the category.');
+      }
     });
   }
 
@@ -178,11 +154,21 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
           ),
         ],
       ),
-    ).then((confirmed) {
+    ).then((confirmed) async {
       if (confirmed != true || !mounted) return;
       final name = cat['name'].toString();
-      setState(() => _categoryList.remove(cat));
-      AppToast.show(context, '"$name" deleted');
+      try {
+        await ref
+            .read(categoriesControllerProvider.notifier)
+            .remove(cat['id'].toString());
+        if (!mounted) return;
+        AppToast.show(context, '"$name" deleted');
+      } catch (e) {
+        if (!mounted) return;
+        // The backend refuses to delete a category that still holds products;
+        // its message says so far better than a generic failure would.
+        AppToast.showError(context, _messageFor(e));
+      }
     });
   }
 
@@ -336,7 +322,7 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
               ),
             ),
             Text(
-              'Seller',
+              'Quick Seller',
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
@@ -358,25 +344,27 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
                 ),
                 onPressed: () => context.push('/notifications'),
               ),
-              Positioned(
-                right: 8,
-                top: 8,
-                child: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFEF4444),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Text(
-                    '3',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
+              // Hidden at zero: a badge reading "0" is worse than no badge.
+              if (ref.watch(unreadNotificationsCountProvider) > 0)
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFEF4444),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Text(
+                      '${ref.watch(unreadNotificationsCountProvider)}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),
-              ),
             ],
           ),
         ],
@@ -421,7 +409,7 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
                     child: ElevatedButton.icon(
                       onPressed: _showAddCategoryDialog,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFFFC400),
+                        backgroundColor: const Color(0xFFFD9027),
                         foregroundColor: const Color(0xFF181C2E),
                         padding: const EdgeInsets.symmetric(
                           horizontal: 12,
@@ -467,7 +455,7 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: const BoxDecoration(
-                        color: Color(0xFFFFC400),
+                        color: Color(0xFFFD9027),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
@@ -529,7 +517,7 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
                       iconColor: const Color(0xFFD97706),
                       bgColor: const Color(0xFFFFFBEB),
                       label: 'Total Categories',
-                      count: '18',
+                      count: '${_categoryList.length}',
                       subtitle: 'All Categories',
                     ),
                     const SizedBox(width: 10),
@@ -539,7 +527,7 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
                       iconColor: const Color(0xFF059669),
                       bgColor: const Color(0xFFECFDF5),
                       label: 'Active Categories',
-                      count: '16',
+                      count: '${_categoryList.where((c) => c['isInactive'] != true).length}',
                       subtitle: 'Visible to customers',
                     ),
                     const SizedBox(width: 10),
@@ -549,7 +537,7 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
                       iconColor: const Color(0xFFDC2626),
                       bgColor: const Color(0xFFFEF2F2),
                       label: 'Inactive Categories',
-                      count: '2',
+                      count: '${_categoryList.where((c) => c['isInactive'] == true).length}',
                       subtitle: 'Hidden from store',
                     ),
                     const SizedBox(width: 10),
@@ -817,7 +805,7 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: const BoxDecoration(
-                        color: Color(0xFFFFC400),
+                        color: Color(0xFFFD9027),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
@@ -902,44 +890,27 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
     );
   }
 
-  void _showAddCategoryDialog() {
-    _nameDialogController.clear();
-    showDialog<bool>(
-      context: context,
-      builder: (dialogCtx) => AlertDialog(
-        title: const Text('Add Category'),
-        content: TextField(
-          controller: _nameDialogController,
-          autofocus: true,
-          textCapitalization: TextCapitalization.words,
-          decoration: const InputDecoration(labelText: 'Category name'),
-          onSubmitted: (_) => Navigator.pop(dialogCtx, true),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogCtx),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(dialogCtx, true),
-            child: const Text('Add'),
-          ),
-        ],
-      ),
-    ).then((confirmed) {
-      final name = _nameDialogController.text.trim();
-      if (confirmed != true || name.isEmpty || !mounted) return;
-      setState(() {
-        _categoryList.insert(0, {
-          'name': name,
-          'count': '0 Products',
-          'status': 'Active',
-          'isInactive': false,
-          'icon': Icons.category_rounded,
-        });
-      });
-      AppToast.showSuccess(context, '"$name" category added');
-    });
+  Future<void> _showAddCategoryDialog() async {
+    final draft = await showCategoryFormDialog(context);
+    if (draft == null || !mounted) return;
+
+    try {
+      await ref
+          .read(categoriesControllerProvider.notifier)
+          .addCategory(draft.name, foodTypeScope: draft.foodTypeScope);
+      if (!mounted) return;
+      // Own categories come back from the list route immediately, pending or
+      // not — so it is visible here right away and only customers wait on the
+      // admin.
+      AppToast.showSuccess(
+        context,
+        '"${draft.name}" created — awaiting admin approval before customers '
+        'see it',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.showError(context, _messageFor(e));
+    }
   }
 
   Widget _buildMetricCard({
@@ -995,5 +966,14 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
         ],
       ),
     );
+  }
+
+  /// The server's own wording when it has one — "category has products" is a
+  /// far more actionable message than "something went wrong".
+  String _messageFor(Object error) {
+    if (error is DioException && error.error is ApiException) {
+      return (error.error as ApiException).message;
+    }
+    return 'Something went wrong. Please try again.';
   }
 }

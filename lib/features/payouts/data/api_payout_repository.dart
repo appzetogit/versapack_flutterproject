@@ -71,7 +71,10 @@ class ApiPayoutRepository implements PayoutRepository {
         amount: amount,
         date: _asDate(r['payoutDate'] ?? r['createdAt']) ?? DateTime.now(),
         status: _toStatus((r['payoutStatus'] ?? r['status'] ?? '').toString()),
-        payoutMethod: (r['payoutMethod'] ?? 'Bank transfer').toString(),
+        // No invented default: this labels a real money movement, and naming a
+        // method the backend never reported is a claim about where the money
+        // went.
+        payoutMethod: (r['payoutMethod'] ?? '').toString(),
       );
     }).toList();
   }

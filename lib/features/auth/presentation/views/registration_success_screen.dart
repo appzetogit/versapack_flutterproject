@@ -218,7 +218,7 @@ class _RegistrationSuccessScreenState
                 child: ElevatedButton(
                   onPressed: _checking ? null : _goToHome,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFFC400),
+                    backgroundColor: const Color(0xFFFD9027),
                     foregroundColor: const Color(0xFF181C2E),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -320,7 +320,7 @@ class _RegistrationSuccessScreenState
               width: 140,
               height: 120,
               decoration: BoxDecoration(
-                color: const Color(0xFFFFC400),
+                color: const Color(0xFFFD9027),
                 borderRadius: BorderRadius.circular(8),
                 boxShadow: [
                   BoxShadow(
@@ -332,9 +332,9 @@ class _RegistrationSuccessScreenState
               child: Column(
                 children: [
                   const SizedBox(height: 6),
-                  // Appzeto Seller Roof Title
+                  // Versapack Seller Roof Title
                   Text(
-                    'appzeto',
+                    'Versapack',
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w900,
@@ -360,7 +360,7 @@ class _RegistrationSuccessScreenState
                         (i) => Expanded(
                           child: Container(
                             color: i % 2 == 0
-                                ? const Color(0xFFFFC400)
+                                ? const Color(0xFFFD9027)
                                 : context.surface,
                           ),
                         ),
@@ -403,7 +403,7 @@ class _RegistrationSuccessScreenState
               decoration: BoxDecoration(
                 color: context.surface,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: const Color(0xFFFFC400), width: 2),
+                border: Border.all(color: const Color(0xFFFD9027), width: 2),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.08),

@@ -450,7 +450,7 @@ class AccountStatusScreen extends ConsumerWidget {
               width: 28,
               height: 12,
               decoration: BoxDecoration(
-                color: const Color(0xFFFFC400),
+                color: const Color(0xFFFD9027),
                 borderRadius: BorderRadius.circular(4),
                 border: Border.all(color: const Color(0xFFD97706), width: 1),
               ),
@@ -481,7 +481,7 @@ class AccountStatusScreen extends ConsumerWidget {
               width: 24,
               height: 24,
               decoration: const BoxDecoration(
-                color: Color(0xFFFFC400),
+                color: Color(0xFFFD9027),
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -606,14 +606,14 @@ class AccountStatusScreen extends ConsumerWidget {
               height: 22,
               decoration: BoxDecoration(
                 color: isCompleted
-                    ? const Color(0xFFFFC400)
+                    ? const Color(0xFFFD9027)
                     : isActive
                     ? Colors.white
                     : const Color(0xFFF3F4F6),
                 shape: BoxShape.circle,
                 border: Border.all(
                   color: isCompleted || isActive
-                      ? const Color(0xFFFFC400)
+                      ? const Color(0xFFFD9027)
                       : const Color(0xFFD1D5DB),
                   width: 2,
                 ),
@@ -630,7 +630,7 @@ class AccountStatusScreen extends ConsumerWidget {
                         width: 8,
                         height: 8,
                         decoration: const BoxDecoration(
-                          color: Color(0xFFFFC400),
+                          color: Color(0xFFFD9027),
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -642,7 +642,7 @@ class AccountStatusScreen extends ConsumerWidget {
                 width: 2,
                 height: 36,
                 color: isCompleted
-                    ? const Color(0xFFFFC400)
+                    ? const Color(0xFFFD9027)
                     : context.borderColor,
               ),
           ],

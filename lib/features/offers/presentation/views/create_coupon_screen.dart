@@ -16,13 +16,78 @@ class CreateCouponScreen extends ConsumerStatefulWidget {
 }
 
 class _CreateCouponScreenState extends ConsumerState<CreateCouponScreen> {
-  final TextEditingController _code = TextEditingController(text: 'SUPER50');
-  final TextEditingController _title = TextEditingController(
-    text: 'Flat 50 OFF',
-  );
-  final TextEditingController _val = TextEditingController(text: '50');
-  final TextEditingController _minOrder = TextEditingController(text: '299');
+  // Empty, not pre-filled. These used to open on a ready-made "SUPER50 / Flat
+  // 50 OFF / 50 / 299" coupon, which a seller could publish to real customers
+  // with one tap without ever having chosen any of it.
+  final TextEditingController _code = TextEditingController();
+  final TextEditingController _title = TextEditingController();
+  final TextEditingController _val = TextEditingController();
+  final TextEditingController _minOrder = TextEditingController();
   DiscountType _discountType = DiscountType.fixedAmount;
+  bool _saving = false;
+
+  /// Validates, then reports what actually happened.
+  ///
+  /// Every value sent is one the seller typed: the old version substituted 50
+  /// for an unparseable discount and 199 for an unparseable minimum, so a
+  /// mistyped field silently published a coupon nobody had agreed to.
+  Future<void> _create() async {
+    final code = _code.text.trim().toUpperCase();
+    final discountValue = double.tryParse(_val.text.trim());
+    final minOrder = double.tryParse(_minOrder.text.trim());
+
+    final String? problem;
+    if (code.isEmpty) {
+      problem = 'Enter a coupon code.';
+    } else if (discountValue == null || discountValue <= 0) {
+      problem = 'Enter a discount value greater than zero.';
+    } else if (_discountType == DiscountType.percentage && discountValue > 100) {
+      problem = 'A percentage discount cannot be more than 100.';
+    } else if (minOrder == null || minOrder < 0) {
+      problem = 'Enter a minimum order amount.';
+    } else {
+      problem = null;
+    }
+
+    if (problem != null) {
+      AppToast.showError(context, problem);
+      return;
+    }
+
+    setState(() => _saving = true);
+    try {
+      await ref
+          .read(offersControllerProvider.notifier)
+          .createCoupon(
+            CouponModel(
+              // The backend assigns the id; the client used to mint a
+              // `c_<timestamp>` that matched nothing in the database.
+              id: '',
+              code: code,
+              title: _title.text.trim().isEmpty ? code : _title.text.trim(),
+              description:
+                  'Valid on orders above ₹${minOrder!.toStringAsFixed(0)}',
+              discountType: _discountType,
+              discountValue: discountValue!,
+              minOrderAmount: minOrder,
+              validFrom: DateTime.now(),
+              // ponytail: fixed 30-day validity — there is no field for it on
+              // this form. Add a date picker and pass it through when sellers
+              // need to choose the window.
+              validTill: DateTime.now().add(const Duration(days: 30)),
+              isActive: true,
+            ),
+          );
+      if (!mounted) return;
+      AppToast.show(context, 'Coupon created.');
+      context.pop();
+    } catch (_) {
+      if (!mounted) return;
+      AppToast.showError(context, 'Could not create the coupon. Please retry.');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
 
   @override
   void dispose() {
@@ -207,28 +272,7 @@ class _CreateCouponScreenState extends ConsumerState<CreateCouponScreen> {
               child: SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () {
-                    if (_code.text.isNotEmpty && _val.text.isNotEmpty) {
-                      final newCoupon = CouponModel(
-                        id: 'c_${DateTime.now().millisecondsSinceEpoch}',
-                        code: _code.text.toUpperCase(),
-                        title: _title.text.isEmpty ? _code.text : _title.text,
-                        description: 'Valid on orders above ₹${_minOrder.text}',
-                        discountType: _discountType,
-                        discountValue: double.tryParse(_val.text) ?? 50.0,
-                        minOrderAmount:
-                            double.tryParse(_minOrder.text) ?? 199.0,
-                        validFrom: DateTime.now(),
-                        validTill: DateTime.now().add(const Duration(days: 30)),
-                        isActive: true,
-                      );
-                      ref
-                          .read(offersControllerProvider.notifier)
-                          .createCoupon(newCoupon);
-                      AppToast.show(context, 'Coupon created successfully!');
-                      context.pop();
-                    }
-                  },
+                  onPressed: _saving ? null : _create,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: const Color(0xFF181C2E),
@@ -238,9 +282,12 @@ class _CreateCouponScreenState extends ConsumerState<CreateCouponScreen> {
                     ),
                     elevation: 0,
                   ),
-                  child: const Text(
-                    'Save & Publish Coupon',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  child: Text(
+                    _saving ? 'Publishing…' : 'Save & Publish Coupon',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
                   ),
                 ),
               ),

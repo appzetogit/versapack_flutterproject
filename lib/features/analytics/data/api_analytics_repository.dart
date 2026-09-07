@@ -135,3 +135,12 @@ final analyticsRepositoryProvider = Provider<ApiAnalyticsRepository>(
 final analyticsSummaryProvider = FutureProvider<AnalyticsSummary>(
   (ref) => ref.watch(analyticsRepositoryProvider).getSummary(),
 );
+
+/// The same summary over an arbitrary window, for the cards whose copy says
+/// "this week" rather than "today".
+final analyticsSummaryForProvider =
+    FutureProvider.family<AnalyticsSummary, int>(
+      (ref, days) => ref.watch(analyticsRepositoryProvider).getSummary(
+        days: days,
+      ),
+    );

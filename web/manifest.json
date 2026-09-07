@@ -1,11 +1,11 @@
 {
-    "name": "quick_commerce_seller",
-    "short_name": "quick_commerce_seller",
+    "name": "Versapack Seller",
+    "short_name": "Versapack Seller",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#fd9027",
+    "theme_color": "#fd9027",
+    "description": "Appzeto Quick Seller application.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:quick_commerce_seller/core/logging/startup_log.dart';
 import 'package:quick_commerce_seller/core/network/api_exception.dart';
 import 'package:quick_commerce_seller/core/network/dio_client.dart';
+import 'package:quick_commerce_seller/core/network/socket_service.dart';
+import 'package:quick_commerce_seller/core/notifications/push_service.dart';
 import 'package:quick_commerce_seller/core/providers/core_providers.dart';
 import 'package:quick_commerce_seller/core/providers/session_reset.dart';
 import 'package:quick_commerce_seller/features/auth/data/auth_api.dart';
@@ -66,6 +68,7 @@ class AuthController extends Notifier<AuthState> {
       );
 
       state = _stateForSeller(seller);
+      _syncSocket();
       startupLog('auth.resolveSession done', state.runtimeType);
     } on DioException catch (e) {
       // 401 means the session is genuinely gone -- expired, or evicted by a
@@ -142,7 +145,11 @@ class AuthController extends Notifier<AuthState> {
 
   Future<void> verifyOtp({required String phone, required String otp}) async {
     try {
-      final payload = await _api.verifyOtp(phone: phone, otp: otp);
+      final payload = await _api.verifyOtp(
+        phone: phone,
+        otp: otp,
+        fcmToken: PushService.token,
+      );
 
       if (payload['needsRegistration'] == true) {
         // Captured here, at the only moment it is certainly known. Sign-in
@@ -212,6 +219,7 @@ class AuthController extends Notifier<AuthState> {
         startupLog('auth.profile FAILED, using login payload', e.message);
         state = _stateForSeller(seller);
       }
+      _syncSocket();
       startupLog('auth.navigation decision', state.runtimeType);
     } on DioException catch (e) {
       // The backend reports approval state as a login failure rather than a
@@ -238,7 +246,12 @@ class AuthController extends Notifier<AuthState> {
 
     if (refreshToken != null && refreshToken.isNotEmpty) {
       try {
-        await _api.logout(refreshToken: refreshToken);
+        // Sending the token detaches it server-side, so the next seller to
+        // sign in on this device does not inherit the previous one's pushes.
+        await _api.logout(
+          refreshToken: refreshToken,
+          fcmToken: PushService.token,
+        );
       } on DioException {
         // A server-side de-registration failure must not strand the seller in a
         // session they asked to leave. Local teardown proceeds regardless.
@@ -249,6 +262,18 @@ class AuthController extends Notifier<AuthState> {
     ref.read(authSessionProvider).reset();
     resetSessionScopedProviders(ref);
     state = const AuthLoggedOut();
+    ref.read(socketServiceProvider).disconnect();
+  }
+
+  /// Connects the live-order socket once authenticated, disconnects otherwise.
+  /// Called after every transition into or out of [AuthAuthenticated] so the
+  /// socket's lifetime tracks the session rather than the widget tree.
+  void _syncSocket() {
+    if (state is AuthAuthenticated) {
+      ref.read(socketServiceProvider).connect();
+    } else {
+      ref.read(socketServiceProvider).disconnect();
+    }
   }
 
   /// Returns to the phone-entry step from the OTP screen.

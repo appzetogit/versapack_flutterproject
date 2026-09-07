@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import 'package:quick_commerce_seller/config/theme/app_colors.dart';
 import 'package:quick_commerce_seller/config/theme/app_text_styles.dart';
 import 'package:quick_commerce_seller/core/widgets/async_state_view.dart';
-import 'package:quick_commerce_seller/core/widgets/app_toast.dart';
 import 'package:quick_commerce_seller/features/explore/domain/store_settings_model.dart';
 import 'package:quick_commerce_seller/features/explore/presentation/controllers/explore_controller.dart';
 import 'package:quick_commerce_seller/config/theme/app_palette.dart';
@@ -226,26 +225,18 @@ class _DeliverySettingsScreenState
                   padding: const EdgeInsets.all(16),
                   child: SizedBox(
                     width: double.infinity,
+                    // Disabled, because there is nothing behind it. These are
+                    // platform-wide figures owned by an admin and there is no
+                    // seller-facing endpoint that writes them — see
+                    // `updateDeliverySettings`, which is deliberately inert.
+                    //
+                    // It previously substituted 5 / 99 / 15 / 499 for any field
+                    // it could not parse, called that no-op, and reported
+                    // "Delivery settings saved!" — so a seller could believe
+                    // they had changed their radius and fees when nothing had
+                    // happened at all.
                     child: ElevatedButton(
-                      onPressed: () {
-                        final updated = DeliverySettingsModel(
-                          deliveryRadiusKm:
-                              double.tryParse(_radiusCtrl.text) ?? 5.0,
-                          minOrderValue:
-                              double.tryParse(_minOrderCtrl.text) ?? 99.0,
-                          packagingCharge:
-                              double.tryParse(_packagingCtrl.text) ?? 15.0,
-                          isSelfDelivery: _isSelfDelivery,
-                          freeDeliveryThreshold:
-                              double.tryParse(_freeDeliveryAboveCtrl.text) ??
-                              499.0,
-                        );
-                        ref
-                            .read(deliverySettingsProvider.notifier)
-                            .updateSettings(updated);
-                        AppToast.show(context, 'Delivery settings saved!');
-                        context.pop();
-                      },
+                      onPressed: null,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
                         foregroundColor: const Color(0xFF181C2E),
@@ -256,7 +247,7 @@ class _DeliverySettingsScreenState
                         elevation: 0,
                       ),
                       child: const Text(
-                        'Save Settings',
+                        'Set by the platform',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 16,

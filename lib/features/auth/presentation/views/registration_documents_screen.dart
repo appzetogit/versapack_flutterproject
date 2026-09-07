@@ -22,7 +22,7 @@ class RegistrationDocumentsScreen extends ConsumerStatefulWidget {
 
 class _RegistrationDocumentsScreenState
     extends ConsumerState<RegistrationDocumentsScreen> {
-  static const _accent = Color(0xFFFFC400);
+  static const _accent = Color(0xFFFD9027);
   static const _ink = Color(0xFF181C2E);
 
   final _picker = ImagePicker();

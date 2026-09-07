@@ -1,71 +1,559 @@
-import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
+import 'dart:io';
+import 'dart:developer' as developer;
 
-class AddProductScreen extends StatefulWidget {
-  const AddProductScreen({super.key});
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:dio/dio.dart';
+import 'package:quick_commerce_seller/config/constants/app_constants.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:quick_commerce_seller/core/network/api_exception.dart';
+import 'package:quick_commerce_seller/core/widgets/app_toast.dart';
+import 'package:quick_commerce_seller/features/inventory/domain/product_model.dart';
+import 'package:quick_commerce_seller/core/providers/repository_providers.dart';
+import 'package:quick_commerce_seller/features/inventory/presentation/controllers/inventory_controller.dart';
+import 'package:quick_commerce_seller/features/inventory/presentation/widgets/category_form_dialog.dart';
+import 'package:quick_commerce_seller/features/notifications/presentation/controllers/notifications_controller.dart';
+
+class AddProductScreen extends ConsumerStatefulWidget {
+  const AddProductScreen({super.key, this.productId});
+
+  /// When set, the form edits that product instead of creating a new one.
+  final String? productId;
+
+  bool get isEditing => productId != null;
 
   @override
-  State<AddProductScreen> createState() => _AddProductScreenState();
+  ConsumerState<AddProductScreen> createState() => _AddProductScreenState();
 }
 
-class _AddProductScreenState extends State<AddProductScreen> {
+class _AddProductScreenState extends ConsumerState<AddProductScreen> {
+  bool _isSaving = false;
+
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _brandController = TextEditingController();
   final TextEditingController _descController = TextEditingController();
+  // The "Pricing & Stock" step the progress bar advertises never existed, so
+  // products could only ever be created at price 0 with no stock.
+  final TextEditingController _priceController = TextEditingController();
+  final TextEditingController _mrpController = TextEditingController();
+  final TextEditingController _stockController = TextEditingController();
+  final TextEditingController _packSizeController = TextEditingController();
+
+  /// Local files chosen but not yet uploaded. Upload happens on save so a
+  /// seller who abandons the form does not leave orphans on the server.
+  final List<XFile> _pickedImages = [];
   String? _selectedCategory;
-  String? _selectedSubCategory;
-  int _selectedProductTypeIndex = 0;
 
-  final List<String> _categories = [
-    'Grocery & Staples',
-    'Dairy & Eggs',
-    'Beverages',
-    'Snacks & Munchies',
-    'Personal Care',
-    'Main Course',
-  ];
+  /// The store's own categories. Previously a fixed list that had nothing to
+  /// do with this seller, so a product could be filed under a category the
+  /// backend would reject.
+  /// The store's own categories, de-duplicated by name.
+  ///
+  /// Two categories can legitimately share a name (the platform seeds
+  /// near-duplicates across zones, and a seller can create one that collides).
+  /// A `DropdownButton` asserts when two items share a value, so the list is
+  /// collapsed here rather than crashing the form.
+  List<String> get _categories {
+    final seen = <String>{};
+    final names = <String>[];
+    for (final c in ref.watch(categoriesControllerProvider).value ?? const []) {
+      final name = c.name.trim();
+      if (name.isEmpty) continue;
+      if (seen.add(name.toLowerCase())) names.add(name);
+    }
+    return names;
+  }
 
-  final List<String> _subCategories = [
-    'Rice & Atta',
-    'Milk & Curd',
-    'Soft Drinks',
-    'Chips & Biscuits',
-  ];
+  /// True once the edit form has been populated, so a rebuild does not wipe
+  /// what the seller has since typed.
+  bool _prefilled = false;
+  bool _isCreatingCategory = false;
 
-  final List<Map<String, dynamic>> _productTypes = [
-    {
-      'title': 'Regular Product',
-      'desc': 'Physical product that you sell',
-      'icon': Icons.inventory_2_rounded,
-      'bgColor': const Color(0xFFFEF3C7),
-      'iconColor': const Color(0xFFD97706),
-    },
-    {
-      'title': 'Fast Moving',
-      'desc': 'High demand everyday item',
-      'icon': Icons.bolt_rounded,
-      'bgColor': const Color(0xFFFEF3C7),
-      'iconColor': const Color(0xFFD97706),
-    },
-    {
-      'title': 'Offer Product',
-      'desc': 'Discounted or promo item',
-      'icon': Icons.percent_rounded,
-      'bgColor': const Color(0xFFF5F3FF),
-      'iconColor': const Color(0xFF7C3AED),
-    },
-  ];
+  String _foodType = 'Veg';
+  bool _isRecommended = false;
+  bool _isAvailable = true;
+
+  final TextEditingController _gstController = TextEditingController();
+  final TextEditingController _lowStockController = TextEditingController();
+  final TextEditingController _maxQtyController = TextEditingController();
+  final TextEditingController _prepTimeController = TextEditingController();
+
+  /// Existing photos, by URL. Kept apart from [_pickedImages] because these are
+  /// already on the server and must survive a save that adds no new files.
+  final List<String> _existingImages = [];
+
+  /// Sizes with their own prices. When non-empty the backend derives the
+  /// headline price from these and rejects a base-price edit, so the base
+  /// price field is hidden.
+  final List<({TextEditingController name, TextEditingController price})>
+  _variants = [];
+
+  /// The product being edited, kept so its id and image survive a save.
+  ProductModel? _editing;
+
 
   @override
   void dispose() {
     _nameController.dispose();
     _brandController.dispose();
     _descController.dispose();
+    _priceController.dispose();
+    _mrpController.dispose();
+    _stockController.dispose();
+    _packSizeController.dispose();
+    _gstController.dispose();
+    _lowStockController.dispose();
+    _maxQtyController.dispose();
+    _prepTimeController.dispose();
+    for (final v in _variants) {
+      v.name.dispose();
+      v.price.dispose();
+    }
     super.dispose();
+  }
+
+  /// Sentinel for the dropdown's "Add new category" row. Not a category name,
+  /// so it can never collide with one.
+  static const String _addCategorySentinel = '__add_category__';
+
+  /// Creates a category from inside the product form and selects it.
+  ///
+  /// The seller's own categories come back from the list route straight away,
+  /// even before an admin approves them, so the new one is selectable at once.
+  Future<void> _createCategory() async {
+    final draft = await showCategoryFormDialog(context);
+    if (draft == null || !mounted) return;
+
+    setState(() => _isCreatingCategory = true);
+    try {
+      final created = await ref
+          .read(categoriesControllerProvider.notifier)
+          .addCategory(draft.name, foodTypeScope: draft.foodTypeScope);
+      if (!mounted) return;
+
+      setState(() {
+        _isCreatingCategory = false;
+        // Select it only once it is really in the dropdown's own list —
+        // holding a value with no matching item makes DropdownButton assert.
+        final name = created?.name.trim();
+        if (name != null && _categories.contains(name)) {
+          _selectedCategory = name;
+        }
+      });
+
+      AppToast.showSuccess(
+        context,
+        created == null
+            ? '"${draft.name}" created'
+            : '"${created.name}" created and selected',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isCreatingCategory = false);
+      AppToast.showError(context, _messageFor(e));
+    }
+  }
+
+  /// Whether this edit changes a field the backend re-reviews on.
+  ///
+  /// Mirrors `CRITICAL_APPROVAL_FIELDS` in `restaurantFood.service.js`, so the
+  /// seller is only warned about re-approval when it will actually happen.
+  bool _touchesApproval(ProductModel before, ProductModel after) {
+    if (before.name != after.name) return true;
+    if (before.description != after.description) return true;
+    if (before.price != after.price) return true;
+    if (before.foodType != after.foodType) return true;
+    if (before.categoryName != after.categoryName) return true;
+    if (before.preparationTime != after.preparationTime) return true;
+    if (before.imageUrl != after.imageUrl) return true;
+    if (before.images.length != after.images.length) return true;
+    for (var i = 0; i < before.images.length; i++) {
+      if (before.images[i] != after.images[i]) return true;
+    }
+    if (before.variants.length != after.variants.length) return true;
+    for (var i = 0; i < before.variants.length; i++) {
+      if (before.variants[i].name != after.variants[i].name) return true;
+      if (before.variants[i].price != after.variants[i].price) return true;
+    }
+    return false;
+  }
+
+  /// Copies an existing product into the form's controllers.
+  void _prefillFrom(ProductModel p) {
+    _editing = p;
+    _nameController.text = p.name;
+    _descController.text = p.description;
+    _priceController.text = p.price == 0 ? '' : p.price.toStringAsFixed(2);
+    _mrpController.text = p.originalPrice == null
+        ? ''
+        : p.originalPrice!.toStringAsFixed(2);
+    _stockController.text = '${p.stockQuantity}';
+    _packSizeController.text = p.unit;
+    _brandController.text = p.brand;
+    _selectedCategory = p.categoryName.isEmpty ? null : p.categoryName;
+    _foodType = p.foodType.toLowerCase() == 'non-veg' ? 'Non-Veg' : 'Veg';
+    _isRecommended = p.isRecommended;
+    _isAvailable = p.isAvailable;
+    _gstController.text = p.gstRate == null
+        ? ''
+        : p.gstRate!.toStringAsFixed(p.gstRate! % 1 == 0 ? 0 : 2);
+    _lowStockController.text = p.lowStockThreshold?.toString() ?? '';
+    _maxQtyController.text = p.maxQtyPerOrder?.toString() ?? '';
+    _prepTimeController.text = p.preparationTime;
+    _existingImages
+      ..clear()
+      ..addAll(p.images);
+    for (final v in p.variants) {
+      _variants.add((
+        name: TextEditingController(text: v.name),
+        price: TextEditingController(text: v.price.toStringAsFixed(2)),
+      ));
+    }
+  }
+
+  /// A photo already stored on the server, with a control to drop it.
+  Widget _buildExistingThumbnail(int index) {
+    return SizedBox(
+      width: 80,
+      height: 80,
+      child: Stack(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: CachedNetworkImage(
+              imageUrl: AppConstants.resolveMediaUrl(_existingImages[index]),
+              width: 80,
+              height: 80,
+              fit: BoxFit.cover,
+              placeholder: (_, _) => const ColoredBox(color: Color(0xFFFEF3C7)),
+              errorWidget: (_, _, _) => const ColoredBox(
+                color: Color(0xFFFEF3C7),
+                child: Icon(
+                  Icons.broken_image_outlined,
+                  size: 18,
+                  color: Color(0xFFD97706),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            top: 2,
+            right: 2,
+            child: InkWell(
+              onTap: () =>
+                  setState(() => _existingImages.removeAt(index)),
+              child: Container(
+                padding: const EdgeInsets.all(2),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFDC2626),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.close_rounded,
+                  size: 12,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Camera or gallery, then held locally until save.
+  /// One picked image, with a remove control that actually removes it.
+  Widget _buildPickedThumbnail(int index) {
+    final file = _pickedImages[index];
+    return SizedBox(
+      width: 80,
+      height: 80,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Image.file(
+              File(file.path),
+              width: 80,
+              height: 80,
+              fit: BoxFit.cover,
+              // A picked file can vanish from the OS cache before it is read.
+              errorBuilder: (_, _, _) => Container(
+                width: 80,
+                height: 80,
+                color: const Color(0xFFFEF3C7),
+                child: const Icon(
+                  Icons.broken_image_outlined,
+                  color: Color(0xFFD97706),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            top: -6,
+            right: -6,
+            child: GestureDetector(
+              onTap: () => setState(() => _pickedImages.removeAt(index)),
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFFD9027),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.close_rounded,
+                  size: 14,
+                  color: Color(0xFF181C2E),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _pickProductImages() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: const Text('Take a photo'),
+              onTap: () => Navigator.pop(sheetContext, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Choose from gallery'),
+              onTap: () => Navigator.pop(sheetContext, ImageSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (source == null) return;
+
+    try {
+      final picker = ImagePicker();
+      // Downscaled on the way in: the upload endpoint rejects anything over
+      // 5 MB, and a modern phone camera clears that on a single shot.
+      if (source == ImageSource.gallery) {
+        final files = await picker.pickMultiImage(
+          maxWidth: 1600,
+          maxHeight: 1600,
+          imageQuality: 85,
+        );
+        if (files.isNotEmpty) setState(() => _pickedImages.addAll(files));
+      } else {
+        final file = await picker.pickImage(
+          source: ImageSource.camera,
+          maxWidth: 1600,
+          maxHeight: 1600,
+          imageQuality: 85,
+        );
+        if (file != null) setState(() => _pickedImages.add(file));
+      }
+    } catch (e) {
+      if (mounted) AppToast.showError(context, 'Could not open the picker: $e');
+    }
+  }
+
+  /// Creates the product against `POST /food/restaurant/foods`.
+  ///
+  /// Picked images are uploaded first and the returned URLs go in the JSON
+  /// body — the create endpoint takes URLs, not files.
+  Future<void> _saveProduct() async {
+    FocusScope.of(context).unfocus();
+
+    final name = _nameController.text.trim();
+    if (name.isEmpty) {
+      AppToast.showError(context, 'Enter a product name');
+      return;
+    }
+    if (name.length > 200) {
+      AppToast.showError(context, 'Product name is too long');
+      return;
+    }
+
+    if (_selectedCategory == null || _selectedCategory!.trim().isEmpty) {
+      AppToast.showError(context, 'Pick a category');
+      return;
+    }
+
+    // Variants own the price when there are any, so they are validated instead
+    // of the base price — the backend rejects a base-price edit on such an item.
+    final variants = <ProductVariant>[];
+    for (final v in _variants) {
+      final vName = v.name.text.trim();
+      final vPrice = double.tryParse(v.price.text.trim());
+      if (vName.isEmpty) {
+        AppToast.showError(context, 'Give every variant a name');
+        return;
+      }
+      if (vPrice == null || vPrice < 0) {
+        AppToast.showError(context, 'Enter a valid price for "\$vName"');
+        return;
+      }
+      variants.add(ProductVariant(name: vName, price: vPrice));
+    }
+
+    final mrpText = _mrpController.text.trim();
+    final mrp = mrpText.isEmpty ? null : double.tryParse(mrpText);
+    if (mrpText.isNotEmpty && mrp == null) {
+      AppToast.showError(context, 'Enter a valid MRP');
+      return;
+    }
+
+    final double price;
+    if (variants.isEmpty) {
+      final parsed = double.tryParse(_priceController.text.trim());
+      if (parsed == null) {
+        AppToast.showError(context, 'Enter a selling price');
+        return;
+      }
+      if (parsed < 0) {
+        AppToast.showError(context, 'Price cannot be negative');
+        return;
+      }
+      price = parsed;
+    } else {
+      // Mirrors the backend: the headline price is the cheapest variant.
+      price = variants.map((v) => v.price).reduce((a, b) => a < b ? a : b);
+    }
+
+    // The server refuses a selling price above MRP outright; catching it here
+    // saves a round trip and names the field.
+    if (mrp != null && mrp > 0 && price > mrp) {
+      AppToast.showError(context, 'Selling price cannot be above the MRP');
+      return;
+    }
+
+    final gstText = _gstController.text.trim();
+    final gstRate = gstText.isEmpty ? null : double.tryParse(gstText);
+    if (gstText.isNotEmpty &&
+        (gstRate == null || gstRate < 0 || gstRate > 100)) {
+      AppToast.showError(context, 'GST rate must be between 0 and 100');
+      return;
+    }
+
+    final maxQtyText = _maxQtyController.text.trim();
+    final maxQty = maxQtyText.isEmpty ? null : int.tryParse(maxQtyText);
+    if (maxQtyText.isNotEmpty && (maxQty == null || maxQty < 1)) {
+      AppToast.showError(context, 'Max per order must be at least 1');
+      return;
+    }
+
+    if (_isSaving) return;
+    setState(() => _isSaving = true);
+
+    try {
+      final repository = ref.read(inventoryRepositoryProvider);
+
+      // Images upload first: the create endpoint takes JSON with URLs, not the
+      // files themselves.
+      final urls = <String>[];
+      for (final file in _pickedImages) {
+        urls.add(await repository.uploadImage(file.path));
+      }
+
+      final stockText = _stockController.text.trim();
+      final edited = _editing;
+      // Photos the seller kept, then anything newly picked.
+      final images = [..._existingImages, ...urls];
+      final lowStockText = _lowStockController.text.trim();
+      final product = ProductModel(
+        id: edited?.id ?? '',
+        name: name,
+        categoryId: edited?.categoryId ?? '',
+        categoryName: _selectedCategory ?? '',
+        price: price,
+        originalPrice: mrp,
+        unit: _packSizeController.text.trim(),
+        isAvailable: widget.isEditing ? _isAvailable : true,
+        stockQuantity: stockText.isEmpty ? 0 : int.tryParse(stockText) ?? 0,
+        imageUrl: images.isEmpty ? null : images.first,
+        images: images,
+        description: _descController.text.trim(),
+        brand: _brandController.text.trim(),
+        foodType: _foodType,
+        gstRate: gstRate,
+        lowStockThreshold: lowStockText.isEmpty
+            ? null
+            : int.tryParse(lowStockText),
+        maxQtyPerOrder: maxQty,
+        preparationTime: _prepTimeController.text.trim(),
+        isRecommended: _isRecommended,
+        variants: variants,
+      );
+
+      final isEdit = edited != null;
+      developer.log(
+        '${isEdit ? 'PATCH' : 'POST'} /food/restaurant/foods '
+        'name="$name" price=$price mrp=$mrp stock=$stockText '
+        'images=${urls.length}',
+        name: 'products',
+      );
+
+      final controller = ref.read(inventoryControllerProvider.notifier);
+      if (isEdit) {
+        await controller.updateProduct(product, original: edited);
+      } else {
+        await controller.addProduct(product);
+      }
+      developer.log('save OK — list refreshed', name: 'products');
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+      AppToast.showSuccess(
+        context,
+        isEdit
+            ? (_touchesApproval(edited, product)
+                  ? 'Product updated — it returns for admin approval'
+                  : 'Product updated')
+            // New items are created with approvalStatus 'pending', and the menu
+            // endpoint only returns approved ones — so it will not show in the
+            // list yet. Saying so beats the seller thinking the save failed.
+            : 'Product submitted — it appears once an admin approves it',
+      );
+      context.pop();
+    } catch (e) {
+      developer.log('save FAILED: $e', name: 'products');
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+      AppToast.showError(context, _messageFor(e));
+    }
+  }
+
+  String _messageFor(Object error) {
+    if (error is DioException && error.error is ApiException) {
+      return (error.error as ApiException).message;
+    }
+    if (error is ApiException) return error.message;
+    return 'Could not save the product. Please try again.';
   }
 
   @override
   Widget build(BuildContext context) {
+    // Edit mode fills the form from the catalogue the moment it arrives. Doing
+    // it here rather than in initState is what makes it work on a cold open,
+    // where the product list is still in flight when the screen mounts.
+    if (widget.isEditing && !_prefilled) {
+      final catalogue = ref.watch(inventoryControllerProvider).value;
+      final existing = catalogue
+          ?.where((p) => p.id == widget.productId)
+          .firstOrNull;
+      if (existing != null) {
+        _prefillFrom(existing);
+        _prefilled = true;
+      }
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFFAFAFA),
       appBar: AppBar(
@@ -104,7 +592,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
               ),
             ),
             const Text(
-              'Seller',
+              'Quick Seller',
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
@@ -126,25 +614,27 @@ class _AddProductScreenState extends State<AddProductScreen> {
                 ),
                 onPressed: () => context.push('/notifications'),
               ),
-              Positioned(
-                right: 8,
-                top: 8,
-                child: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFEF4444),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Text(
-                    '3',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
+              // Hidden at zero: a badge reading "0" is worse than no badge.
+              if (ref.watch(unreadNotificationsCountProvider) > 0)
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFEF4444),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Text(
+                      '${ref.watch(unreadNotificationsCountProvider)}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),
-              ),
             ],
           ),
         ],
@@ -173,17 +663,21 @@ class _AddProductScreenState extends State<AddProductScreen> {
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
-                            children: const [
+                            children: [
                               Text(
-                                'Add New Product',
-                                style: TextStyle(
+                                widget.isEditing
+                                    ? 'Edit Product'
+                                    : 'Add New Product',
+                                style: const TextStyle(
                                   fontSize: 20,
                                   fontWeight: FontWeight.bold,
                                   color: Color(0xFF181C2E),
                                 ),
                               ),
                               Text(
-                                'Add a new product to your store',
+                                widget.isEditing
+                                    ? 'Update this product'
+                                    : 'Add a new product to your store',
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: Color(0xFF6B7280),
@@ -197,7 +691,6 @@ class _AddProductScreenState extends State<AddProductScreen> {
                     const SizedBox(height: 20),
 
                     // 4 Step Progress Indicator
-                    _buildStepProgressIndicator(),
                     const SizedBox(height: 24),
 
                     // Basic Information Card Container
@@ -218,7 +711,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                                 width: 3.5,
                                 height: 16,
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFFFC400),
+                                  color: const Color(0xFFFD9027),
                                   borderRadius: BorderRadius.circular(2),
                                 ),
                               ),
@@ -261,7 +754,22 @@ class _AddProductScreenState extends State<AddProductScreen> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    _buildLabel('Category'),
+                                    Row(
+                                      children: [
+                                        _buildLabel('Category'),
+                                        if (_isCreatingCategory) ...[
+                                          const SizedBox(width: 8),
+                                          const SizedBox(
+                                            width: 12,
+                                            height: 12,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              color: Color(0xFFD97706),
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
                                     const SizedBox(height: 6),
                                     DropdownButtonFormField<String>(
                                       isExpanded: true,
@@ -278,22 +786,49 @@ class _AddProductScreenState extends State<AddProductScreen> {
                                         color: Color(0xFF181C2E),
                                       ),
                                       decoration: _buildInputDecoration(),
-                                      items: _categories
-                                          .map(
-                                            (c) => DropdownMenuItem(
-                                              value: c,
-                                              child: Text(
-                                                c,
-                                                style: const TextStyle(
-                                                  fontSize: 12,
-                                                ),
+                                      items: [
+                                        ..._categories.map(
+                                          (c) => DropdownMenuItem(
+                                            value: c,
+                                            child: Text(
+                                              c,
+                                              style: const TextStyle(
+                                                fontSize: 12,
                                               ),
                                             ),
-                                          )
-                                          .toList(),
-                                      onChanged: (val) => setState(
-                                        () => _selectedCategory = val,
-                                      ),
+                                          ),
+                                        ),
+                                        // Creating a category without leaving
+                                        // the product being added.
+                                        const DropdownMenuItem(
+                                          value: _addCategorySentinel,
+                                          child: Row(
+                                            children: [
+                                              Icon(
+                                                Icons.add_rounded,
+                                                size: 16,
+                                                color: Color(0xFFD97706),
+                                              ),
+                                              SizedBox(width: 6),
+                                              Text(
+                                                'Add new category',
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Color(0xFFD97706),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                      onChanged: (val) {
+                                        if (val == _addCategorySentinel) {
+                                          _createCategory();
+                                          return;
+                                        }
+                                        setState(() => _selectedCategory = val);
+                                      },
                                     ),
                                   ],
                                 ),
@@ -302,55 +837,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
                           ),
                           const SizedBox(height: 16),
 
-                          // Sub Category & Brand
+                          // Brand
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    _buildLabel(
-                                      'Sub Category',
-                                      isRequired: false,
-                                    ),
-                                    const SizedBox(height: 6),
-                                    DropdownButtonFormField<String>(
-                                      isExpanded: true,
-                                      initialValue: _selectedSubCategory,
-                                      hint: const Text(
-                                        'Select sub category',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: Color(0xFF9CA3AF),
-                                        ),
-                                      ),
-                                      icon: const Icon(
-                                        Icons.keyboard_arrow_down_rounded,
-                                        color: Color(0xFF181C2E),
-                                      ),
-                                      decoration: _buildInputDecoration(),
-                                      items: _subCategories
-                                          .map(
-                                            (c) => DropdownMenuItem(
-                                              value: c,
-                                              child: Text(
-                                                c,
-                                                style: const TextStyle(
-                                                  fontSize: 12,
-                                                ),
-                                              ),
-                                            ),
-                                          )
-                                          .toList(),
-                                      onChanged: (val) => setState(
-                                        () => _selectedSubCategory = val,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 12),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -390,7 +880,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                     const SizedBox(height: 20),
 
                     // Product Type Section Card
-                    Container(
+Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
@@ -402,7 +892,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
-                            'Product Type',
+                            'Classification',
                             style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.bold,
@@ -411,122 +901,140 @@ class _AddProductScreenState extends State<AddProductScreen> {
                           ),
                           const SizedBox(height: 2),
                           const Text(
-                            'Select the type of product',
+                            'How this item is listed to customers',
                             style: TextStyle(
                               fontSize: 12,
                               color: Color(0xFF6B7280),
                             ),
                           ),
                           const SizedBox(height: 16),
-
-                          // 3 Product Type Cards Row
+                          _buildLabel('Food type'),
+                          const SizedBox(height: 6),
+                          // Veg / Non-Veg is a real backend enum and drives the
+                          // marker customers filter on. The three "product
+                          // type" cards that used to sit here mapped to nothing.
                           Row(
-                            children: List.generate(_productTypes.length, (
-                              index,
-                            ) {
-                              final isSelected =
-                                  _selectedProductTypeIndex == index;
-                              final type = _productTypes[index];
-
-                              return Expanded(
-                                child: GestureDetector(
-                                  onTap: () => setState(
-                                    () => _selectedProductTypeIndex = index,
-                                  ),
-                                  child: Container(
-                                    margin: EdgeInsets.only(
-                                      right: index == 2 ? 0 : 8,
+                            children: [
+                              for (final type in const ['Veg', 'Non-Veg'])
+                                Expanded(
+                                  child: Padding(
+                                    padding: EdgeInsets.only(
+                                      right: type == 'Veg' ? 10 : 0,
                                     ),
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      color: isSelected
-                                          ? const Color(0xFFFFFDF0)
-                                          : Colors.white,
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(
-                                        color: isSelected
-                                            ? const Color(0xFFFFC400)
-                                            : const Color(0xFFE5E7EB),
-                                        width: isSelected ? 1.5 : 1.0,
-                                      ),
-                                    ),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
+                                    child: InkWell(
+                                      onTap: () =>
+                                          setState(() => _foodType = type),
+                                      borderRadius: BorderRadius.circular(10),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 12,
+                                          horizontal: 12,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: _foodType == type
+                                              ? const Color(0xFFFFFBEB)
+                                              : Colors.white,
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                          border: Border.all(
+                                            color: _foodType == type
+                                                ? const Color(0xFFFD9027)
+                                                : const Color(0xFFE5E7EB),
+                                            width: _foodType == type ? 1.5 : 1,
+                                          ),
+                                        ),
+                                        child: Row(
                                           children: [
                                             Container(
-                                              width: 18,
-                                              height: 18,
+                                              padding: const EdgeInsets.all(3),
                                               decoration: BoxDecoration(
-                                                shape: BoxShape.circle,
                                                 border: Border.all(
-                                                  color: isSelected
-                                                      ? const Color(0xFFFFC400)
-                                                      : const Color(0xFFD1D5DB),
-                                                  width: 2,
+                                                  color: type == 'Veg'
+                                                      ? const Color(0xFF10B981)
+                                                      : const Color(0xFFEF4444),
+                                                  width: 1.5,
+                                                ),
+                                                borderRadius:
+                                                    BorderRadius.circular(4),
+                                              ),
+                                              child: Container(
+                                                width: 8,
+                                                height: 8,
+                                                decoration: BoxDecoration(
+                                                  color: type == 'Veg'
+                                                      ? const Color(0xFF10B981)
+                                                      : const Color(0xFFEF4444),
+                                                  shape: BoxShape.circle,
                                                 ),
                                               ),
-                                              child: isSelected
-                                                  ? Center(
-                                                      child: Container(
-                                                        width: 9,
-                                                        height: 9,
-                                                        decoration:
-                                                            const BoxDecoration(
-                                                              color: Color(
-                                                                0xFFFFC400,
-                                                              ),
-                                                              shape: BoxShape
-                                                                  .circle,
-                                                            ),
-                                                      ),
-                                                    )
-                                                  : null,
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Flexible(
+                                              child: Text(
+                                                type,
+                                                maxLines: 1,
+                                                overflow:
+                                                    TextOverflow.ellipsis,
+                                                style: const TextStyle(
+                                                  fontSize: 13,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Color(0xFF181C2E),
+                                                ),
+                                              ),
                                             ),
                                           ],
                                         ),
-                                        const SizedBox(height: 10),
-                                        Container(
-                                          padding: const EdgeInsets.all(8),
-                                          decoration: BoxDecoration(
-                                            color: type['bgColor'] as Color,
-                                            borderRadius: BorderRadius.circular(
-                                              8,
-                                            ),
-                                          ),
-                                          child: Icon(
-                                            type['icon'] as IconData,
-                                            color: type['iconColor'] as Color,
-                                            size: 20,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 10),
-                                        Text(
-                                          type['title'].toString(),
-                                          style: const TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.bold,
-                                            color: Color(0xFF181C2E),
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          type['desc'].toString(),
-                                          style: const TextStyle(
-                                            fontSize: 10,
-                                            color: Color(0xFF6B7280),
-                                            height: 1.2,
-                                          ),
-                                        ),
-                                      ],
+                                      ),
                                     ),
                                   ),
                                 ),
-                              );
-                            }),
+                            ],
                           ),
+                          const SizedBox(height: 16),
+                          SwitchListTile.adaptive(
+                            contentPadding: EdgeInsets.zero,
+                            value: _isRecommended,
+                            onChanged: (v) =>
+                                setState(() => _isRecommended = v),
+                            title: const Text(
+                              'Recommended',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF181C2E),
+                              ),
+                            ),
+                            subtitle: const Text(
+                              'Highlight this item to customers',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Color(0xFF6B7280),
+                              ),
+                            ),
+                          ),
+                          if (widget.isEditing)
+                            SwitchListTile.adaptive(
+                              contentPadding: EdgeInsets.zero,
+                              value: _isAvailable,
+                              onChanged: (v) =>
+                                  setState(() => _isAvailable = v),
+                              title: const Text(
+                                'Available',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF181C2E),
+                                ),
+                              ),
+                              subtitle: const Text(
+                                'Visible and orderable by customers',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Color(0xFF6B7280),
+                                ),
+                              ),
+                            ),
                         ],
                       ),
                     ),
@@ -581,92 +1089,72 @@ class _AddProductScreenState extends State<AddProductScreen> {
                             scrollDirection: Axis.horizontal,
                             child: Row(
                               children: [
-                                // Thumbnail 1: Banana Image
-                                _buildMediaThumbnail(
-                                  icon: Icons.lunch_dining_rounded,
-                                  color: const Color(0xFFFEF3C7),
-                                  iconColor: const Color(0xFFD97706),
-                                ),
-                                const SizedBox(width: 10),
-
-                                // Thumbnail 2: Milk Pouch Image
-                                _buildMediaThumbnail(
-                                  icon: Icons.local_cafe_rounded,
-                                  color: const Color(0xFFECFDF5),
-                                  iconColor: const Color(0xFF059669),
-                                ),
-                                const SizedBox(width: 10),
-
-                                // Thumbnail 3: Video with Play Overlay & Duration
-                                _buildMediaThumbnail(
-                                  icon: Icons.play_circle_fill_rounded,
-                                  color: const Color(0xFFEFF6FF),
-                                  iconColor: const Color(0xFF2563EB),
-                                  badgeText: '00:15',
-                                  isVideo: true,
-                                ),
-                                const SizedBox(width: 10),
-
-                                // Thumbnail 4: GIF Thumbnail with GIF Tag
-                                _buildMediaThumbnail(
-                                  icon: Icons.gif_box_rounded,
-                                  color: const Color(0xFFFFFBEB),
-                                  iconColor: const Color(0xFFD97706),
-                                  badgeText: 'GIF',
-                                  isGif: true,
-                                ),
-                                const SizedBox(width: 10),
+                                // The images the seller actually picked.
+                                // These four slots used to be fixed decorative
+                                // tiles, so a picked photo never appeared and
+                                // the upload looked broken.
+                                for (
+                                  var k = 0;
+                                  k < _pickedImages.length;
+                                  k++
+                                ) ...[
+                                  _buildPickedThumbnail(k),
+                                  const SizedBox(width: 10),
+                                ],
 
                                 // Add More Container (Dashed border button)
-                                Container(
-                                  width: 80,
-                                  height: 80,
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFFAFAFA),
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: const Color(0xFFD1D5DB),
-                                      width: 1.5,
+                                GestureDetector(
+                                  onTap: _pickProductImages,
+                                  child: Container(
+                                    width: 80,
+                                    height: 80,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFFAFAFA),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: const Color(0xFFD1D5DB),
+                                        width: 1.5,
+                                      ),
                                     ),
-                                  ),
-                                  child: FittedBox(
-                                    fit: BoxFit.scaleDown,
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(4),
-                                      child: Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          Container(
-                                            padding: const EdgeInsets.all(4),
-                                            decoration: const BoxDecoration(
-                                              color: Color(0xFFFFC400),
-                                              shape: BoxShape.circle,
+                                    child: FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(4),
+                                        child: Column(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            Container(
+                                              padding: const EdgeInsets.all(4),
+                                              decoration: const BoxDecoration(
+                                                color: Color(0xFFFD9027),
+                                                shape: BoxShape.circle,
+                                              ),
+                                              child: const Icon(
+                                                Icons.add_rounded,
+                                                color: Color(0xFF181C2E),
+                                                size: 14,
+                                              ),
                                             ),
-                                            child: const Icon(
-                                              Icons.add_rounded,
-                                              color: Color(0xFF181C2E),
-                                              size: 14,
+                                            const SizedBox(height: 2),
+                                            const Text(
+                                              'Add More',
+                                              style: TextStyle(
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.bold,
+                                                color: Color(0xFF181C2E),
+                                              ),
                                             ),
-                                          ),
-                                          const SizedBox(height: 2),
-                                          const Text(
-                                            'Add More',
-                                            style: TextStyle(
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.bold,
-                                              color: Color(0xFF181C2E),
+                                            const Text(
+                                              'Images / Videos / GIFs',
+                                              textAlign: TextAlign.center,
+                                              style: TextStyle(
+                                                fontSize: 7,
+                                                color: Color(0xFF6B7280),
+                                              ),
                                             ),
-                                          ),
-                                          const Text(
-                                            'Images / Videos / GIFs',
-                                            textAlign: TextAlign.center,
-                                            style: TextStyle(
-                                              fontSize: 7,
-                                              color: Color(0xFF6B7280),
-                                            ),
-                                          ),
-                                        ],
+                                          ],
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -674,6 +1162,18 @@ class _AddProductScreenState extends State<AddProductScreen> {
                               ],
                             ),
                           ),
+                          if (_pickedImages.isNotEmpty) ...[
+                            const SizedBox(height: 10),
+                            Text(
+                              '${_pickedImages.length} image'
+                              '${_pickedImages.length == 1 ? '' : 's'} ready to upload',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFFD97706),
+                              ),
+                            ),
+                          ],
                           const SizedBox(height: 12),
 
                           // File Formats Hint
@@ -698,6 +1198,190 @@ class _AddProductScreenState extends State<AddProductScreen> {
                           ),
                           const SizedBox(height: 14),
 
+                          // Existing photos, so an edit can drop one rather
+                          // than only ever adding more.
+                          if (_existingImages.isNotEmpty) ...[
+                            _buildLabel('Current photos', isRequired: false),
+                            const SizedBox(height: 6),
+                            SizedBox(
+                              height: 80,
+                              child: ListView.separated(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: _existingImages.length,
+                                separatorBuilder: (_, _) =>
+                                    const SizedBox(width: 8),
+                                itemBuilder: (_, i) =>
+                                    _buildExistingThumbnail(i),
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                          ],
+
+                          // Pricing & Stock
+                          if (_variants.isEmpty) ...[
+                            _buildLabel('Selling Price (Rs)'),
+                            const SizedBox(height: 6),
+                            TextFormField(
+                              controller: _priceController,
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                    decimal: true,
+                                  ),
+                              decoration: _buildInputDecoration(
+                                hintText: '0.00',
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                          ] else ...[
+                            _buildLabel('Variant pricing', isRequired: false),
+                            const SizedBox(height: 4),
+                            const Text(
+                              'This product is priced per variant. The '
+                              'headline price comes from the cheapest one.',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Color(0xFF6B7280),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                          ],
+                          for (var i = 0; i < _variants.length; i++) ...[
+                            Row(
+                              children: [
+                                Expanded(
+                                  flex: 3,
+                                  child: TextFormField(
+                                    controller: _variants[i].name,
+                                    decoration: _buildInputDecoration(
+                                      hintText: 'Size, e.g. 1 kg',
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  flex: 2,
+                                  child: TextFormField(
+                                    controller: _variants[i].price,
+                                    keyboardType:
+                                        const TextInputType.numberWithOptions(
+                                          decimal: true,
+                                        ),
+                                    decoration: _buildInputDecoration(
+                                      hintText: 'Price',
+                                    ),
+                                  ),
+                                ),
+                                IconButton(
+                                  tooltip: 'Remove variant',
+                                  icon: const Icon(
+                                    Icons.close_rounded,
+                                    size: 18,
+                                    color: Color(0xFFDC2626),
+                                  ),
+                                  onPressed: () => setState(() {
+                                    final v = _variants.removeAt(i);
+                                    v.name.dispose();
+                                    v.price.dispose();
+                                  }),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                          ],
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: TextButton.icon(
+                              onPressed: () => setState(
+                                () => _variants.add((
+                                  name: TextEditingController(),
+                                  price: TextEditingController(),
+                                )),
+                              ),
+                              icon: const Icon(Icons.add_rounded, size: 18),
+                              label: const Text('Add variant'),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          _buildLabel('MRP (Rs)', isRequired: false),
+                          const SizedBox(height: 6),
+                          TextFormField(
+                            controller: _mrpController,
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            decoration: _buildInputDecoration(hintText: '0.00'),
+                          ),
+                          const SizedBox(height: 12),
+                          _buildLabel('Stock Quantity', isRequired: false),
+                          const SizedBox(height: 6),
+                          TextFormField(
+                            controller: _stockController,
+                            keyboardType: TextInputType.number,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                            ],
+                            decoration: _buildInputDecoration(
+                              hintText: 'Leave blank to keep untracked',
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          _buildLabel('Pack Size', isRequired: false),
+                          const SizedBox(height: 6),
+                          TextFormField(
+                            controller: _packSizeController,
+                            decoration: _buildInputDecoration(
+                              hintText: 'e.g. 500 g, pack of 6',
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          _buildLabel('Low stock alert at', isRequired: false),
+                          const SizedBox(height: 6),
+                          TextFormField(
+                            controller: _lowStockController,
+                            keyboardType: TextInputType.number,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                            ],
+                            decoration: _buildInputDecoration(
+                              hintText: 'Warn me below this count',
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          _buildLabel('Max per order', isRequired: false),
+                          const SizedBox(height: 6),
+                          TextFormField(
+                            controller: _maxQtyController,
+                            keyboardType: TextInputType.number,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                            ],
+                            decoration: _buildInputDecoration(
+                              hintText: 'Leave blank for no limit',
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          _buildLabel('GST rate (%)', isRequired: false),
+                          const SizedBox(height: 6),
+                          TextFormField(
+                            controller: _gstController,
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            decoration: _buildInputDecoration(
+                              hintText: '0 - 100',
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          _buildLabel('Preparation time', isRequired: false),
+                          const SizedBox(height: 6),
+                          TextFormField(
+                            controller: _prepTimeController,
+                            decoration: _buildInputDecoration(
+                              hintText: 'e.g. 10 mins',
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+
                           // Lightbulb Alert Card
                           Container(
                             padding: const EdgeInsets.all(12),
@@ -713,7 +1397,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                                 Container(
                                   padding: const EdgeInsets.all(6),
                                   decoration: const BoxDecoration(
-                                    color: Color(0xFFFFC400),
+                                    color: Color(0xFFFD9027),
                                     shape: BoxShape.circle,
                                   ),
                                   child: const Icon(
@@ -775,8 +1459,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
                             borderRadius: BorderRadius.circular(10),
                           ),
                         ),
+                        // Was "Save as Draft", which saved nothing — there is
+                        // no draft state in the backend.
                         child: const Text(
-                          'Save as Draft',
+                          'Cancel',
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.bold,
@@ -791,16 +1477,9 @@ class _AddProductScreenState extends State<AddProductScreen> {
                     child: SizedBox(
                       height: 48,
                       child: ElevatedButton(
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Product Created Successfully!'),
-                            ),
-                          );
-                          context.pop();
-                        },
+                        onPressed: _isSaving ? null : _saveProduct,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFFFC400),
+                          backgroundColor: const Color(0xFFFD9027),
                           foregroundColor: const Color(0xFF181C2E),
                           padding: const EdgeInsets.symmetric(horizontal: 8),
                           shape: RoundedRectangleBorder(
@@ -808,27 +1487,27 @@ class _AddProductScreenState extends State<AddProductScreen> {
                           ),
                           elevation: 0,
                         ),
-                        child: FittedBox(
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: const [
-                              Text(
-                                'Continue',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.bold,
+                        child: _isSaving
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.4,
                                   color: Color(0xFF181C2E),
                                 ),
+                              )
+                            : FittedBox(
+                                child: Text(
+                                  widget.isEditing
+                                      ? 'Update Product'
+                                      : 'Save Product',
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF181C2E),
+                                  ),
+                                ),
                               ),
-                              SizedBox(width: 6),
-                              Icon(
-                                Icons.arrow_forward_rounded,
-                                size: 18,
-                                color: Color(0xFF181C2E),
-                              ),
-                            ],
-                          ),
-                        ),
                       ),
                     ),
                   ),
@@ -838,182 +1517,6 @@ class _AddProductScreenState extends State<AddProductScreen> {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildMediaThumbnail({
-    required IconData icon,
-    required Color color,
-    required Color iconColor,
-    String? badgeText,
-    bool isVideo = false,
-    bool isGif = false,
-  }) {
-    return Stack(
-      children: [
-        Container(
-          width: 80,
-          height: 80,
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFE5E7EB)),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, color: iconColor, size: 32),
-              if (badgeText != null && isVideo) ...[
-                const SizedBox(height: 4),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 4,
-                    vertical: 1,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.7),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    badgeText,
-                    style: const TextStyle(
-                      fontSize: 8,
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-
-        // GIF Tag on Top Left
-        if (isGif && badgeText != null)
-          Positioned(
-            left: 4,
-            top: 4,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.6),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Text(
-                badgeText,
-                style: const TextStyle(
-                  fontSize: 8,
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ),
-
-        // Delete 'x' Badge on Top Right
-        Positioned(
-          right: 4,
-          top: 4,
-          child: Container(
-            padding: const EdgeInsets.all(2),
-            decoration: const BoxDecoration(
-              color: Color(0xFFFFC400),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.close_rounded,
-              size: 12,
-              color: Color(0xFF181C2E),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStepProgressIndicator() {
-    final steps = [
-      {'step': '1', 'title': 'Product Details', 'isActive': true},
-      {'step': '2', 'title': 'Pricing & Stock', 'isActive': false},
-      {'step': '3', 'title': 'Images & Media', 'isActive': false},
-      {'step': '4', 'title': 'Review', 'isActive': false},
-    ];
-
-    return Row(
-      children: List.generate(steps.length, (index) {
-        final st = steps[index];
-        final isActive = st['isActive'] as bool;
-        final isLast = index == steps.length - 1;
-
-        return Expanded(
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      height: 2,
-                      color: index == 0
-                          ? Colors.transparent
-                          : const Color(0xFFE5E7EB),
-                    ),
-                  ),
-                  Container(
-                    width: 24,
-                    height: 24,
-                    decoration: BoxDecoration(
-                      color: isActive
-                          ? const Color(0xFFFFC400)
-                          : const Color(0xFFF3F4F6),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Center(
-                      child: Text(
-                        st['step'].toString(),
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: isActive
-                              ? const Color(0xFF181C2E)
-                              : const Color(0xFF6B7280),
-                        ),
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: Container(
-                      height: 2,
-                      color: isLast
-                          ? Colors.transparent
-                          : const Color(0xFFE5E7EB),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  st['title'].toString(),
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
-                    color: isActive
-                        ? const Color(0xFFD97706)
-                        : const Color(0xFF6B7280),
-                  ),
-                ),
-              ),
-              if (isActive) ...[
-                const SizedBox(height: 2),
-                Container(width: 24, height: 2, color: const Color(0xFFFFC400)),
-              ],
-            ],
-          ),
-        );
-      }),
     );
   }
 
@@ -1054,7 +1557,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: Color(0xFFFFC400), width: 1.5),
+        borderSide: const BorderSide(color: Color(0xFFFD9027), width: 1.5),
       ),
     );
   }

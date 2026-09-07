@@ -8,6 +8,10 @@ class OrderItemModel {
   final String? variant;
   final List<String> addons;
 
+  /// Snapshotted on the order line at purchase time, so it still resolves after
+  /// the seller edits or delists the product. Empty for older orders.
+  final String? imageUrl;
+
   const OrderItemModel({
     required this.id,
     required this.name,
@@ -15,6 +19,7 @@ class OrderItemModel {
     required this.price,
     this.variant,
     this.addons = const [],
+    this.imageUrl,
   });
 
   double get totalPrice => price * quantity;
@@ -50,6 +55,32 @@ class OrderModel {
   final String? deliveryRiderName;
   final String? deliveryRiderPhone;
 
+  /// The seller's own store, as recorded on the order. Shown so an account
+  /// running more than one outlet can tell which one the order is for.
+  final String? storeName;
+
+  /// Store → customer distance and drive time. Both null on orders placed
+  /// before the backend started resolving a route, so every use is optional.
+  final double? distanceKm;
+  final int? durationMinutes;
+
+  /// Pickup and drop coordinates, when the order carries them.
+  ///
+  /// Only the single-order route populates the store's `location`, so these are
+  /// routinely null on orders taken from the list. Everything that reads them
+  /// hides itself rather than guessing a position — a map pin in the wrong
+  /// place is worse than no map.
+  final double? storeLat;
+  final double? storeLng;
+  final double? customerLat;
+  final double? customerLng;
+
+  bool get hasRoute =>
+      storeLat != null &&
+      storeLng != null &&
+      customerLat != null &&
+      customerLng != null;
+
   const OrderModel({
     required this.id,
     required this.orderNumber,
@@ -65,6 +96,13 @@ class OrderModel {
     required this.paymentMethod,
     this.deliveryRiderName,
     this.deliveryRiderPhone,
+    this.storeName,
+    this.distanceKm,
+    this.durationMinutes,
+    this.storeLat,
+    this.storeLng,
+    this.customerLat,
+    this.customerLng,
   });
 
   OrderModel copyWith({
@@ -87,6 +125,13 @@ class OrderModel {
       paymentMethod: paymentMethod,
       deliveryRiderName: deliveryRiderName ?? this.deliveryRiderName,
       deliveryRiderPhone: deliveryRiderPhone ?? this.deliveryRiderPhone,
+      storeName: storeName,
+      distanceKm: distanceKm,
+      durationMinutes: durationMinutes,
+      storeLat: storeLat,
+      storeLng: storeLng,
+      customerLat: customerLat,
+      customerLng: customerLng,
     );
   }
 }

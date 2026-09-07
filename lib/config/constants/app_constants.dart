@@ -20,7 +20,7 @@ class AppConstants {
   /// the call sites is how paths end up with a doubled or missing segment.
   static const String baseUrl = String.fromEnvironment(
     'BASE_URL',
-    defaultValue: 'https://quick.appzeto.com/api/v1',
+    defaultValue: 'https://versapack.in/api/v1',
   );
 
   /// Socket.IO origin. Deployed behind the same host as the API; a local setup
@@ -28,7 +28,7 @@ class AppConstants {
   /// is configured independently of [baseUrl].
   static const String socketUrl = String.fromEnvironment(
     'SOCKET_URL',
-    defaultValue: 'https://quick.appzeto.com',
+    defaultValue: 'https://versapack.in',
   );
 
   /// Google Maps key for the Dart side (Maps SDK, Places, Geocoding).

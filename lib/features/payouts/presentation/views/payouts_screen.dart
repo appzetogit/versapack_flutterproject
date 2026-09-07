@@ -342,7 +342,13 @@ class PayoutsScreen extends ConsumerWidget {
                         ),
                       ),
                       Text(
-                        '${tx.payoutMethod} • ${tx.date.day}/${tx.date.month}/${tx.date.year}',
+                        // The method is dropped rather than shown blank when
+                        // the backend did not report one, leaving just the date
+                        // instead of a stray leading bullet.
+                        [
+                          if (tx.payoutMethod.trim().isNotEmpty) tx.payoutMethod,
+                          '${tx.date.day}/${tx.date.month}/${tx.date.year}',
+                        ].join(' • '),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: AppTextStyles.caption.copyWith(

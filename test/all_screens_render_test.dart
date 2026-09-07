@@ -18,12 +18,11 @@ import 'package:quick_commerce_seller/features/feedback/presentation/views/feedb
 import 'package:quick_commerce_seller/features/home/presentation/views/home_screen.dart';
 import 'package:quick_commerce_seller/features/inventory/presentation/views/add_product_screen.dart';
 import 'package:quick_commerce_seller/features/inventory/presentation/views/categories_screen.dart';
-import 'package:quick_commerce_seller/features/inventory/presentation/views/inventory_screen.dart';
+import 'package:quick_commerce_seller/features/inventory/presentation/views/product_details_screen.dart';
 import 'package:quick_commerce_seller/features/inventory/presentation/views/products_screen.dart';
 import 'package:quick_commerce_seller/features/notifications/presentation/views/notifications_screen.dart';
 import 'package:quick_commerce_seller/features/offers/presentation/views/create_coupon_screen.dart';
 import 'package:quick_commerce_seller/features/offers/presentation/views/offers_screen.dart';
-import 'package:quick_commerce_seller/features/onboarding/presentation/views/onboarding_screen.dart';
 import 'package:quick_commerce_seller/features/orders/presentation/views/order_details_screen.dart';
 import 'package:quick_commerce_seller/features/orders/presentation/views/order_history_screen.dart';
 import 'package:quick_commerce_seller/features/orders/presentation/views/orders_screen.dart';
@@ -40,11 +39,11 @@ import 'package:quick_commerce_seller/features/support/presentation/views/suppor
 const Map<String, Widget> screens = {
   'HomeScreen': HomeScreen(),
   'OrdersScreen': OrdersScreen(),
-  'OrderDetailsScreen': OrderDetailsScreen(),
+  'OrderDetailsScreen': OrderDetailsScreen(orderId: 'smoke-test-order'),
   'OrderHistoryScreen': OrderHistoryScreen(),
   'ProductsScreen': ProductsScreen(),
+  'ProductDetailsScreen': ProductDetailsScreen(productId: 'smoke-test-product'),
   'CategoriesScreen': CategoriesScreen(),
-  'InventoryScreen': InventoryScreen(),
   'AddProductScreen': AddProductScreen(),
   'ExploreScreen': ExploreScreen(),
   'RestaurantStatusScreen': RestaurantStatusScreen(),
@@ -66,7 +65,6 @@ const Map<String, Widget> screens = {
   'RegistrationScreen': RegistrationScreen(),
   'RegistrationSuccessScreen': RegistrationSuccessScreen(),
   'AccountStatusScreen': AccountStatusScreen(),
-  'OnboardingScreen': OnboardingScreen(),
   // SplashScreen is deliberately absent: it owns a bootstrap timer and routes
   // itself away, so it needs its own harness — see splash_screen_layout_test.
 };

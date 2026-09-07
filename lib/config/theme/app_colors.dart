@@ -5,10 +5,10 @@ import 'package:flutter/material.dart';
 class AppColors {
   const AppColors._();
 
-  // Brand (AppZeto Golden Yellow)
-  static const Color primary = Color(0xFFFAC015);
-  static const Color primaryLight = Color(0xFFFDE68A);
-  static const Color primaryDark = Color(0xFFEAB308);
+  // Brand (Versapack Orange)
+  static const Color primary = Color(0xFFFD9027);
+  static const Color primaryLight = Color(0xFFFDB673);
+  static const Color primaryDark = Color(0xFFD77A21);
 
   // Dark palette
   static const Color backgroundDark = Color(0xFF121223);

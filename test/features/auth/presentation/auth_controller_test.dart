@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:quick_commerce_seller/core/network/api_exception.dart';
 import 'package:quick_commerce_seller/core/providers/core_providers.dart';
 import 'package:quick_commerce_seller/core/storage/token_storage.dart';
@@ -19,6 +20,7 @@ class _FakeAuthApi implements AuthApi {
 
   Map<String, dynamic> meResponse = const {};
   bool logoutCalled = false;
+  String? savedFcmToken;
 
   @override
   Future<Map<String, dynamic>> requestOtp(String phone) async =>
@@ -36,6 +38,9 @@ class _FakeAuthApi implements AuthApi {
 
   @override
   Future<Map<String, dynamic>> me() async => meResponse;
+
+  @override
+  Future<void> saveFcmToken(String token) async => savedFcmToken = token;
 
   @override
   Future<void> logout({required String refreshToken, String? fcmToken}) async {
@@ -132,6 +137,11 @@ ProviderContainer _container(_FakeAuthApi api, _FakeTokenStorage storage) {
 }
 
 void main() {
+  // verifyOtp resets the registration draft, whose controller reads
+  // SharedPreferences on build — that needs a binding and a backing store.
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUp(() => SharedPreferences.setMockInitialValues({}));
+
   group('AuthController', () {
     test('starts in AuthInitial so the router waits for the splash', () {
       final container = _container(_FakeAuthApi(), _FakeTokenStorage());

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:quick_commerce_seller/config/constants/app_constants.dart';
 import 'package:quick_commerce_seller/config/theme/app_palette.dart';
-import 'package:quick_commerce_seller/core/widgets/app_toast.dart';
 import 'package:quick_commerce_seller/features/inventory/domain/product_model.dart';
 import 'package:quick_commerce_seller/features/inventory/presentation/controllers/inventory_controller.dart';
+import 'package:quick_commerce_seller/features/notifications/presentation/controllers/notifications_controller.dart';
 
 class ProductsScreen extends ConsumerStatefulWidget {
   const ProductsScreen({super.key});
@@ -49,6 +51,9 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
       'stock': '${p.stockQuantity}',
       'image': p.imageUrl ?? '',
       'isInactive': !p.isAvailable,
+      // Read by the stock label. Absent since the switch to live data, which
+      // threw 'Null is not a subtype of bool' on every render.
+      'isOutOfStock': outOfStock,
       'status': !p.isAvailable
           ? 'Inactive'
           : (outOfStock ? 'Out of stock' : 'Active'),
@@ -86,145 +91,79 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
     }).toList();
   }
 
-  void _showProductActions(Map<String, dynamic> p) {
-    final isActive = p['isInactive'] != true;
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: context.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (sheetContext) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              margin: const EdgeInsets.symmetric(vertical: 12),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: context.borderColor,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.edit_outlined),
-              title: const Text('Edit product'),
-              onTap: () {
-                Navigator.of(sheetContext).pop();
-                context.push('/add-product');
-              },
-            ),
-            ListTile(
-              leading: Icon(
-                isActive
-                    ? Icons.visibility_off_outlined
-                    : Icons.visibility_outlined,
-              ),
-              title: Text(isActive ? 'Mark inactive' : 'Mark active'),
-              onTap: () {
-                Navigator.of(sheetContext).pop();
-                ref
-                    .read(inventoryControllerProvider.notifier)
-                    .toggleStock(p['id'].toString(), !isActive);
-                AppToast.show(
-                  context,
-                  '"${p['name']}" is now ${isActive ? 'inactive' : 'active'}',
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(
-                Icons.delete_outline_rounded,
-                color: Color(0xFFDC2626),
-              ),
-              title: const Text(
-                'Delete',
-                style: TextStyle(color: Color(0xFFDC2626)),
-              ),
-              onTap: () {
-                Navigator.of(sheetContext).pop();
-                _confirmDelete(p);
-              },
-            ),
-            const SizedBox(height: 8),
-          ],
-        ),
+  /// The product's own photo once one has been uploaded, otherwise a neutral
+  /// glyph. The previous code cast `p['icon']` straight to `IconData`, but live
+  /// products carry no icon — only mock rows did — so it threw on every build.
+  Widget _buildProductThumb(Map<String, dynamic> p) {
+    final url = AppConstants.resolveMediaUrl(p['image']?.toString());
+    if (url.isEmpty) {
+      return const Icon(
+        Icons.inventory_2_outlined,
+        color: Color(0xFFD97706),
+        size: 26,
+      );
+    }
+    return CachedNetworkImage(
+      imageUrl: url,
+      fit: BoxFit.cover,
+      width: 50,
+      height: 50,
+      memCacheWidth: 150,
+      placeholder: (_, _) => const ColoredBox(color: Color(0xFFFEF3C7)),
+      errorWidget: (_, _, _) => const Icon(
+        Icons.inventory_2_outlined,
+        color: Color(0xFFD97706),
+        size: 26,
       ),
     );
-  }
-
-  void _confirmDelete(Map<String, dynamic> p) {
-    showDialog<bool>(
-      context: context,
-      builder: (dialogCtx) => AlertDialog(
-        title: const Text('Delete product?'),
-        content: Text('"${p['name']}" will be removed from your catalogue.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogCtx, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(dialogCtx, true),
-            style: TextButton.styleFrom(
-              foregroundColor: const Color(0xFFDC2626),
-            ),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    ).then((confirmed) {
-      if (confirmed != true || !mounted) return;
-      final name = p['name'].toString();
-      // No seller-facing delete endpoint exists; hiding the product is the
-      // honest equivalent and is reversible, unlike a delete that silently
-      // did nothing.
-      ref
-          .read(inventoryControllerProvider.notifier)
-          .toggleStock(p['id'].toString(), false);
-      AppToast.show(context, '"$name" hidden from customers');
-    });
   }
 
   void _openCategoryFilterSheet() {
     showModalBottomSheet<void>(
       context: context,
+      isScrollControlled: true,
       backgroundColor: context.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (sheetContext) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              margin: const EdgeInsets.symmetric(vertical: 12),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: context.borderColor,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            for (var i = 0; i < _categories.length; i++)
-              ListTile(
-                leading: Icon(
-                  _selectedCategoryIndex == i
-                      ? Icons.radio_button_checked_rounded
-                      : Icons.radio_button_unchecked_rounded,
-                  color: _selectedCategoryIndex == i
-                      ? const Color(0xFFD97706)
-                      : context.textSecondary,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(sheetContext).size.height * 0.75,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  margin: const EdgeInsets.symmetric(vertical: 12),
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: context.borderColor,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
-                title: Text(_categories[i]['label'].toString()),
-                onTap: () {
-                  setState(() => _selectedCategoryIndex = i);
-                  Navigator.of(sheetContext).pop();
-                },
-              ),
-            const SizedBox(height: 8),
-          ],
+                for (var i = 0; i < _categories.length; i++)
+                  ListTile(
+                    leading: Icon(
+                      _selectedCategoryIndex == i
+                          ? Icons.radio_button_checked_rounded
+                          : Icons.radio_button_unchecked_rounded,
+                      color: _selectedCategoryIndex == i
+                          ? const Color(0xFFD97706)
+                          : context.textSecondary,
+                    ),
+                    title: Text(_categories[i]['label'].toString()),
+                    onTap: () {
+                      setState(() => _selectedCategoryIndex = i);
+                      Navigator.of(sheetContext).pop();
+                    },
+                  ),
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -298,6 +237,8 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final products = ref.watch(inventoryControllerProvider).value ?? const [];
+
     return Scaffold(
       backgroundColor: context.pageBg,
       appBar: AppBar(
@@ -336,7 +277,7 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
               ),
             ),
             Text(
-              'Seller',
+              'Quick Seller',
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
@@ -358,25 +299,27 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                 ),
                 onPressed: () => context.push('/notifications'),
               ),
-              Positioned(
-                right: 8,
-                top: 8,
-                child: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFEF4444),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Text(
-                    '3',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
+              // Hidden at zero: a badge reading "0" is worse than no badge.
+              if (ref.watch(unreadNotificationsCountProvider) > 0)
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFEF4444),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Text(
+                      '${ref.watch(unreadNotificationsCountProvider)}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),
-              ),
             ],
           ),
         ],
@@ -421,7 +364,7 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                     child: ElevatedButton.icon(
                       onPressed: () => context.push('/add-product'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFFFC400),
+                        backgroundColor: const Color(0xFFFD9027),
                         foregroundColor: const Color(0xFF181C2E),
                         padding: const EdgeInsets.symmetric(
                           horizontal: 12,
@@ -464,7 +407,7 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                       iconColor: const Color(0xFFD97706),
                       bgColor: const Color(0xFFFFFBEB),
                       label: 'Total Products',
-                      count: '128',
+                      count: '${products.length}',
                       subtitle: 'All Products',
                     ),
                     const SizedBox(width: 10),
@@ -474,7 +417,7 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                       iconColor: const Color(0xFF059669),
                       bgColor: const Color(0xFFECFDF5),
                       label: 'Active Products',
-                      count: '112',
+                      count: '${products.where((p) => p.isAvailable).length}',
                       subtitle: 'Visible to customers',
                     ),
                     const SizedBox(width: 10),
@@ -484,7 +427,7 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                       iconColor: const Color(0xFFDC2626),
                       bgColor: const Color(0xFFFEF2F2),
                       label: 'Inactive Products',
-                      count: '16',
+                      count: '${products.where((p) => !p.isAvailable).length}',
                       subtitle: 'Hidden from store',
                     ),
                     const SizedBox(width: 10),
@@ -494,7 +437,7 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                       iconColor: const Color(0xFF7C3AED),
                       bgColor: const Color(0xFFF5F3FF),
                       label: 'Out of Stock',
-                      count: '8',
+                      count: '${products.where((p) => p.stockQuantity <= 0).length}',
                       subtitle: 'Not available',
                     ),
                   ],
@@ -600,7 +543,7 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                             borderRadius: BorderRadius.circular(10),
                             border: Border.all(
                               color: isSelected
-                                  ? const Color(0xFFFFC400)
+                                  ? const Color(0xFFFD9027)
                                   : context.borderColor,
                               width: isSelected ? 1.5 : 1.0,
                             ),
@@ -684,10 +627,15 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                           return Column(
                             children: [
                               InkWell(
-                                onTap: () => context.push('/add-product'),
+                                // Tapping a product opens its details, not a
+                                // blank create form.
+                                onTap: () => context.push(
+                                  '/product-details/${p['id']}',
+                                ),
                                 child: Padding(
                                   padding: const EdgeInsets.all(12),
                                   child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.center,
                                     children: [
                                       Container(
                                         width: 50,
@@ -698,11 +646,8 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                                             10,
                                           ),
                                         ),
-                                        child: Icon(
-                                          p['icon'] as IconData,
-                                          color: const Color(0xFFD97706),
-                                          size: 26,
-                                        ),
+                                        clipBehavior: Clip.antiAlias,
+                                        child: _buildProductThumb(p),
                                       ),
                                       const SizedBox(width: 12),
                                       Expanded(
@@ -799,55 +744,34 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                                           ],
                                         ),
                                       ),
-                                      Flexible(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.end,
-                                          children: [
-                                            Text(
-                                              p['price'].toString(),
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: TextStyle(
-                                                fontSize: 15,
-                                                fontWeight: FontWeight.w900,
-                                                color: context.textPrimary,
-                                              ),
+                                      const SizedBox(width: 12),
+                                      Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.end,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Text(
+                                            p['price'].toString(),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.w900,
+                                              color: context.textPrimary,
                                             ),
-                                            Text(
-                                              'MRP: ${p['mrp']}',
-                                              style: TextStyle(
-                                                fontSize: 10,
-                                                color: context.textSecondary,
-                                                decoration:
-                                                    TextDecoration.lineThrough,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Semantics(
-                                        button: true,
-                                        label: 'More actions for ${p['name']}',
-                                        child: InkWell(
-                                          onTap: () => _showProductActions(p),
-                                          borderRadius: BorderRadius.circular(
-                                            16,
                                           ),
-                                          child: Container(
-                                            constraints: const BoxConstraints(
-                                              minWidth: 32,
-                                              minHeight: 32,
-                                            ),
-                                            alignment: Alignment.center,
-                                            child: Icon(
-                                              Icons.more_vert_rounded,
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            'MRP: ${p['mrp']}',
+                                            style: TextStyle(
+                                              fontSize: 10,
                                               color: context.textSecondary,
-                                              size: 20,
+                                              decoration:
+                                                  TextDecoration.lineThrough,
                                             ),
                                           ),
-                                        ),
+                                        ],
                                       ),
                                     ],
                                   ),
@@ -862,130 +786,12 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
               ),
               const SizedBox(height: 14),
 
-              // Pagination Bar
-              Wrap(
-                alignment: WrapAlignment.spaceBetween,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  Text(
-                    'Showing 1 to 10 of 128 products',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: context.textSecondary,
-                    ),
-                  ),
-                  Wrap(
-                    spacing: 4,
-                    runSpacing: 4,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: context.surface,
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: context.borderColor),
-                        ),
-                        child: Icon(
-                          Icons.chevron_left_rounded,
-                          size: 16,
-                          color: context.textSecondary,
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFC400),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          '1',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: context.textPrimary,
-                          ),
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: context.surface,
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: context.borderColor),
-                        ),
-                        child: Text(
-                          '2',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: context.textSecondary,
-                          ),
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: context.surface,
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: context.borderColor),
-                        ),
-                        child: Text(
-                          '3',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: context.textSecondary,
-                          ),
-                        ),
-                      ),
-                      Text(
-                        '...',
-                        style: TextStyle(color: context.textSecondary),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: context.surface,
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: context.borderColor),
-                        ),
-                        child: Text(
-                          '13',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: context.textSecondary,
-                          ),
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: context.surface,
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: context.borderColor),
-                        ),
-                        child: Icon(
-                          Icons.chevron_right_rounded,
-                          size: 16,
-                          color: context.textPrimary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+              // Every product is rendered in one list, so the page numbers
+              // that used to sit here (1 2 3 ... 13) pointed at nothing. Only
+              // the count is real.
+              Text(
+                'Showing ${_visibleProducts.length} of ${products.length} products',
+                style: TextStyle(fontSize: 11, color: context.textSecondary),
               ),
               const SizedBox(height: 16),
 
@@ -1003,7 +809,7 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: const BoxDecoration(
-                        color: Color(0xFFFFC400),
+                        color: Color(0xFFFD9027),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(

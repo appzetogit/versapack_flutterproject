@@ -10,7 +10,9 @@ import 'package:quick_commerce_seller/config/router/app_router.dart';
 /// taps landed on go_router's error page. A missing route is invisible until
 /// someone taps, so assert the wiring instead.
 ///
-/// When you add a `context.push('/x')`, add '/x' here.
+/// When you add a `context.push('/x')`, add '/x' here. Parameterised routes are
+/// listed in their declared form (`/order-details/:orderId`), since that is what
+/// the router registers.
 const navigableRoutes = {
   '/',
   '/onboarding',
@@ -21,12 +23,14 @@ const navigableRoutes = {
   '/account-status',
   '/home',
   '/orders',
-  '/order-details',
+  '/order-details/:orderId',
   '/order-history',
   '/products',
+  '/product-details/:productId',
   '/add-product',
+  // Nested under /add-product: the same screen in edit mode.
+  ':productId',
   '/categories',
-  '/inventory',
   '/explore',
   '/restaurant-status',
   '/outlet-timings',

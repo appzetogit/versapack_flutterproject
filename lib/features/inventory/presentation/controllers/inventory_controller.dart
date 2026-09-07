@@ -39,11 +39,34 @@ class InventoryController extends AsyncNotifier<List<ProductModel>> {
     await refresh();
   }
 
-  Future<void> updateProduct(ProductModel product) async {
-    await _repository.updateProduct(product);
+  Future<void> updateProduct(
+    ProductModel product, {
+    ProductModel? original,
+  }) async {
+    await _repository.updateProduct(product, original: original);
+    await refresh();
+  }
+
+  Future<void> deleteProduct(String productId) async {
+    await _repository.deleteProduct(productId);
     await refresh();
   }
 }
+
+/// A single product, read from the live catalogue.
+///
+/// Deriving it from [inventoryControllerProvider] rather than fetching it
+/// separately is what makes an edit show up everywhere at once: the detail
+/// screen, the list and the dashboard all rebuild off the same refreshed data.
+/// (The backend has no `GET /foods/:id`; the seller menu route is the source.)
+final productByIdProvider = Provider.family<ProductModel?, String>((ref, id) {
+  final products = ref.watch(inventoryControllerProvider).value;
+  if (products == null) return null;
+  for (final p in products) {
+    if (p.id == id) return p;
+  }
+  return null;
+});
 
 final categoriesControllerProvider =
     AsyncNotifierProvider<CategoriesController, List<CategoryModel>>(
@@ -59,18 +82,45 @@ class CategoriesController extends AsyncNotifier<List<CategoryModel>> {
     return _repository.getCategories();
   }
 
-  Future<void> addCategory(String name) async {
-    final newCat = CategoryModel(
-      id: 'cat_${DateTime.now().millisecondsSinceEpoch}',
-      name: name,
-      itemCount: 0,
+  /// Creates a category and returns it once the refreshed list contains it,
+  /// so a caller can select it straight away.
+  Future<CategoryModel?> addCategory(
+    String name, {
+    String foodTypeScope = 'Both',
+  }) async {
+    await _repository.addCategory(
+      // The id is assigned by the server; this instance only carries the
+      // fields the create endpoint reads.
+      CategoryModel(
+        id: '',
+        name: name,
+        itemCount: 0,
+        foodTypeScope: foodTypeScope,
+      ),
     );
-    await _repository.addCategory(newCat);
-    state = await AsyncValue.guard(() => _repository.getCategories());
+
+    final refreshed = await _repository.getCategories();
+    state = AsyncValue.data(refreshed);
+
+    final wanted = name.trim().toLowerCase();
+    for (final c in refreshed) {
+      if (c.name.trim().toLowerCase() == wanted) return c;
+    }
+    return null;
   }
 
   Future<void> toggleActive(String categoryId, bool isActive) async {
     await _repository.toggleCategoryActive(categoryId, isActive);
+    state = await AsyncValue.guard(() => _repository.getCategories());
+  }
+
+  Future<void> rename(String categoryId, String name) async {
+    await _repository.renameCategory(categoryId, name);
+    state = await AsyncValue.guard(() => _repository.getCategories());
+  }
+
+  Future<void> remove(String categoryId) async {
+    await _repository.deleteCategory(categoryId);
     state = await AsyncValue.guard(() => _repository.getCategories());
   }
 }
