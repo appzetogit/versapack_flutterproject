@@ -103,7 +103,7 @@ class ProfileScreen extends ConsumerWidget {
                 ),
                 _MenuItem(
                   icon: Icons.info_outline_rounded,
-                  label: 'About Appzeto Quick',
+                  label: 'About Versapack',
                   onTap: () => context.push(RoutePaths.about),
                 ),
               ],
@@ -129,7 +129,7 @@ class ProfileScreen extends ConsumerWidget {
     final confirmed = await AppDialog.confirm(
       context,
       icon: Icons.logout_rounded,
-      title: 'Log out of Appzeto Quick?',
+      title: 'Log out of Versapack?',
       message: 'Your cart and saved items stay safe on your account.',
       confirmLabel: 'Log out',
       destructive: true,

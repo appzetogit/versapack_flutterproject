@@ -6,6 +6,7 @@ class BannerDto {
   const BannerDto({
     required this.id,
     required this.imageUrl,
+    this.videoUrl = '',
     this.title = '',
     this.ctaText = '',
     this.ctaLink = '',
@@ -14,6 +15,7 @@ class BannerDto {
 
   final String id;
   final String imageUrl;
+  final String videoUrl;
   final String title;
   final String ctaText;
   final String ctaLink;
@@ -24,6 +26,7 @@ class BannerDto {
         imageUrl: json.imageUrl('imageUrl').isNotEmpty
             ? json.imageUrl('imageUrl')
             : json.imageUrl('image'),
+        videoUrl: json.firstStr(['videoUrl', 'video', 'mediaUrl', 'video_url']),
         title: json.firstStr(['title', 'label']),
         ctaText: json.str('ctaText'),
         ctaLink: json.firstStr(['ctaLink', 'link']),

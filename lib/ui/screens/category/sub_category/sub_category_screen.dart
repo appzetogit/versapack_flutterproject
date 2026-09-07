@@ -367,7 +367,7 @@ class _FilterSheet extends ConsumerWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         if (_shows(_FilterSection.sort)) ...[
-          _GroupLabel('Sort by'),
+          const _GroupLabel('Sort by'),
           for (final option in ProductSort.values)
             _OptionRow(
               label: option.label,
@@ -376,7 +376,7 @@ class _FilterSheet extends ConsumerWidget {
             ),
         ],
         if (_shows(_FilterSection.diet)) ...[
-          _GroupLabel('Diet preference'),
+          const _GroupLabel('Diet preference'),
           for (final option in DietFilter.values)
             _OptionRow(
               label: option.label,
@@ -385,7 +385,7 @@ class _FilterSheet extends ConsumerWidget {
             ),
         ],
         if (_shows(_FilterSection.brand)) ...[
-          _GroupLabel('Brand'),
+          const _GroupLabel('Brand'),
           if (state.brands.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
@@ -410,7 +410,7 @@ class _FilterSheet extends ConsumerWidget {
           ],
         ],
         if (_shows(_FilterSection.price)) ...[
-          _GroupLabel('Price'),
+          const _GroupLabel('Price'),
           for (final band in PriceBand.values)
             _OptionRow(
               label: band.label,
@@ -585,7 +585,7 @@ class _SubCategoryRail extends ConsumerWidget {
                     child: Container(
                       decoration: BoxDecoration(
                         color: context.semantic.success,
-                        borderRadius: BorderRadius.only(
+                        borderRadius: const BorderRadius.only(
                           topLeft: Radius.circular(4),
                           bottomLeft: Radius.circular(4),
                         ),

@@ -259,7 +259,7 @@ class _AddressSelectionScreenState
   /// time, so it is not gated on the Dart-side `MAPS_API_KEY` — that one only
   /// pays for the Places REST calls.
   Widget _map(BuildContext context) {
-    final centre = GeolocatorLocationService.fallbackCentre;
+    const centre = GeolocatorLocationService.fallbackCentre;
     return AddressPickerMap(
       latitude: _latitude ?? centre.latitude,
       longitude: _longitude ?? centre.longitude,

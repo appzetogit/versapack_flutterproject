@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 /// evergreen ("Suvio Green") paired with a warm citrus accent, which reads as
 /// fresh + premium while staying high-contrast at small sizes.
 enum AppThemeFlavor {
-  appzeto('Appzeto Yellow', Color(0xFFFFD400), Color(0xFF16A34A)),
+  appzeto('Versapack Orange', Color(0xFFFD9027), Color(0xFF16A34A)),
   green('Suvio Green', Color(0xFF0E7C66), Color(0xFFFFB020)),
   indigo('Suvio Indigo', Color(0xFF4338CA), Color(0xFFFF7A59)),
   sunset('Suvio Sunset', Color(0xFFE0533D), Color(0xFF1F9C8A));
@@ -26,7 +26,7 @@ enum AppThemeFlavor {
 
 abstract final class AppColors {
   // Appzeto exact colors
-  static const appzetoYellow = Color(0xFFFFD400);
+  static const appzetoYellow = Color(0xFFFD9027);
   static const appzetoGreen = Color(0xFF16A34A);
   static const appzetoDarkGreen = Color(0xFF16A34A);
   static const orangeBadge = Color(0xFFFF6B35);
@@ -63,7 +63,7 @@ abstract final class AppColors {
   static const discountGradient = [Color(0xFF1E88E5), Color(0xFF1565C0)];
 
   // Appzeto brand surfaces matching home screen.
-  static const brandYellow = Color(0xFFFFD400);
+  static const brandYellow = Color(0xFFFD9027);
   static const brandYellowSoft = Color(0xFFFFF1C5);
   static const brandYellowFaint = Color(0xFFFFF9E6);
   static const brandGreen = Color(0xFF16A34A);

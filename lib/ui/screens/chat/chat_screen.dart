@@ -199,7 +199,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                 hintText: 'Message your delivery partner',
                 filled: true,
                 fillColor: context.semantic.surfaceAlt,
-                border: OutlineInputBorder(
+                border: const OutlineInputBorder(
                   borderRadius: AppRadii.rPill,
                   borderSide: BorderSide.none,
                 ),

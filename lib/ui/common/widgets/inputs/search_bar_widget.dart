@@ -11,6 +11,8 @@ class SearchBarWidget extends StatefulWidget {
     super.key,
     this.controller,
     this.onTap,
+    this.onScanTap,
+    this.onMicTap,
     this.onChanged,
     this.onSubmitted,
     this.readOnly = false,
@@ -30,6 +32,12 @@ class SearchBarWidget extends StatefulWidget {
 
   final TextEditingController? controller;
   final VoidCallback? onTap;
+
+  /// Tapped when the scanner icon is pressed (opens the camera scanner).
+  final VoidCallback? onScanTap;
+
+  /// Tapped when the microphone icon is pressed (starts voice search).
+  final VoidCallback? onMicTap;
   final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onSubmitted;
   final bool readOnly;
@@ -186,10 +194,30 @@ class _SearchBarWidgetState extends State<SearchBarWidget> {
               Expanded(
                 child: _buildAnimatedHintText(style: hintStyle),
               ),
-              const Icon(
-                Icons.qr_code_scanner_rounded,
-                size: 22,
-                color: Color(0xFFFFC107),
+              if (widget.onMicTap != null)
+                GestureDetector(
+                  onTap: widget.onMicTap,
+                  behavior: HitTestBehavior.opaque,
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                    child: Icon(
+                      Icons.mic_none_rounded,
+                      size: 22,
+                      color: Color(0xFFFFC107),
+                    ),
+                  ),
+                ),
+              GestureDetector(
+                onTap: widget.onScanTap,
+                behavior: HitTestBehavior.opaque,
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                  child: Icon(
+                    Icons.qr_code_scanner_rounded,
+                    size: 22,
+                    color: Color(0xFFFFC107),
+                  ),
+                ),
               ),
             ],
           ),
@@ -247,6 +275,13 @@ class _SearchBarWidgetState extends State<SearchBarWidget> {
               },
               icon: const Icon(Icons.close_rounded, size: 18),
               tooltip: 'Clear',
+            ),
+          if (widget.onMicTap != null)
+            IconButton(
+              onPressed: widget.onMicTap,
+              icon: const Icon(Icons.mic_none_rounded, size: 20),
+              color: const Color(0xFFFFC107),
+              tooltip: 'Voice search',
             ),
         ],
       ),

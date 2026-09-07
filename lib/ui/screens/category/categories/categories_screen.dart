@@ -7,6 +7,7 @@ import '../../../../core/errors/error_mapper.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../domain/model/category.dart';
 import '../../../../navigation/route_paths.dart';
+import '../../../common/smart_scan.dart';
 import '../../../common/widgets/cards/category_card.dart';
 import '../../../common/widgets/inputs/search_bar_widget.dart';
 import '../../../common/widgets/loaders/list_skeleton.dart';
@@ -148,6 +149,9 @@ class CategoriesScreen extends ConsumerWidget {
                           'Atta & Rice',
                         ],
                         onTap: () => context.push(RoutePaths.search),
+                        onScanTap: () => SmartScan.run(context, ref),
+                        onMicTap: () =>
+                            context.push('${RoutePaths.search}?voice=1'),
                       ),
                     ),
                   ],

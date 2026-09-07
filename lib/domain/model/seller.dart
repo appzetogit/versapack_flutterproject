@@ -9,22 +9,42 @@ class Seller {
     this.acceptingOrders = true,
     this.deliveryMinutes,
     this.productCount = 1,
-    this.rating = 4.8,
-    this.ratingCount = 1200,
-    this.minFreeDelivery = 199,
+    this.rating = 0,
+    this.ratingCount = 0,
     this.products = const [],
+    this.isVerified = true,
+    this.distanceKm,
+    this.locality = '',
+    this.tags = const [],
+    this.minOrderPrice,
+    this.discountText = '',
+    this.highlights = const [],
   });
 
   final String id;
   final String name;
   final String imageUrl;
   final bool acceptingOrders;
+
+  /// Real delivery estimate; null when the catalogue does not carry one.
   final int? deliveryMinutes;
   final int productCount;
+
+  /// Averaged from the seller's rated products; 0 when none are rated. Never a
+  /// placeholder — the card hides the stars when this is 0.
   final double rating;
   final int ratingCount;
-  final int minFreeDelivery;
   final List<Product> products;
+  final bool isVerified;
+  final double? distanceKm;
+  final String locality;
+  final List<String> tags;
+  final double? minOrderPrice;
+  final String discountText;
+  final List<String> highlights;
+
+  bool get isOpen => acceptingOrders;
+  bool get hasRating => rating > 0;
 
   /// Images of all actual products belonging to this seller.
   List<String> get productImages {

@@ -69,8 +69,8 @@ class _BannerCarouselState extends State<BannerCarousel> {
   @override
   Widget build(BuildContext context) {
     if (widget.isLoading) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12),
+      return const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 12),
         child: ShimmerBox(height: 170, radius: AppRadii.rLg),
       );
     }

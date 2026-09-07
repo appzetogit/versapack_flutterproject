@@ -4,8 +4,45 @@ import 'package:quick_commerce_user/core/errors/error_mapper.dart';
 import 'package:quick_commerce_user/core/extensions/num_extensions.dart';
 import 'package:quick_commerce_user/core/network/media_url.dart';
 import 'package:quick_commerce_user/core/network/share_links.dart';
+import 'package:quick_commerce_user/domain/model/product.dart';
+import 'package:quick_commerce_user/domain/service/catalog_grouping_service.dart';
 
 void main() {
+  group('seller derivation carries no invented data', () {
+    const grouping = CatalogGroupingService();
+
+    test('an unrated seller has rating 0 and no delivery estimate — never 4.8/25', () {
+      final sellers = grouping.sellersFrom([
+        const Product(
+          id: 'p1',
+          name: 'Milk',
+          price: 30,
+          sellerId: 's1',
+          sellerName: 'Fresh Mart',
+          // no rating, no deliveryMinutes
+        ),
+      ]);
+      expect(sellers, hasLength(1));
+      expect(sellers.first.rating, 0);
+      expect(sellers.first.hasRating, isFalse);
+      expect(sellers.first.deliveryMinutes, isNull);
+      expect(sellers.first.name, 'Fresh Mart');
+    });
+
+    test('real ratings are averaged; a nameless seller is dropped, not faked', () {
+      final sellers = grouping.sellersFrom([
+        const Product(
+            id: 'a', name: 'A', price: 1, sellerId: 's1', sellerName: 'Store One', rating: 4),
+        const Product(
+            id: 'b', name: 'B', price: 1, sellerId: 's1', sellerName: 'Store One', rating: 5),
+        // A seller with no name on any product must not surface as "Seller #id".
+        const Product(id: 'c', name: 'C', price: 1, sellerId: 's2'),
+      ]);
+      expect(sellers.map((s) => s.name), ['Store One']);
+      expect(sellers.first.rating, 4.5);
+    });
+  });
+
   group('backend message branding (Restaurant → Store)', () {
     Response<dynamic> resp(String message) => Response<dynamic>(
           requestOptions: RequestOptions(path: '/food/orders/calculate'),

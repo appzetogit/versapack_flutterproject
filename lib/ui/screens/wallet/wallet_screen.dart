@@ -385,14 +385,14 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
           TextField(
             controller: _amountController,
             keyboardType: TextInputType.number,
-            decoration: InputDecoration(
+            decoration: const InputDecoration(
               hintText: 'Enter amount (e.g. ₹500)',
-              prefixIcon: const Icon(
+              prefixIcon: Icon(
                 Icons.currency_rupee_rounded,
                 size: 18,
                 color: Color(0xFF6B7280),
               ),
-              contentPadding: const EdgeInsets.symmetric(
+              contentPadding: EdgeInsets.symmetric(
                 horizontal: 14,
                 vertical: 12,
               ),

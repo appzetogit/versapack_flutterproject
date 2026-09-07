@@ -22,7 +22,7 @@ class ProductCardSkeleton extends StatelessWidget {
         borderRadius: AppRadii.rLg,
         border: Border.all(color: context.semantic.border),
       ),
-      child: Column(
+      child: const Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
@@ -32,18 +32,18 @@ class ProductCardSkeleton extends StatelessWidget {
               radius: AppRadii.rMd,
             ),
           ),
-          const SizedBox(height: AppSpacing.sm),
-          const ShimmerBox(width: 44, height: 9),
-          const SizedBox(height: 4),
-          const ShimmerBox(width: double.infinity, height: 10),
-          const SizedBox(height: 4),
-          const ShimmerBox(width: 70, height: 10),
-          const SizedBox(height: AppSpacing.sm),
+          SizedBox(height: AppSpacing.sm),
+          ShimmerBox(width: 44, height: 9),
+          SizedBox(height: 4),
+          ShimmerBox(width: double.infinity, height: 10),
+          SizedBox(height: 4),
+          ShimmerBox(width: 70, height: 10),
+          SizedBox(height: AppSpacing.sm),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Flexible(child: ShimmerBox(width: 38, height: 14)),
-              const SizedBox(width: 4),
+              Flexible(child: ShimmerBox(width: 38, height: 14)),
+              SizedBox(width: 4),
               ShimmerBox(width: 50, height: 28, radius: AppRadii.rSm),
             ],
           ),

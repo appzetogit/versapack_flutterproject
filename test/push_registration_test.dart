@@ -147,24 +147,24 @@ void main() {
 
   group('notification tap routing', () {
     test('a new-order push opens that order', () {
-      final message = PushMessage(
-        data: const {'type': 'order_created', 'orderId': 'o-1'},
+      const message = PushMessage(
+        data: {'type': 'order_created', 'orderId': 'o-1'},
       );
 
       expect(routeForPush(message), RoutePaths.orderDetailsOf('o-1'));
     });
 
     test('a status-change push opens live tracking', () {
-      final message = PushMessage(
-        data: const {'type': 'order_status', 'orderId': 'o-2'},
+      const message = PushMessage(
+        data: {'type': 'order_status', 'orderId': 'o-2'},
       );
 
       expect(routeForPush(message), RoutePaths.orderTrackingOf('o-2'));
     });
 
     test('the mongo id is accepted when orderId is absent', () {
-      final message = PushMessage(
-        data: const {'type': 'order_status', 'orderMongoId': 'o-3'},
+      const message = PushMessage(
+        data: {'type': 'order_status', 'orderMongoId': 'o-3'},
       );
 
       expect(routeForPush(message), RoutePaths.orderTrackingOf('o-3'));

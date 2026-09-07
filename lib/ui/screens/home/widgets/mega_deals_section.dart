@@ -113,7 +113,7 @@ class MegaDealsSection extends StatelessWidget {
                           'Shop Now',
                           style: context.text.labelSmall!.copyWith(color: context.colors.surface, fontWeight: FontWeight.bold),
                         ),
-                        SizedBox(width: 4),
+                        const SizedBox(width: 4),
                         Icon(Icons.arrow_forward_rounded,
                             size: 11, color: context.colors.surface),
                       ],

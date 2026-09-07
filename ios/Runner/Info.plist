@@ -5,15 +5,23 @@
 	<key>GMSApiKey</key>
 	<string>$(MAPS_API_KEY)</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Appzeto Quick uses your location to pin your delivery address and show an accurate delivery time.</string>
+	<string>Versapack uses your location to pin your delivery address and show an accurate delivery time.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Appzeto Quick uses your location to pin your delivery address and show an accurate delivery time.</string>
+	<string>Versapack uses your location to pin your delivery address and show an accurate delivery time.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Versapack uses the camera to scan product barcodes and your grocery lists so it can add items to your cart.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Versapack can read a grocery-list photo from your library to add items to your cart.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Versapack uses the microphone for voice search so you can find products by speaking.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Versapack converts your speech to text to search the product catalogue.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Appzeto Quick</string>
+	<string>Versapack</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -21,7 +29,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>Appzeto Quick</string>
+	<string>Versapack</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -71,6 +79,11 @@
 		<string>UIInterfaceOrientationPortraitUpsideDown</string>
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<!-- Lets the app open the phone dialer for "Call delivery partner". -->
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>tel</string>
 	</array>
 </dict>
 </plist>

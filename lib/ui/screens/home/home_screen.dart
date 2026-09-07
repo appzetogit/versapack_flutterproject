@@ -1,45 +1,76 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../domain/model/banner.dart';
 import '../../../navigation/route_paths.dart';
+import '../../common/smart_scan.dart';
 import '../../common/widgets/inputs/search_bar_widget.dart';
+import '../../common/widgets/misc/collapsing_header_delegate.dart';
+import '../../common/widgets/misc/section_header.dart';
+import '../../common/widgets/misc/sound_refresh_indicator.dart';
 import '../../common/widgets/states/error_state_widget.dart';
 import '../../common/widgets/states/offline_banner.dart';
 import '../product/product_listing/product_listing_args.dart';
 import 'home_provider.dart';
 import 'home_state.dart';
 import 'widgets/active_order_card.dart';
-import 'widgets/banner_carousel.dart';
-import 'widgets/bestsellers_row.dart';
-import 'widgets/delivery_header.dart';
-import 'widgets/feature_highlights_row.dart';
-import 'widgets/mega_deals_section.dart';
 import 'widgets/offer_coupons_row.dart';
-import '../../common/widgets/misc/section_header.dart';
 import 'widgets/product_row.dart';
 import 'widgets/quick_category_row.dart';
 import 'widgets/shop_by_brand_row.dart';
 import 'widgets/top_sellers_row.dart';
+import 'widgets/video_header_banner.dart';
 
-import 'package:flutter/services.dart';
-import '../../common/widgets/misc/sound_refresh_indicator.dart';
-
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  late final ScrollController _scrollController;
+  bool _headerCollapsed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController();
+    _scrollController.addListener(_handleScroll);
+  }
+
+  void _handleScroll() {
+    final isCollapsed =
+        _scrollController.hasClients && _scrollController.offset > 180;
+    if (isCollapsed != _headerCollapsed) {
+      setState(() => _headerCollapsed = isCollapsed);
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_handleScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final state = ref.watch(homeProvider);
+    final topPadding = MediaQuery.of(context).padding.top;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: const SystemUiOverlayStyle(
+      value: SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.dark,
-        statusBarBrightness: Brightness.light,
+        statusBarIconBrightness:
+            _headerCollapsed ? Brightness.dark : Brightness.light,
+        statusBarBrightness:
+            _headerCollapsed ? Brightness.light : Brightness.dark,
       ),
       child: Scaffold(
         backgroundColor: context.colors.surface,
@@ -48,41 +79,9 @@ class HomeScreen extends ConsumerWidget {
             Column(
               children: [
                 const OfflineBanner(),
-                Container(
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Color(0xFFFFB300),
-                        Color(0xFFFFC107),
-                        Color(0xFFFFD54F),
-                        Color(0xFFFFF8E1),
-                        Colors.white,
-                      ],
-                      stops: [0.0, 0.4, 0.7, 0.9, 1.0],
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                    ),
-                  ),
-                  child: SafeArea(
-                    bottom: false,
-                    child: Column(
-                      children: [
-                        const DeliveryHeader(),
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(14, 2, 14, 8),
-                          child: SearchBarWidget(
-                            readOnly: true,
-                            categories: state.categories.map((c) => c.name).toList(),
-                            onTap: () => context.push(RoutePaths.search),
-                          ),
-                        ),
-                        const FeatureHighlightsRow(),
-                        const SizedBox(height: 10),
-                      ],
-                    ),
-                  ),
+                Expanded(
+                  child: _buildBody(context, state, topPadding),
                 ),
-                Expanded(child: _body(context, ref, state)),
               ],
             ),
 
@@ -99,22 +98,73 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _body(BuildContext context, WidgetRef ref, HomeState state) {
-    if (state.failure != null && state.sections.isEmpty && state.categories.isEmpty) {
+  Widget _buildBody(BuildContext context, HomeState state, double topPadding) {
+    if (state.failure != null &&
+        state.sections.isEmpty &&
+        state.categories.isEmpty) {
       return ErrorStateWidget(
         failure: state.failure!,
         onRetry: () => ref.read(homeProvider.notifier).load(refresh: true),
       );
     }
 
+    // Header dimensions setup for 1:1 scroll collapsing
+    final expandedExtent = 320.0 + topPadding;
+    final collapsedExtent = 64.0 + topPadding;
+    final expandedBlockTop = 245.0 + topPadding;
+    final collapsedBlockTop = topPadding + 4.0;
+    const blockHeight = 54.0;
+
     return SoundRefreshIndicator(
       onRefresh: () => ref.read(homeProvider.notifier).load(refresh: true),
       child: CustomScrollView(
+        controller: _scrollController,
+        physics: const BouncingScrollPhysics(
+          parent: AlwaysScrollableScrollPhysics(),
+        ),
         slivers: [
-          // 1. Quick category icon strip.
+          // 1. Collapsing Background Video Header & Sticky Search Bar
+          SliverPersistentHeader(
+            pinned: true,
+            delegate: CollapsingHeaderDelegate(
+              expandedExtent: expandedExtent,
+              collapsedExtent: collapsedExtent,
+              expandedBlockTop: expandedBlockTop,
+              collapsedBlockTop: collapsedBlockTop,
+              blockHeight: blockHeight,
+              backdropColor: Colors.white,
+              banner: FullBackgroundVideoHeader(
+                banners: state.banners,
+                isLoading: state.isLoadingBanners,
+                onBannerTap: (banner) => _openBanner(context, banner),
+              ),
+              stickyBlock: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: SearchBarWidget(
+                        readOnly: true,
+                        categories:
+                            state.categories.map((c) => c.name).toList(),
+                        onTap: () => context.push(RoutePaths.search),
+                        onScanTap: () => SmartScan.run(context, ref),
+                        onMicTap: () =>
+                            context.push('${RoutePaths.search}?voice=1'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    _build10MinDeliveryBadge(),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // 2. Quick category icon strip
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.only(bottom: 4),
+              padding: const EdgeInsets.fromLTRB(0, 10, 0, 6),
               child: QuickCategoryRow(
                 categories: state.categories,
                 isLoading: state.isLoadingCategories,
@@ -125,19 +175,7 @@ class HomeScreen extends ConsumerWidget {
             ),
           ),
 
-          // 2. Hero Promotional Banner ("Groceries in 10 minutes")
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: BannerCarousel(
-                banners: state.banners,
-                isLoading: state.isLoadingBanners,
-                onTap: (banner) => _openBanner(context, banner),
-              ),
-            ),
-          ),
-
-          // 3. Live offer cards.
+          // 3. Live offer cards
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.only(bottom: 4),
@@ -148,7 +186,8 @@ class HomeScreen extends ConsumerWidget {
               ),
             ),
           ),
-          // 4. Top Sellers section (Exact screenshot UI design).
+
+          // 4. Top Sellers section
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.only(bottom: 6),
@@ -170,14 +209,17 @@ class HomeScreen extends ConsumerWidget {
             ),
           ),
 
-          // 5. Brands the live catalogue actually carries.
+          // 5. Brands row
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.only(bottom: 4),
               child: ShopByBrandRow(
                 brands: state.brands,
                 isLoading: state.isLoadingSections,
-                onSeeAll: () => context.push(RoutePaths.brands),
+                onSeeAll: () => context.push(
+                  RoutePaths.productListing,
+                  extra: const ProductListingArgs(title: 'Shop by Brand'),
+                ),
                 onBrandTap: (brand) => context.push(
                   RoutePaths.productListing,
                   extra: ProductListingArgs(
@@ -189,73 +231,98 @@ class HomeScreen extends ConsumerWidget {
             ),
           ),
 
-          // 6. Bestsellers, ranked from the live catalog.
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: BestsellersRow(
-                products: state.productsOf('best-sellers'),
-                isLoading: state.isLoadingSections,
-                onSeeAll: () => context.push(RoutePaths.productListing),
-                onProductTap: (id) =>
-                    context.push(RoutePaths.productDetailsOf(id)),
-              ),
-            ),
-          ),
-
-          // 6. Mega deals — the flash-sale (deepest discount) products.
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: MegaDealsSection(
-                deals: state.productsOf('flash'),
-                isLoading: state.isLoadingSections,
-                onShopNowTap: () => context.push(RoutePaths.productListing),
-                onItemTap: (product) =>
-                    context.push(RoutePaths.productDetailsOf(product.id)),
-              ),
-            ),
-          ),
-
-          // 7. Everything else the catalog gave us: trending, buy-it-again,
-          //    recommended, and one row per category the backend returned.
-          //    These were being fetched and thrown away.
-          SliverList.builder(
-            itemCount: state.rows.length,
-            itemBuilder: (context, index) {
-              final section = state.rows[index];
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 4),
+          // 6. Dynamic catalog sections (Bestsellers, Mega Deals, etc.)
+          ...state.sections.map((section) {
+            return SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     SectionHeader(
                       title: section.title,
-                      subtitle:
-                          section.subtitle.isEmpty ? null : section.subtitle,
+                      subtitle: section.subtitle,
                       onSeeAll: () => context.push(
-                        section.categoryId == null
-                            ? RoutePaths.productListing
-                            : RoutePaths.subCategoryOf(section.categoryId!),
-                        extra: section.categoryId == null
-                            ? ProductListingArgs(title: section.title)
-                            : null,
+                        RoutePaths.productListing,
+                        extra: ProductListingArgs(
+                          title: section.title,
+                        ),
                       ),
                     ),
+                    const SizedBox(height: AppSpacing.sm),
                     ProductRow(
                       products: section.products,
-                      heroTag: 'home-${section.id}',
-                      showRanks: section.showRanks,
-                      onProductTap: (product) =>
-                          context.push(RoutePaths.productDetailsOf(product.id)),
+                      heroTag: 'home_${section.id}',
+                      onProductTap: (product) => context.push(
+                        RoutePaths.productDetailsOf(product.id),
+                        extra: product,
+                      ),
                     ),
                   ],
                 ),
-              );
-            },
-          ),
+              ),
+            );
+          }),
 
-          const SliverToBoxAdapter(child: _HomeFooter()),
+          const SliverToBoxAdapter(
+            child: SizedBox(height: AppSpacing.xl * 2),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _build10MinDeliveryBadge() {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 10,
+        vertical: 6,
+      ),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFBEB),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: const [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 4,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.bolt_rounded,
+            color: Color(0xFFEAB308),
+            size: 22,
+          ),
+          const SizedBox(width: 2),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '10 Min',
+                style: GoogleFonts.outfit(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: const Color(0xFF0F172A),
+                  height: 1.0,
+                ),
+              ),
+              Text(
+                'Delivery',
+                style: GoogleFonts.inter(
+                  fontSize: 9.5,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF475569),
+                  height: 1.0,
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -265,51 +332,32 @@ class HomeScreen extends ConsumerWidget {
     switch (banner.target) {
       case BannerTarget.offers:
         context.push(RoutePaths.coupons);
+        break;
       case BannerTarget.category:
-        context.push(RoutePaths.subCategoryOf(banner.targetId));
-      case BannerTarget.products:
+        if (banner.targetId.isNotEmpty) {
+          context.push(RoutePaths.subCategoryOf(banner.targetId));
+        } else {
+          context.go(RoutePaths.categories);
+        }
+        break;
       case BannerTarget.restaurant:
         context.push(
           RoutePaths.productListing,
           extra: ProductListingArgs(
-            title: banner.title.isEmpty ? 'Offers' : banner.title,
+            title: banner.title,
+            sellerId: banner.targetId,
           ),
         );
+        break;
+      case BannerTarget.products:
       case BannerTarget.none:
+        context.push(
+          RoutePaths.productListing,
+          extra: ProductListingArgs(
+            title: banner.title.isEmpty ? 'Featured Products' : banner.title,
+          ),
+        );
         break;
     }
-  }
-}
-
-class _HomeFooter extends StatelessWidget {
-  const _HomeFooter();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.xl,
-        AppSpacing.xxl,
-        AppSpacing.xl,
-        AppSpacing.xxxl,
-      ),
-      child: Column(
-        children: [
-          Text(
-            'appzeto',
-            style: context.text.displayMedium!.copyWith(
-              color: context.semantic.border,
-              letterSpacing: 2,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            'Fresh essentials, delivered to your doorstep.',
-            style: context.text.bodySmall,
-          ),
-        ],
-      ),
-    );
   }
 }

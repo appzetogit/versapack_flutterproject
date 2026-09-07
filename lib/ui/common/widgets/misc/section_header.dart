@@ -49,14 +49,14 @@ class SectionHeader extends StatelessWidget {
               onTap: onSeeAll,
               behavior: HitTestBehavior.opaque,
               child: Padding(
-                padding: EdgeInsets.symmetric(vertical: AppSpacing.xs),
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
                 child: Row(
                   children: [
                     Text(
                       'See all',
                       style: context.text.titleSmall!.copyWith(fontWeight: FontWeight.w700, color: context.semantic.success),
                     ),
-                    SizedBox(width: 2),
+                    const SizedBox(width: 2),
                     Icon(
                       Icons.arrow_forward_rounded,
                       size: 13,

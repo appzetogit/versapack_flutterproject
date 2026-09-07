@@ -52,6 +52,17 @@ class GeoPoint {
 
   final double latitude;
   final double longitude;
+
+  // Value equality so a `select` on the rider position only rebuilds the map
+  // when the coordinates actually changed — not on every identical GPS ping.
+  @override
+  bool operator ==(Object other) =>
+      other is GeoPoint &&
+      other.latitude == latitude &&
+      other.longitude == longitude;
+
+  @override
+  int get hashCode => Object.hash(latitude, longitude);
 }
 
 /// Route between rider and target, from `GET /orders/:id/route`.

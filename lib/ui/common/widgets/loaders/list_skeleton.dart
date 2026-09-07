@@ -39,7 +39,7 @@ class ListSkeleton extends StatelessWidget {
         child: Row(
           children: [
             if (hasLeading) ...[
-              ShimmerBox(width: 52, height: 52, radius: AppRadii.rMd),
+              const ShimmerBox(width: 52, height: 52, radius: AppRadii.rMd),
               const SizedBox(width: AppSpacing.md),
             ],
             const Expanded(
@@ -81,11 +81,11 @@ class CategoryGridSkeleton extends StatelessWidget {
         crossAxisSpacing: AppSpacing.md,
         childAspectRatio: 0.78,
       ),
-      itemBuilder: (_, _) => Column(
+      itemBuilder: (_, _) => const Column(
         children: [
           ShimmerBox(height: 62, width: 62, radius: AppRadii.rLg),
-          const SizedBox(height: AppSpacing.sm),
-          const ShimmerBox(width: 48, height: 9),
+          SizedBox(height: AppSpacing.sm),
+          ShimmerBox(width: 48, height: 9),
         ],
       ),
     );

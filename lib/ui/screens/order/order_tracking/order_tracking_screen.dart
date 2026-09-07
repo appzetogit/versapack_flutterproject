@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/constants/app_durations.dart';
 import '../../../../core/theme/app_radii.dart';
@@ -28,10 +29,22 @@ class OrderTrackingScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(orderDetailProvider(orderId));
-    final order = state.order;
+    // Everything the page chrome renders — but NOT the rider location, which
+    // updates every couple of seconds and is watched by the isolated map alone.
+    // The extra status/eta/rider tokens are here because `Order.==` is id-only
+    // and would otherwise hide those changes from the record's equality check.
+    final view = ref.watch(orderDetailProvider(orderId).select((s) => (
+          order: s.order,
+          status: s.order?.status,
+          eta: s.order?.etaMinutes,
+          hasRider: s.order?.deliveryPartner != null,
+          dropOtp: s.dropOtp,
+          isLoading: s.isLoading,
+          failure: s.failure,
+        )));
+    final order = view.order;
 
-    if (state.isLoading && order == null) {
+    if (view.isLoading && order == null) {
       return const Scaffold(
         body: FullPageLoader(message: 'Fetching your order…'),
       );
@@ -40,7 +53,7 @@ class OrderTrackingScreen extends ConsumerWidget {
       return Scaffold(
         appBar: AppBar(),
         body: ErrorStateWidget(
-          failure: state.failure!,
+          failure: view.failure!,
           onRetry: () => ref.read(orderDetailProvider(orderId).notifier).load(),
         ),
       );
@@ -72,18 +85,11 @@ class OrderTrackingScreen extends ConsumerWidget {
             padding: const EdgeInsets.only(bottom: AppSpacing.xxl),
             children: [
               _LiveStatusBanner(order: order),
-              Padding(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                // Real route, drawn from the polyline the backend returns. The
-                // map SDK carries its own native key.
-                child: OrderRouteMap(
-                  route: state.route,
-                  // Prefers the live socket position over the last REST value.
-                  riderLocation: state.riderLocation,
-                ),
-              ),
-              if (order.status.isOutForDelivery && state.dropOtp.isNotEmpty)
-                _DropOtpCard(otp: state.dropOtp),
+              // Isolated: only this widget rebuilds when the rider moves, so a
+              // location ping never re-runs the banner, timeline or buttons.
+              _TrackingMap(orderId: orderId),
+              if (order.status.isOutForDelivery && view.dropOtp.isNotEmpty)
+                _DropOtpCard(otp: view.dropOtp),
               if (order.deliveryPartner != null)
                 _RiderCard(partner: order.deliveryPartner!, orderId: order.id),
               Padding(
@@ -96,6 +102,10 @@ class OrderTrackingScreen extends ConsumerWidget {
                   label: 'Need help with this order?',
                   icon: Icons.support_agent_rounded,
                   expand: true,
+                  backgroundColor: const Color(0xFFF5C000),
+                  foregroundColor: Colors.black,
+                  borderColor: Colors.transparent,
+                  fontWeight: FontWeight.bold,
                   onPressed: () => context.push(RoutePaths.help),
                 ),
               ),
@@ -106,7 +116,10 @@ class OrderTrackingScreen extends ConsumerWidget {
                   label: 'View order details',
                   icon: Icons.receipt_long_rounded,
                   expand: true,
-                  tonal: false,
+                  backgroundColor: const Color(0xFFF5C000),
+                  foregroundColor: Colors.black,
+                  borderColor: Colors.transparent,
+                  fontWeight: FontWeight.bold,
                   onPressed: () =>
                       context.push(RoutePaths.orderDetailsOf(order.id)),
                 ),
@@ -115,6 +128,29 @@ class OrderTrackingScreen extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// The live map, isolated so it is the only thing that rebuilds on a rider
+/// GPS ping. It watches just the route and the rider position (the latter now
+/// value-compared via `GeoPoint.==`, so an identical ping rebuilds nothing).
+class _TrackingMap extends ConsumerWidget {
+  const _TrackingMap({required this.orderId});
+
+  final String orderId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final provider = orderDetailProvider(orderId);
+    final route = ref.watch(provider.select((s) => s.route));
+    final riderLocation = ref.watch(provider.select((s) => s.riderLocation));
+
+    return Padding(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      // Real route, drawn from the polyline the backend returns. The map SDK
+      // carries its own native key. Prefers the live socket position.
+      child: OrderRouteMap(route: route, riderLocation: riderLocation),
     );
   }
 }
@@ -304,10 +340,12 @@ class _RiderCard extends StatelessWidget {
           _RiderAction(
             icon: Icons.call_rounded,
             label: 'Call',
-            onTap: () => AppToast.show(
-              context,
-              'Calling is available once the rider is nearby',
-            ),
+            // The rider's real phone comes populated on the order
+            // (`dispatch.deliveryPartnerId.phone`). Enabled only when it is
+            // present; disabled otherwise so we never dial a blank number.
+            onTap: partner.phone.trim().isEmpty
+                ? null
+                : () => _callRider(context, partner.phone),
           ),
           const SizedBox(width: AppSpacing.sm),
           _RiderAction(
@@ -324,6 +362,29 @@ class _RiderCard extends StatelessWidget {
       ),
     );
   }
+
+  /// Opens the system dialer pre-filled with the rider's number. Works on both
+  /// Android and iOS — a `tel:` URL is the platform-native "start a call" intent.
+  Future<void> _callRider(BuildContext context, String rawPhone) async {
+    // Keep digits and a single leading '+'; strip spaces, dashes, brackets so
+    // the dialer gets a clean number.
+    final cleaned = rawPhone.trim();
+    final digits = cleaned.replaceAll(RegExp(r'[^0-9+]'), '');
+    if (digits.replaceAll('+', '').isEmpty) {
+      AppToast.error(context, 'No phone number for this rider yet');
+      return;
+    }
+
+    final uri = Uri(scheme: 'tel', path: digits);
+    try {
+      final launched = await launchUrl(uri);
+      if (!launched && context.mounted) {
+        AppToast.error(context, 'Could not open the dialer');
+      }
+    } catch (_) {
+      if (context.mounted) AppToast.error(context, 'Could not open the dialer');
+    }
+  }
 }
 
 class _RiderAction extends StatelessWidget {
@@ -335,23 +396,30 @@ class _RiderAction extends StatelessWidget {
 
   final IconData icon;
   final String label;
-  final VoidCallback onTap;
+
+  /// Null disables the action — same shape, dimmed, ignores taps.
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
+    final enabled = onTap != null;
     return Semantics(
       button: true,
+      enabled: enabled,
       label: label,
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: AppDurations.fast,
-          padding: const EdgeInsets.all(AppSpacing.md),
-          decoration: BoxDecoration(
-            color: context.colors.primary.withValues(alpha: 0.10),
-            shape: BoxShape.circle,
+      child: Opacity(
+        opacity: enabled ? 1 : 0.4,
+        child: GestureDetector(
+          onTap: onTap,
+          child: AnimatedContainer(
+            duration: AppDurations.fast,
+            padding: const EdgeInsets.all(AppSpacing.md),
+            decoration: BoxDecoration(
+              color: context.colors.primary.withValues(alpha: 0.10),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, size: 18, color: context.colors.primary),
           ),
-          child: Icon(icon, size: 18, color: context.colors.primary),
         ),
       ),
     );

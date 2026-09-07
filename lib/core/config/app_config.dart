@@ -47,7 +47,7 @@ class AppConfig {
   /// The shared hosted backend. Per `FLUTTER_API_SPEC.md` the base is
   /// `{HOST}/api/v1` and every route is written as `/food/...` on top of it —
   /// so the `/v1` segment belongs here, not in the paths.
-  static const _defaultBaseUrl = 'https://quick.appzeto.com/api/v1';
+  static const _defaultBaseUrl = 'https://versapack.in/api/v1';
 
   /// Kept in sync with `config/keys.example.env`.
   static const _mapsKeyPlaceholder = 'YOUR_GOOGLE_MAPS_API_KEY_HERE';

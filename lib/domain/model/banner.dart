@@ -6,6 +6,7 @@ class PromoBanner {
   const PromoBanner({
     required this.id,
     required this.imageUrl,
+    this.videoUrl = '',
     this.title = '',
     this.ctaText = '',
     this.ctaLink = '',
@@ -14,10 +15,23 @@ class PromoBanner {
 
   final String id;
   final String imageUrl;
+  final String videoUrl;
   final String title;
   final String ctaText;
   final String ctaLink;
   final int sortOrder;
+
+  bool get isVideo {
+    if (videoUrl.trim().isNotEmpty) return true;
+    final lower = imageUrl.toLowerCase();
+    return lower.endsWith('.mp4') ||
+        lower.endsWith('.mov') ||
+        lower.endsWith('.webm') ||
+        lower.endsWith('.m3u8') ||
+        lower.contains('video');
+  }
+
+  String get mediaUrl => videoUrl.trim().isNotEmpty ? videoUrl.trim() : imageUrl.trim();
 
   BannerTarget get target {
     final link = ctaLink.toLowerCase();

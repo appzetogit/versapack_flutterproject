@@ -17,6 +17,10 @@ class SecondaryButton extends StatefulWidget {
     this.tonal = true,
     this.destructive = false,
     this.isLoading = false,
+    this.backgroundColor,
+    this.foregroundColor,
+    this.borderColor,
+    this.fontWeight,
   });
 
   final String label;
@@ -26,6 +30,10 @@ class SecondaryButton extends StatefulWidget {
   final bool tonal;
   final bool destructive;
   final bool isLoading;
+  final Color? backgroundColor;
+  final Color? foregroundColor;
+  final Color? borderColor;
+  final FontWeight? fontWeight;
 
   @override
   State<SecondaryButton> createState() => _SecondaryButtonState();
@@ -39,6 +47,14 @@ class _SecondaryButtonState extends State<SecondaryButton> {
     final enabled = widget.onPressed != null && !widget.isLoading;
     final accent =
         widget.destructive ? context.semantic.danger : context.colors.primary;
+    final fgColor = widget.foregroundColor ?? accent;
+    final bgColor = widget.backgroundColor ??
+        (widget.tonal ? accent.withValues(alpha: 0.10) : null);
+    final border = widget.borderColor != null
+        ? Border.all(color: widget.borderColor!)
+        : (widget.tonal
+            ? Border.all(color: Colors.transparent)
+            : Border.all(color: accent.withValues(alpha: 0.5)));
 
     return Semantics(
       button: true,
@@ -66,26 +82,22 @@ class _SecondaryButtonState extends State<SecondaryButton> {
                 vertical: AppSpacing.md,
               ),
               decoration: BoxDecoration(
-                color: widget.tonal ? accent.withValues(alpha: 0.10) : null,
+                color: bgColor,
                 borderRadius: AppRadii.rMd,
-                border: Border.all(
-                  color: widget.tonal
-                      ? Colors.transparent
-                      : accent.withValues(alpha: 0.5),
-                ),
+                border: border,
               ),
               child: widget.isLoading
                   ? SizedBox(
                       height: 18,
                       width: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2.2, color: accent),
+                      child: CircularProgressIndicator(strokeWidth: 2.2, color: fgColor),
                     )
                   : Row(
                       mainAxisSize: widget.expand ? MainAxisSize.max : MainAxisSize.min,
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         if (widget.icon != null) ...[
-                          Icon(widget.icon, size: 17, color: accent),
+                          Icon(widget.icon, size: 17, color: fgColor),
                           const SizedBox(width: AppSpacing.sm),
                         ],
                         Flexible(
@@ -93,7 +105,10 @@ class _SecondaryButtonState extends State<SecondaryButton> {
                             widget.label,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: context.text.labelLarge!.copyWith(color: accent),
+                            style: context.text.labelLarge!.copyWith(
+                              color: fgColor,
+                              fontWeight: widget.fontWeight,
+                            ),
                           ),
                         ),
                       ],

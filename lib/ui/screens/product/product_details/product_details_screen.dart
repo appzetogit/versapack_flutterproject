@@ -303,7 +303,7 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
           _headerActionBtn(
             icon: Icons.share_outlined,
             onTap: () => Share.share(
-              '${product.name} on Appzeto — ${product.price.asCurrency}\n'
+              '${product.name} on Versapack — ${product.price.asCurrency}\n'
               '${ShareLinks.product(
                 productId: product.id,
                 sellerId: product.sellerId,

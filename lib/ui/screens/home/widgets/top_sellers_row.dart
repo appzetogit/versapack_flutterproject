@@ -3,18 +3,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../../domain/model/product.dart';
 import '../../../../domain/model/seller.dart';
 import '../../../common/cart_actions.dart';
 import '../../../common/widgets/loaders/shimmer_box.dart';
 import '../../../common/widgets/misc/app_network_image.dart';
 
-/// Compact "Top Sellers" section with short vertical cards (~175px height).
+/// Compact "Top Sellers" section with modern, high-contrast cards.
 ///
 /// Features:
-/// - Short compact portrait cards (142px wide x 175px tall).
-/// - 1-second auto-cycling backend product images.
-/// - Static seller cards that do not move or slide automatically.
-/// - 100% dynamic backend data (name, images, ratings, item counts).
+/// - Fixed card dimensions (156px wide x 222px tall) with zero empty space.
+/// - Product section pairing product image with real API product name & price.
+/// - 3.5-second auto-cycling backend products/images per seller.
+/// - Compact store footer with store logo, name, delivery time & rating.
 class TopSellersRow extends StatelessWidget {
   const TopSellersRow({
     super.key,
@@ -28,6 +29,9 @@ class TopSellersRow extends StatelessWidget {
   final ValueChanged<Seller> onSellerTap;
   final VoidCallback? onSeeAll;
   final bool isLoading;
+
+  static const double _cardWidth = 156.0;
+  static const double _cardHeight = 222.0;
 
   @override
   Widget build(BuildContext context) {
@@ -46,9 +50,9 @@ class TopSellersRow extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Container(
-                width: 20,
-                height: 20,
-                margin: const EdgeInsets.only(right: 6),
+                width: 22,
+                height: 22,
+                margin: const EdgeInsets.only(right: 8),
                 decoration: const BoxDecoration(
                   color: Color(0xFFFFC107),
                   shape: BoxShape.circle,
@@ -56,7 +60,7 @@ class TopSellersRow extends StatelessWidget {
                 alignment: Alignment.center,
                 child: const Icon(
                   Icons.star_rounded,
-                  size: 14,
+                  size: 15,
                   color: Colors.white,
                 ),
               ),
@@ -108,27 +112,27 @@ class TopSellersRow extends StatelessWidget {
           ),
         ),
 
-        const SizedBox(height: 2),
+        const SizedBox(height: 4),
 
-        // 2. Short Compact Horizontal Cards List (Height 175px)
+        // 2. Horizontal Cards List (Height 222px)
         if (isLoading)
           SizedBox(
-            height: 175,
+            height: _cardHeight,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 14),
               itemCount: 3,
               separatorBuilder: (_, _) => const SizedBox(width: 10),
               itemBuilder: (_, _) => ShimmerBox(
-                width: 142,
-                height: 175,
-                radius: BorderRadius.circular(16),
+                width: _cardWidth,
+                height: _cardHeight,
+                radius: BorderRadius.circular(14),
               ),
             ),
           )
         else
           SizedBox(
-            height: 175,
+            height: _cardHeight,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -138,6 +142,8 @@ class TopSellersRow extends StatelessWidget {
                 final seller = sellers[index];
                 return _SellerCard(
                   seller: seller,
+                  width: _cardWidth,
+                  height: _cardHeight,
                   onTap: () => onSellerTap(seller),
                 );
               },
@@ -148,14 +154,18 @@ class TopSellersRow extends StatelessWidget {
   }
 }
 
-/// Compact short seller card (142px wide x 175px tall).
+/// Redesigned compact seller card (156px wide x 222px tall).
 class _SellerCard extends ConsumerStatefulWidget {
   const _SellerCard({
     required this.seller,
+    required this.width,
+    required this.height,
     required this.onTap,
   });
 
   final Seller seller;
+  final double width;
+  final double height;
   final VoidCallback onTap;
 
   @override
@@ -164,10 +174,17 @@ class _SellerCard extends ConsumerStatefulWidget {
 
 class _SellerCardState extends ConsumerState<_SellerCard> {
   Timer? _timer;
-  int _imageIndex = 0;
+  int _currentIndex = 0;
   bool _isWishlisted = false;
 
+  List<Product> get _products => widget.seller.products;
   List<String> get _images => widget.seller.productImages;
+
+  int get _itemCount {
+    if (_products.isNotEmpty) return _products.length;
+    if (_images.isNotEmpty) return _images.length;
+    return 1;
+  }
 
   @override
   void initState() {
@@ -177,11 +194,11 @@ class _SellerCardState extends ConsumerState<_SellerCard> {
 
   void _startTimer() {
     _timer?.cancel();
-    if (_images.length > 1) {
-      _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+    if (_itemCount > 1) {
+      _timer = Timer.periodic(const Duration(milliseconds: 3500), (_) {
         if (!mounted) return;
         setState(() {
-          _imageIndex = (_imageIndex + 1) % _images.length;
+          _currentIndex = (_currentIndex + 1) % _itemCount;
         });
       });
     }
@@ -191,8 +208,8 @@ class _SellerCardState extends ConsumerState<_SellerCard> {
   void didUpdateWidget(covariant _SellerCard oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.seller.id != widget.seller.id ||
-        oldWidget.seller.productImages.length != widget.seller.productImages.length) {
-      _imageIndex = 0;
+        oldWidget.seller.products.length != widget.seller.products.length) {
+      _currentIndex = 0;
       _startTimer();
     }
   }
@@ -203,23 +220,90 @@ class _SellerCardState extends ConsumerState<_SellerCard> {
     super.dispose();
   }
 
+  Widget _buildAnimatedProductName({
+    required String text,
+    required TextStyle style,
+  }) {
+    return ClipRect(
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 500),
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeInCubic,
+        transitionBuilder: (Widget child, Animation<double> animation) {
+          final isIncoming =
+              (child.key as ValueKey<int>?)?.value == _currentIndex;
+
+          final inAnimation = Tween<Offset>(
+            begin: const Offset(0.0, 1.2),
+            end: Offset.zero,
+          ).animate(animation);
+
+          final outAnimation = Tween<Offset>(
+            begin: const Offset(0.0, -1.2),
+            end: Offset.zero,
+          ).animate(animation);
+
+          return SlideTransition(
+            position: isIncoming ? inAnimation : outAnimation,
+            child: FadeTransition(
+              opacity: animation,
+              child: child,
+            ),
+          );
+        },
+        child: Align(
+          key: ValueKey<int>(_currentIndex),
+          alignment: Alignment.centerLeft,
+          child: Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: style,
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final seller = widget.seller;
+    final products = _products;
     final images = _images;
-    final currentImage = images.isNotEmpty ? images[_imageIndex % images.length] : '';
+
+    Product? currentProduct;
+    String currentImage = '';
+    String currentProductName = '';
+
+    if (products.isNotEmpty) {
+      currentProduct = products[_currentIndex % products.length];
+      currentImage = currentProduct.imageUrl.trim().isNotEmpty
+          ? currentProduct.imageUrl.trim()
+          : (images.isNotEmpty ? images.first : seller.imageUrl);
+      currentProductName = currentProduct.name.trim();
+    } else if (images.isNotEmpty) {
+      currentImage = images[_currentIndex % images.length];
+      currentProductName = seller.name;
+    } else {
+      currentImage = seller.imageUrl;
+      currentProductName = seller.name;
+    }
+
+    if (currentProductName.isEmpty) {
+      currentProductName = seller.name;
+    }
 
     return GestureDetector(
       onTap: widget.onTap,
       child: Container(
-        width: 142,
-        height: 175,
+        width: widget.width,
+        height: widget.height,
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: const Color(0xFFF3F4F6),
-            width: 1.1,
+            color: const Color(0xFFE5E7EB),
+            width: 1.0,
           ),
           boxShadow: [
             BoxShadow(
@@ -233,17 +317,17 @@ class _SellerCardState extends ConsumerState<_SellerCard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Top Half: Product Image Box Stack (Height 95px)
+            // 1. TOP PRODUCT SECTION (Image + Real API Product Name & Price)
             SizedBox(
-              height: 95,
+              height: 104,
               width: double.infinity,
               child: Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  // Product Image (Auto-cycles every 1 second)
+                  // Product Image Area
                   Container(
                     width: double.infinity,
-                    height: 95,
+                    height: 104,
                     color: const Color(0xFFF9FAFB),
                     child: AnimatedSwitcher(
                       duration: const Duration(milliseconds: 350),
@@ -262,7 +346,7 @@ class _SellerCardState extends ConsumerState<_SellerCard> {
                               key: ValueKey<String>(currentImage),
                               url: currentImage,
                               width: double.infinity,
-                              height: 95,
+                              height: 104,
                               fit: BoxFit.contain,
                               fallbackIcon: Icons.shopping_bag_outlined,
                             )
@@ -285,18 +369,18 @@ class _SellerCardState extends ConsumerState<_SellerCard> {
                     top: 6,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 5.5,
+                        horizontal: 5,
                         vertical: 2.5,
                       ),
                       decoration: BoxDecoration(
                         color: const Color(0xFF16A34A),
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
                         'Top Seller',
                         style: context.text.labelSmall!.copyWith(
                           fontWeight: FontWeight.w800,
-                          fontSize: 8,
+                          fontSize: 8.5,
                           color: Colors.white,
                         ),
                       ),
@@ -310,7 +394,13 @@ class _SellerCardState extends ConsumerState<_SellerCard> {
                     child: GestureDetector(
                       onTap: () {
                         setState(() => _isWishlisted = !_isWishlisted);
-                        if (seller.products.isNotEmpty) {
+                        if (currentProduct != null) {
+                          CartActions.toggleWishlist(
+                            context,
+                            ref,
+                            currentProduct,
+                          );
+                        } else if (seller.products.isNotEmpty) {
                           CartActions.toggleWishlist(
                             context,
                             ref,
@@ -318,139 +408,195 @@ class _SellerCardState extends ConsumerState<_SellerCard> {
                           );
                         }
                       },
-                      child: Icon(
-                        _isWishlisted
-                            ? Icons.favorite_rounded
-                            : Icons.favorite_border_rounded,
-                        size: 16,
-                        color: _isWishlisted
-                            ? const Color(0xFFEF4444)
-                            : const Color(0xFF4B5563),
-                      ),
-                    ),
-                  ),
-
-                  // Bottom-Left Overlapping Circular Seller Logo Avatar (34x34)
-                  Positioned(
-                    left: 6,
-                    bottom: -13,
-                    child: Container(
-                      width: 34,
-                      height: 34,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: const Color(0xFFE5E7EB),
-                          width: 1.2,
+                      child: Container(
+                        padding: const EdgeInsets.all(3),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.85),
+                          shape: BoxShape.circle,
                         ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.08),
-                            blurRadius: 3,
-                            offset: const Offset(0, 1.5),
-                          ),
-                        ],
+                        child: Icon(
+                          _isWishlisted
+                              ? Icons.favorite_rounded
+                              : Icons.favorite_border_rounded,
+                          size: 15,
+                          color: _isWishlisted
+                              ? const Color(0xFFEF4444)
+                              : const Color(0xFF4B5563),
+                        ),
                       ),
-                      clipBehavior: Clip.antiAlias,
-                      child: seller.imageUrl.trim().isNotEmpty
-                          ? AppNetworkImage(
-                              url: seller.imageUrl,
-                              width: 34,
-                              height: 34,
-                              fit: BoxFit.cover,
-                              fallbackIcon: Icons.storefront_outlined,
-                            )
-                          : Container(
-                              alignment: Alignment.center,
-                              color: Colors.white,
-                              padding: const EdgeInsets.all(2),
-                              child: Text(
-                                seller.name,
-                                textAlign: TextAlign.center,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w900,
-                                  fontSize: 7.5,
-                                  color: Color(0xFF1F2937),
-                                  height: 1.0,
-                                ),
-                              ),
-                            ),
                     ),
                   ),
                 ],
               ),
             ),
 
-            // Bottom Half: Seller Info & Stats (Height ~80px)
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(8, 15, 8, 6),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Store Name (From Backend)
-                    Text(
-                      seller.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: context.text.titleSmall!.copyWith(
-                        fontWeight: FontWeight.w900,
-                        fontSize: 12,
-                        color: const Color(0xFF1F2937),
-                      ),
+            // Product Details Block (Visually connected directly below image)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 6, 8, 4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Real Product Name with Search-style Vertical Page-Up Animation
+                  _buildAnimatedProductName(
+                    text: currentProductName,
+                    style: context.text.titleSmall!.copyWith(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 11.5,
+                      color: const Color(0xFF0F172A),
                     ),
-                    const SizedBox(height: 2),
-
-                    // Rating & Delivery Mins Row (From Backend)
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.star_rounded,
-                          size: 11,
-                          color: Color(0xFFFFC107),
-                        ),
-                        const SizedBox(width: 1.5),
+                  ),
+                  const SizedBox(height: 2),
+                  // Real Product Price & Pack Size from API
+                  Row(
+                    children: [
+                      if (currentProduct != null) ...[
                         Text(
-                          seller.rating.toStringAsFixed(1),
+                          '₹${currentProduct.price.toStringAsFixed(0)}',
                           style: context.text.titleSmall!.copyWith(
-                            fontWeight: FontWeight.w900,
-                            fontSize: 10.5,
-                            color: const Color(0xFF1F2937),
-                          ),
-                        ),
-                        const Spacer(),
-                        Text(
-                          '${seller.deliveryMinutes ?? 25}m',
-                          style: context.text.bodySmall!.copyWith(
                             fontWeight: FontWeight.w800,
-                            fontSize: 10,
+                            fontSize: 11,
                             color: const Color(0xFF16A34A),
                           ),
                         ),
-                      ],
-                    ),
-                    const Spacer(),
-
-                    // Item Count & Free Delivery Line (From Backend)
-                    Row(
-                      children: [
+                        if (currentProduct.packSize.trim().isNotEmpty) ...[
+                          const SizedBox(width: 3),
+                          Expanded(
+                            child: Text(
+                              '• ${currentProduct.packSize.trim()}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: context.text.bodySmall!.copyWith(
+                                fontWeight: FontWeight.w500,
+                                fontSize: 9.5,
+                                color: const Color(0xFF6B7280),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ] else ...[
                         Text(
-                          '${seller.productCount} ${seller.productCount == 1 ? 'item' : 'items'}',
+                          '${seller.productCount} products',
                           style: context.text.bodySmall!.copyWith(
+                            fontWeight: FontWeight.w500,
                             fontSize: 9.5,
                             color: const Color(0xFF6B7280),
                           ),
                         ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            const Divider(
+              height: 1,
+              thickness: 0.8,
+              color: Color(0xFFF3F4F6),
+            ),
+
+            // 2. BOTTOM STORE FOOTER SECTION (Store Name, Logo, Delivery Time & Stats)
+            Expanded(
+              child: Container(
+                color: const Color(0xFFFAFAFA),
+                padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Store Logo Avatar + Store Name
+                    Row(
+                      children: [
+                        Container(
+                          width: 18,
+                          height: 18,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: const Color(0xFFE5E7EB),
+                              width: 0.8,
+                            ),
+                          ),
+                          clipBehavior: Clip.antiAlias,
+                          child: seller.imageUrl.trim().isNotEmpty
+                              ? AppNetworkImage(
+                                  url: seller.imageUrl,
+                                  width: 18,
+                                  height: 18,
+                                  fit: BoxFit.cover,
+                                  fallbackIcon: Icons.storefront_outlined,
+                                )
+                              : const Icon(
+                                  Icons.storefront_outlined,
+                                  size: 11,
+                                  color: Color(0xFF4B5563),
+                                ),
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            seller.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: context.text.titleSmall!.copyWith(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 10.5,
+                              color: const Color(0xFF374151),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+
+                    // Delivery Time Badge, Rating & Product Count Row
+                    Row(
+                      children: [
+                        if (seller.deliveryMinutes != null) ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 4,
+                              vertical: 1.5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFDCFCE7),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              '${seller.deliveryMinutes}m',
+                              style: context.text.labelSmall!.copyWith(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 9,
+                                color: const Color(0xFF15803D),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                        ],
+                        if (seller.hasRating) ...[
+                          const Icon(
+                            Icons.star_rounded,
+                            size: 11,
+                            color: Color(0xFFFFC107),
+                          ),
+                          const SizedBox(width: 1),
+                          Text(
+                            seller.rating.toStringAsFixed(1),
+                            style: context.text.titleSmall!.copyWith(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 9.5,
+                              color: const Color(0xFF1F2937),
+                            ),
+                          ),
+                        ],
                         const Spacer(),
                         Text(
-                          'Free delivery',
-                          style: context.text.labelSmall!.copyWith(
-                            fontWeight: FontWeight.w800,
+                          '${seller.productCount} ${seller.productCount == 1 ? 'item' : 'items'}',
+                          style: context.text.bodySmall!.copyWith(
+                            fontWeight: FontWeight.w500,
                             fontSize: 9,
-                            color: const Color(0xFF16A34A),
+                            color: const Color(0xFF6B7280),
                           ),
                         ),
                       ],

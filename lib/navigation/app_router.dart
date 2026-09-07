@@ -168,7 +168,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: RoutePaths.search,
         name: RouteNames.search,
         parentNavigatorKey: _rootKey,
-        pageBuilder: (context, state) => _fadeThrough(state, const SearchScreen()),
+        pageBuilder: (context, state) => _fadeThrough(
+          state,
+          SearchScreen(
+            autoStartVoice: state.uri.queryParameters['voice'] == '1',
+          ),
+        ),
       ),
       GoRoute(
         path: RoutePaths.subCategory,

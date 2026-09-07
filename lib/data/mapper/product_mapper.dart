@@ -1,4 +1,3 @@
-import '../../core/constants/app_assets.dart';
 import '../../domain/model/product.dart';
 import '../../domain/model/product_variant.dart';
 import '../dto/product_dto.dart';
@@ -7,9 +6,11 @@ abstract final class ProductMapper {
   static Product toDomain(ProductDto dto, {ProductDto? sellerFallback}) {
     final seller = dto.seller;
     final images = dto.images.where((i) => i.trim().isNotEmpty).toList();
+    // No real image → empty. AppNetworkImage draws a clean fallback icon; a
+    // random stock photo (the old picsum placeholder) is fake product imagery.
     final primary = dto.image.trim().isNotEmpty
         ? dto.image
-        : (images.isNotEmpty ? images.first : AppAssets.seeded(dto.id));
+        : (images.isNotEmpty ? images.first : '');
 
     return Product(
       id: dto.id,

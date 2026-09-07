@@ -19,7 +19,7 @@ class DiscountBadge extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: context.semantic.brandSurface,
-        borderRadius: BorderRadius.only(
+        borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(8),
           bottomRight: Radius.circular(8),
         ),

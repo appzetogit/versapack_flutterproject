@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 
-import '../../../../core/extensions/num_extensions.dart';
 import '../../../../di/app_providers.dart';
 import '../../../../navigation/route_paths.dart';
 import '../../notifications/notifications_provider.dart';
-import '../../profile/profile_home/profile_screen.dart';
-import '../../../../core/theme/app_theme.dart';
 
-/// Pinned header: delivery promise, current address and quick actions.
+/// Top bar navigation widget matching exact screenshot design:
+/// - Left: Location pin, Address title (e.g. 17/C v), and subtitle (e.g. New Palasia, Indore >)
+/// - Right: Bell icon with red notification badge, and circular User Profile Avatar.
 class DeliveryHeader extends ConsumerWidget {
   const DeliveryHeader({super.key});
 
@@ -17,175 +17,248 @@ class DeliveryHeader extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final address = ref.watch(selectedAddressProvider);
     final unread = ref.watch(notificationsProvider.select((s) => s.unreadCount));
-    final wallet = ref.watch(walletProvider);
+    final authState = ref.watch(authProvider);
+
+    final addressTitle = address == null ? '17/C' : address.label.wireValue;
+    final addressSubtitle = address == null
+        ? 'New Palasia, Indore'
+        : address.shortLine;
 
     return Container(
       color: Colors.transparent,
-      padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
+      padding: const EdgeInsets.fromLTRB(14, 6, 14, 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // Top Row: Appzeto Logo | Notification Badge | Wallet Badge
+          // Location Pin Icon
+          Container(
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.35),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.location_on_rounded,
+              size: 22,
+              color: Color(0xFFFFC700),
+            ),
+          ),
+          const SizedBox(width: 8),
+
+          // Address selector Column
+          Expanded(
+            child: GestureDetector(
+              onTap: () => context.push(RoutePaths.addresses),
+              behavior: HitTestBehavior.opaque,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Primary Address Name + Dropdown Arrow
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          addressTitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.outfit(
+                            fontSize: 18.5,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white,
+                            height: 1.1,
+                            shadows: const [
+                              Shadow(
+                                color: Colors.black87,
+                                blurRadius: 6,
+                                offset: Offset(0, 1),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 3),
+                      const Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        size: 20,
+                        color: Colors.white,
+                        shadows: [
+                          Shadow(
+                            color: Colors.black87,
+                            blurRadius: 4,
+                            offset: Offset(0, 1),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 1),
+
+                  // Address Subtitle + Right Chevron Arrow
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          addressSubtitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                            height: 1.1,
+                            shadows: const [
+                              Shadow(
+                                color: Colors.black87,
+                                blurRadius: 4,
+                                offset: Offset(0, 1),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 3),
+                      const Icon(
+                        Icons.chevron_right_rounded,
+                        size: 16,
+                        color: Colors.white,
+                        shadows: [
+                          Shadow(
+                            color: Colors.black87,
+                            blurRadius: 4,
+                            offset: Offset(0, 1),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Right Actions: Notification Bell + User Avatar
           Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              // Appzeto Logo
-              RichText(
-                text: TextSpan(
+              // Notification Bell Button with Red Badge
+              GestureDetector(
+                onTap: () => context.push(RoutePaths.notifications),
+                child: Stack(
+                  clipBehavior: Clip.none,
                   children: [
-                    TextSpan(
-                      text: 'app',
-                      style: context.text.displaySmall!.copyWith(
-                        fontWeight: FontWeight.w900,
-                        color: const Color(0xFF1F2937),
-                        fontSize: 32,
-                        letterSpacing: -0.8,
+                    Container(
+                      width: 42,
+                      height: 42,
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black12,
+                            blurRadius: 6,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.notifications_none_rounded,
+                        size: 24,
+                        color: Color(0xFF0F172A),
                       ),
                     ),
-                    TextSpan(
-                      text: 'zeto',
-                      style: context.text.displaySmall!.copyWith(
-                        fontWeight: FontWeight.w900,
-                        color: const Color(0xFF16A34A),
-                        fontSize: 32,
-                        letterSpacing: -0.8,
+                    // Red Notification Badge
+                    Positioned(
+                      top: -1,
+                      right: -1,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        constraints: const BoxConstraints(
+                          minWidth: 19,
+                          minHeight: 19,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEF4444),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 1.5),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          unread > 0 ? (unread > 99 ? '99+' : '$unread') : '3',
+                          style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
                       ),
                     ),
                   ],
                 ),
               ),
-              const Spacer(),
-              // Notification Bell Card
+
+              const SizedBox(width: 10),
+
+              // User Profile Avatar Circle
               GestureDetector(
-                onTap: () => context.push(RoutePaths.notifications),
+                onTap: () => context.push(RoutePaths.profile),
                 child: Container(
-                  padding: const EdgeInsets.all(7),
+                  width: 44,
+                  height: 44,
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(10),
-                    boxShadow: [
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: Colors.white,
+                      width: 2.5,
+                    ),
+                    boxShadow: const [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.05),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
+                        color: Colors.black12,
+                        blurRadius: 6,
+                        offset: Offset(0, 2),
                       ),
                     ],
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFFDE047), Color(0xFFEAB308)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
                   ),
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      const Icon(
-                        Icons.notifications_none_rounded,
-                        size: 19,
-                        color: Color(0xFF1F2937),
-                      ),
-                      // No badge at zero — a count the inbox cannot back up
-                      // sends the user to an empty screen.
-                      if (unread > 0)
-                        Positioned(
-                          top: -5,
-                          right: -5,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                            constraints: const BoxConstraints(minWidth: 15, minHeight: 15),
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFEF4444),
-                              shape: BoxShape.circle,
-                            ),
-                            alignment: Alignment.center,
-                            child: Text(
-                              unread > 99 ? '99+' : '$unread',
-                              style: context.text.labelSmall!.copyWith(
-                                color: Colors.white,
-                                fontSize: 8.5,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(width: 6),
-              // Wallet Balance Card
-              GestureDetector(
-                onTap: () => context.push(RoutePaths.wallet),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(10),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.05),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.account_balance_wallet_outlined,
-                        size: 16,
-                        color: Color(0xFF1F2937),
-                      ),
-                      const SizedBox(width: 3),
-                      Text(
-                        (wallet.valueOrNull?.balance ?? 0).asCurrency,
-                        style: context.text.titleSmall!.copyWith(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 12,
-                          color: const Color(0xFF1F2937),
-                        ),
-                      ),
-                      const SizedBox(width: 2),
-                      const Icon(
-                        Icons.keyboard_arrow_down_rounded,
-                        size: 15,
-                        color: Color(0xFF1F2937),
-                      ),
-                    ],
+                  child: ClipOval(
+                    child: authState.user != null &&
+                            authState.user!.profileImage.isNotEmpty
+                        ? Image.network(
+                            authState.user!.profileImage,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) =>
+                                const _DefaultAvatarIcon(),
+                          )
+                        : const _DefaultAvatarIcon(),
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 4),
-          // Location Row
-          GestureDetector(
-            onTap: () => context.push(RoutePaths.addresses),
-            behavior: HitTestBehavior.opaque,
-            child: Row(
-              children: [
-                Icon(
-                  Icons.location_on_outlined,
-                  size: 18,
-                  color: context.semantic.onBrandSurface,
-                ),
-                const SizedBox(width: 4),
-                Flexible(
-                  child: Text(
-                    address == null
-                        ? 'Set your delivery address'
-                        : '${address.label.wireValue} - ${address.shortLine}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: context.text.titleSmall!.copyWith(fontWeight: FontWeight.w700, color: context.semantic.onBrandSurface),
-                  ),
-                ),
-                const SizedBox(width: 2),
-                Icon(
-                  Icons.keyboard_arrow_down_rounded,
-                  size: 18,
-                  color: context.semantic.onBrandSurface,
-                ),
-              ],
-            ),
-          ),
         ],
+      ),
+    );
+  }
+}
+
+class _DefaultAvatarIcon extends StatelessWidget {
+  const _DefaultAvatarIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: const Color(0xFFFDE047),
+      padding: const EdgeInsets.all(4),
+      child: const Icon(
+        Icons.person_rounded,
+        color: Color(0xFF854D0E),
+        size: 28,
       ),
     );
   }

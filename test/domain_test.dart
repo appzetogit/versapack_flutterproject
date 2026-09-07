@@ -290,8 +290,8 @@ void main() {
 
     test('relevance prefers an exact name match over a substring', () {
       final products = [
-        Product(id: 'x', name: 'Almond Milk', price: 10, sellerId: 's'),
-        Product(id: 'y', name: 'Milk', price: 10, sellerId: 's'),
+        const Product(id: 'x', name: 'Almond Milk', price: 10, sellerId: 's'),
+        const Product(id: 'y', name: 'Milk', price: 10, sellerId: 's'),
       ];
 
       final ranked = service.apply(

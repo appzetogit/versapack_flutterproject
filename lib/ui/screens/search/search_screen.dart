@@ -7,6 +7,7 @@ import '../../../core/theme/app_radii.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../navigation/route_paths.dart';
+import '../../common/voice_search.dart';
 import '../../common/widgets/cards/product_card.dart';
 import '../../common/widgets/inputs/search_bar_widget.dart';
 import '../../common/widgets/loaders/product_card_skeleton.dart';
@@ -20,7 +21,12 @@ import 'search_provider.dart';
 import 'search_state.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
-  const SearchScreen({super.key});
+  const SearchScreen({super.key, this.autoStartVoice = false});
+
+  /// When true, voice search opens automatically on entry — used when the user
+  /// tapped the mic on a read-only search bar (Home / Categories) that only
+  /// navigates here.
+  final bool autoStartVoice;
 
   @override
   ConsumerState<SearchScreen> createState() => _SearchScreenState();
@@ -39,6 +45,15 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         ref.read(searchProvider.notifier).loadMore();
       }
     });
+    if (widget.autoStartVoice) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _startVoiceSearch());
+    }
+  }
+
+  Future<void> _startVoiceSearch() async {
+    final spoken = await VoiceSearch.run(context);
+    if (spoken == null || !mounted) return;
+    _runQuery(spoken);
   }
 
   @override
@@ -74,6 +89,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             onChanged: ref.read(searchProvider.notifier).onQueryChanged,
             onSubmitted: (value) =>
                 ref.read(searchProvider.notifier).commitSearch(value),
+            onMicTap: _startVoiceSearch,
           ),
         ),
       ),

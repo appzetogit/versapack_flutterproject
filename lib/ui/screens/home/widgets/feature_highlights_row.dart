@@ -25,9 +25,9 @@ class FeatureHighlightsRow extends StatelessWidget {
       child: Row(
         children: [
           // 1. 10 mins Fast Delivery
-          Expanded(
+          const Expanded(
             child: _FeatureItem(
-              iconWidget: const Icon(
+              iconWidget: Icon(
                 Icons.two_wheeler_rounded,
                 size: 20,
                 color: Color(0xFFFFC107),

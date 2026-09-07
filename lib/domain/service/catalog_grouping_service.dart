@@ -12,61 +12,61 @@ class CatalogGroupingService {
   const CatalogGroupingService();
 
   /// Extract seller details and their backend products from catalog items.
+  /// Sellers present in the catalogue, derived from the products they carry
+  /// (the backend has no seller-list endpoint). Every field is real: no invented
+  /// rating, review count, delivery time or free-delivery threshold. A seller
+  /// with no name on any of its products is skipped rather than shown as a
+  /// `Seller #id` placeholder.
   List<Seller> sellersFrom(List<Product> products) {
-    final map = <String, Seller>{};
-    final productsMap = <String, List<Product>>{};
-
+    final grouped = <String, List<Product>>{};
     for (final p in products) {
       final sId = p.sellerId.trim();
       if (sId.isEmpty) continue;
-      productsMap.putIfAbsent(sId, () => []).add(p);
-
-      final existing = map[sId];
-      final name = p.sellerName.trim().isNotEmpty
-          ? p.sellerName.trim()
-          : 'Seller #$sId';
-      final image = p.sellerImageUrl.trim().isNotEmpty
-          ? p.sellerImageUrl.trim()
-          : p.imageUrl;
-
-      final rating = p.rating > 0 ? p.rating : 4.8;
-      final ratingCount = p.ratingCount > 0 ? p.ratingCount : 1200;
-
-      if (existing == null) {
-        map[sId] = Seller(
-          id: sId,
-          name: name,
-          imageUrl: image,
-          acceptingOrders: p.sellerAcceptingOrders,
-          deliveryMinutes: p.deliveryMinutes ?? 25,
-          productCount: 1,
-          rating: rating,
-          ratingCount: ratingCount,
-          minFreeDelivery: (sId.hashCode.abs() % 2 == 0) ? 199 : 149,
-          products: productsMap[sId]!,
-        );
-      } else {
-        map[sId] = Seller(
-          id: existing.id,
-          name: (existing.name.startsWith('Seller #') && p.sellerName.trim().isNotEmpty)
-              ? p.sellerName.trim()
-              : existing.name,
-          imageUrl: existing.imageUrl.isEmpty && p.sellerImageUrl.trim().isNotEmpty
-              ? p.sellerImageUrl.trim()
-              : existing.imageUrl,
-          acceptingOrders: existing.acceptingOrders || p.sellerAcceptingOrders,
-          deliveryMinutes: existing.deliveryMinutes ?? p.deliveryMinutes,
-          productCount: existing.productCount + 1,
-          rating: p.rating > 0 ? p.rating : existing.rating,
-          ratingCount: p.ratingCount > 0 ? p.ratingCount : existing.ratingCount,
-          minFreeDelivery: existing.minFreeDelivery,
-          products: productsMap[sId]!,
-        );
-      }
+      grouped.putIfAbsent(sId, () => []).add(p);
     }
-    final list = map.values.toList()
-      ..sort((a, b) => b.productCount.compareTo(a.productCount));
-    return list;
+
+    final sellers = <Seller>[];
+    grouped.forEach((sId, items) {
+      final name = items
+          .map((p) => p.sellerName.trim())
+          .firstWhere((n) => n.isNotEmpty, orElse: () => '');
+      if (name.isEmpty) return; // no real name → do not surface a fake one
+
+      final image = items
+          .map((p) => p.sellerImageUrl.trim())
+          .firstWhere((i) => i.isNotEmpty, orElse: () => items.first.imageUrl);
+
+      // Average of the seller's actually-rated products; 0 when none are rated.
+      final rated = items.where((p) => p.rating > 0).toList();
+      final rating = rated.isEmpty
+          ? 0.0
+          : rated.map((p) => p.rating).reduce((a, b) => a + b) / rated.length;
+      final ratingCount = items.fold<int>(0, (sum, p) => sum + p.ratingCount);
+
+      // Real delivery estimate from the catalogue, or none.
+      int? deliveryMinutes;
+      for (final p in items) {
+        if (p.deliveryMinutes != null) {
+          deliveryMinutes = p.deliveryMinutes;
+          break;
+        }
+      }
+
+      sellers.add(Seller(
+        id: sId,
+        name: name,
+        imageUrl: image,
+        acceptingOrders: items.any((p) => p.sellerAcceptingOrders),
+        deliveryMinutes: deliveryMinutes,
+        productCount: items.length,
+        rating: rating,
+        ratingCount: ratingCount,
+        products: items,
+      ));
+    });
+
+    sellers.sort((a, b) => b.productCount.compareTo(a.productCount));
+    return sellers;
   }
 
   /// Sub-categories for a category, derived from distinct brands within it.

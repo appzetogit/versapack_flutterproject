@@ -24,6 +24,13 @@ val appKeys = Properties().apply {
     }
 }
 
+// The ML Kit barcode/labeling models transitively pull the deprecated
+// `firebase-iid`, whose classes now live in `firebase-messaging`, causing a
+// duplicate-class failure. firebase-iid is obsolete, so drop it everywhere.
+configurations.all {
+    exclude(group = "com.google.firebase", module = "firebase-iid")
+}
+
 android {
     namespace = "com.quick.commerce"
     compileSdk = flutter.compileSdkVersion
@@ -41,7 +48,7 @@ android {
     defaultConfig {
         // Must match `package_name` in android/app/google-services.json and
         // the package restriction on the Google Maps key.
-        applicationId = "com.quick.commerce"
+        applicationId = "com.versapack.user"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
