@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_durations.dart';
 import '../../../../core/utils/app_haptics.dart';
+import '../../../../core/utils/logger.dart';
 import '../../../../core/theme/app_radii.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -65,6 +66,7 @@ class _SecondaryButtonState extends State<SecondaryButton> {
         onTapCancel: enabled ? () => setState(() => _pressed = false) : null,
         onTap: enabled
             ? () {
+                AppLogger.action('tap', details: 'secondary_button label="${widget.label}"');
                 widget.destructive ? AppHaptics.heavy() : AppHaptics.light();
                 widget.onPressed!.call();
               }

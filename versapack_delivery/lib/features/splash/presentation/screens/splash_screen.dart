@@ -76,7 +76,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
         child: RichText(
           textAlign: TextAlign.center,
           text: TextSpan(
-            text: 'app',
+            text: 'Versa',
             style: TextStyle(
               fontSize: 42.sp,
               fontWeight: FontWeight.w900,
@@ -85,7 +85,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
             ),
             children: [
               TextSpan(
-                text: 'zeto',
+                text: 'pack',
                 style: TextStyle(
                   fontSize: 42.sp,
                   fontWeight: FontWeight.w900,

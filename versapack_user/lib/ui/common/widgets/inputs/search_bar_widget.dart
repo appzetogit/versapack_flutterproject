@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/logger.dart';
 
 /// The search field. Features vertical page-up changing text animation for
 /// top categories / products.
@@ -270,6 +271,7 @@ class _SearchBarWidgetState extends State<SearchBarWidget> {
           if (hasText)
             IconButton(
               onPressed: () {
+                AppLogger.action('search_clear', scope: 'search');
                 widget.controller?.clear();
                 widget.onChanged?.call('');
               },

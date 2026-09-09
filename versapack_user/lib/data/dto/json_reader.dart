@@ -107,7 +107,16 @@ extension JsonReader on Map<String, dynamic> {
   String imageUrl(String key) {
     final value = this[key];
     if (value is String) return MediaUrl.resolve(value);
-    if (value is Map) return MediaUrl.resolve((value['url'] ?? '').toString());
+    if (value is Map) {
+      final raw = value['url'] ??
+          value['secure_url'] ??
+          value['imageUrl'] ??
+          value['image'] ??
+          value['src'] ??
+          value['path'] ??
+          '';
+      return MediaUrl.resolve(raw.toString());
+    }
     return '';
   }
 }

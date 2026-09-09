@@ -107,7 +107,7 @@ class _Tile extends StatelessWidget {
             height: 50,
             padding: hasImage ? const EdgeInsets.all(3) : EdgeInsets.zero,
             decoration: BoxDecoration(
-              color: isAll ? const Color(0xFFFFC107) : Colors.white,
+              color: isAll ? context.colors.primary : context.colors.surface,
               shape: isAll || isPill ? BoxShape.rectangle : BoxShape.circle,
               borderRadius: isAll
                   ? BorderRadius.circular(14)
@@ -134,7 +134,7 @@ class _Tile extends StatelessWidget {
                 : Icon(
                     icon,
                     size: 24,
-                    color: const Color(0xFF1F2937),
+                    color: context.colors.onSurface,
                   ),
           ),
           const SizedBox(height: 3),

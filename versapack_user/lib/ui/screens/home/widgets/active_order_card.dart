@@ -113,10 +113,10 @@ class _ActiveOrderFloatingCardState
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: context.colors.surface,
                 borderRadius: BorderRadius.circular(30),
                 border: Border.all(
-                  color: const Color(0xFFF3F4F6),
+                  color: context.semantic.border,
                   width: 1.2,
                 ),
                 boxShadow: [
@@ -133,8 +133,8 @@ class _ActiveOrderFloatingCardState
                   Container(
                     width: 44,
                     height: 44,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFFFF3E0),
+                    decoration: BoxDecoration(
+                      color: context.semantic.brandSurfaceSoft,
                       shape: BoxShape.circle,
                     ),
                     clipBehavior: Clip.antiAlias,
@@ -147,10 +147,10 @@ class _ActiveOrderFloatingCardState
                             fit: BoxFit.cover,
                             fallbackIcon: Icons.restaurant_rounded,
                           )
-                        : const Icon(
+                        : Icon(
                             Icons.soup_kitchen_rounded,
                             size: 22,
-                            color: Color(0xFFE65100),
+                            color: context.colors.primary,
                           ),
                   ),
                   const SizedBox(width: 12),
@@ -168,7 +168,7 @@ class _ActiveOrderFloatingCardState
                           style: context.text.titleSmall!.copyWith(
                             fontWeight: FontWeight.w900,
                             fontSize: 14.5,
-                            color: const Color(0xFF1F2937),
+                            color: context.colors.onSurface,
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -183,15 +183,15 @@ class _ActiveOrderFloatingCardState
                                 style: context.text.bodySmall!.copyWith(
                                   fontSize: 12.5,
                                   fontWeight: FontWeight.w600,
-                                  color: const Color(0xFF6B7280),
+                                  color: context.semantic.textSecondary,
                                 ),
                               ),
                             ),
                             const SizedBox(width: 4),
-                            const Icon(
+                            Icon(
                               Icons.play_arrow_rounded,
                               size: 13,
-                              color: Color(0xFFF97316),
+                              color: context.colors.primary,
                             ),
                           ],
                         ),
@@ -207,7 +207,7 @@ class _ActiveOrderFloatingCardState
                       vertical: 8,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF16A34A),
+                      color: context.semantic.success,
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(

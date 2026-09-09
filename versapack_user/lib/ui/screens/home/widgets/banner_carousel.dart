@@ -116,7 +116,9 @@ class _BannerCarouselState extends State<BannerCarousel> {
               height: 6,
               width: i == _index ? 18 : 6,
               decoration: BoxDecoration(
-                color: i == _index ? const Color(0xFFFFC107) : const Color(0xFFE5E7EB),
+                color: i == _index
+                    ? context.colors.primary
+                    : context.semantic.border,
                 borderRadius: BorderRadius.circular(999),
               ),
             ),
@@ -167,8 +169,8 @@ class _HeroBannerCard extends StatelessWidget {
     // actually published was replaced by that slogan.
     return Container(
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFFFFF7CB), Color(0xFFFFD54F)],
+        gradient: LinearGradient(
+          colors: [context.semantic.brandSurfaceSoft, context.colors.primary],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -197,7 +199,7 @@ class _HeroBannerCard extends StatelessWidget {
                   fontWeight: FontWeight.w900,
                   fontSize: 22,
                   height: 1.15,
-                  color: const Color(0xFF1F2937),
+                      color: context.colors.onSurface,
                 ),
               ),
             if (banner.ctaText.trim().isNotEmpty) ...[
@@ -205,7 +207,7 @@ class _HeroBannerCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1F2937),
+                      color: context.colors.onSurface,
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Row(

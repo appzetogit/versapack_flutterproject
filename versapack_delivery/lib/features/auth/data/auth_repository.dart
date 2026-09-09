@@ -91,13 +91,15 @@ class AuthRepository {
 
   Future<void> logout() async {
     final refreshToken = await _tokenStorage.getRefreshToken();
-    try {
-      await _dio.post(
-        ApiEndpoints.logout,
-        data: {'refreshToken': ?refreshToken},
-      );
-    } catch (_) {
-      // Ignore network errors on logout — tokens are cleared locally regardless.
+    if (refreshToken != null && refreshToken.isNotEmpty) {
+      try {
+        await _dio.post(
+          ApiEndpoints.logout,
+          data: {'refreshToken': refreshToken, 'platform': 'mobile'},
+        );
+      } catch (_) {
+        // Ignore network errors on logout — tokens are cleared locally regardless.
+      }
     }
     await _tokenStorage.clear();
   }

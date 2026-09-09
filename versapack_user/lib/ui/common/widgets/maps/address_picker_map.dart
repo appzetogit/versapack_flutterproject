@@ -46,6 +46,22 @@ class AddressPickerMap extends StatefulWidget {
 }
 
 class _AddressPickerMapState extends State<AddressPickerMap> {
+  static const _mutedMapStyle = '''
+[
+  {"elementType":"geometry","stylers":[{"color":"#f3f4f6"}]},
+  {"elementType":"labels.text.fill","stylers":[{"color":"#6b7280"}]},
+  {"elementType":"labels.text.stroke","stylers":[{"color":"#ffffff"}]},
+  {"featureType":"administrative","elementType":"geometry","stylers":[{"color":"#d1d5db"}]},
+  {"featureType":"poi","elementType":"geometry","stylers":[{"color":"#e5e7eb"}]},
+  {"featureType":"poi.park","elementType":"geometry","stylers":[{"color":"#dfe8dc"}]},
+  {"featureType":"road","elementType":"geometry","stylers":[{"color":"#ffffff"}]},
+  {"featureType":"road.arterial","elementType":"geometry","stylers":[{"color":"#e5e7eb"}]},
+  {"featureType":"road.highway","elementType":"geometry","stylers":[{"color":"#d7dee8"}]},
+  {"featureType":"transit","stylers":[{"visibility":"off"}]},
+  {"featureType":"water","elementType":"geometry","stylers":[{"color":"#dce9f2"}]}
+]
+''';
+
   GoogleMapController? _controller;
   bool _isDragging = false;
 
@@ -95,6 +111,7 @@ class _AddressPickerMapState extends State<AddressPickerMap> {
               myLocationButtonEnabled: false,
               zoomControlsEnabled: false,
               mapToolbarEnabled: false,
+              style: _mutedMapStyle,
               // Let the parent scroll view keep vertical drags unless the
               // gesture starts on the map.
               gestureRecognizers: const {},

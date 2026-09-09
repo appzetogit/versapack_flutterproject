@@ -179,10 +179,10 @@ class StoreInfo {
     for (final url in [
       // Premises photos first: they are the ones taken for this exact purpose.
       ...galleryImages,
-      ?coverImage,
+      if (coverImage != null) coverImage!,
       ...coverImages,
       ...catalogImages,
-      ?profileImage,
+      if (profileImage != null) profileImage!,
     ]) {
       if (url.isNotEmpty && seen.add(url)) result.add(url);
     }

@@ -58,6 +58,7 @@ class _AddressSelectionScreenState
   bool _locating = false;
   bool _resolvingPin = false;
   String _pinAddress = '';
+  DeviceLocation? _pinnedLocation;
 
   @override
   void initState() {
@@ -76,6 +77,8 @@ class _AddressSelectionScreenState
     _label = existing?.label ?? AddressLabel.home;
     _latitude = existing?.latitude ?? location?.latitude;
     _longitude = existing?.longitude ?? location?.longitude;
+    _pinAddress = location?.formattedAddress ?? '';
+    _pinnedLocation = location;
   }
 
   @override
@@ -117,12 +120,7 @@ class _AddressSelectionScreenState
         _latitude = location.latitude;
         _longitude = location.longitude;
         _pinAddress = location.formattedAddress;
-        _street.text = location.streetLine;
-        _details.text =
-            location.subLocality.isNotEmpty ? location.subLocality : location.label;
-        _city.text = location.city;
-        _state.text = location.state;
-        _zip.text = location.pincode;
+        _pinnedLocation = location;
         _errors = {..._errors}..remove('location');
       });
 
@@ -167,6 +165,32 @@ class _AddressSelectionScreenState
     }
   }
 
+  /// Copies the address resolved for the current pin into the form.
+  void _autoFillFromPin() {
+    final location = _pinnedLocation;
+    if (location == null || !location.isResolved) {
+      AppToast.error(
+        context,
+        'Move the pin or use your current location, then try again.',
+      );
+      return;
+    }
+
+    setState(() {
+      _street.text = location.streetLine;
+      _details.text = location.subLocality.isNotEmpty
+          ? location.subLocality
+          : location.label;
+      _city.text = location.city;
+      _state.text = location.state;
+      _zip.text = location.pincode;
+    });
+
+    if (_street.text.trim().isEmpty) {
+      AppToast.show(context, 'Add your house / flat number to finish');
+    }
+  }
+
   /// Fires when the map camera settles on a new centre.
   Future<void> _onCentreChanged(double latitude, double longitude) async {
     // Ignore sub-metre jitter so an idle map does not bill geocoding calls.
@@ -193,6 +217,7 @@ class _AddressSelectionScreenState
     setState(() {
       _resolvingPin = false;
       _pinAddress = location.formattedAddress;
+      _pinnedLocation = location;
       // Only fill blanks — never overwrite what the user has typed.
       if (_city.text.trim().isEmpty) _city.text = location.city;
       if (_state.text.trim().isEmpty) _state.text = location.state;
@@ -206,6 +231,18 @@ class _AddressSelectionScreenState
       _latitude = place.latitude;
       _longitude = place.longitude;
       _pinAddress = place.formattedAddress;
+      _pinnedLocation = DeviceLocation(
+        latitude: place.latitude,
+        longitude: place.longitude,
+        label: place.shortLabel,
+        formattedAddress: place.formattedAddress,
+        city: place.city,
+        state: place.state,
+        pincode: place.postalCode,
+        streetLine: place.streetLine,
+        subLocality: place.subLocality,
+        country: place.country,
+      );
       // Only fill blanks — never overwrite what the user has typed.
       if (_street.text.trim().isEmpty && place.streetLine.isNotEmpty) {
         _street.text = place.streetLine;
@@ -282,6 +319,15 @@ class _AddressSelectionScreenState
           padding: const EdgeInsets.all(AppSpacing.lg),
           children: [
             _map(context),
+            const SizedBox(height: AppSpacing.md),
+            SecondaryButton(
+              label: 'Auto-fill address from pin',
+              icon: Icons.auto_fix_high_rounded,
+              expand: true,
+              onPressed: _pinnedLocation?.isResolved == true
+                  ? _autoFillFromPin
+                  : null,
+            ),
             const SizedBox(height: AppSpacing.md),
             PlaceSearchField(
               latitude: _latitude,

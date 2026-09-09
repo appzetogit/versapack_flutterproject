@@ -6,6 +6,8 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/logger.dart';
+import '../../../di/app_providers.dart';
 import '../../../domain/model/banner.dart';
 import '../../../navigation/route_paths.dart';
 import '../../common/smart_scan.dart';
@@ -15,6 +17,7 @@ import '../../common/widgets/misc/section_header.dart';
 import '../../common/widgets/misc/sound_refresh_indicator.dart';
 import '../../common/widgets/states/error_state_widget.dart';
 import '../../common/widgets/states/offline_banner.dart';
+import '../../common/widgets/feedback/app_dialog.dart';
 import '../product/product_listing/product_listing_args.dart';
 import 'home_provider.dart';
 import 'home_state.dart';
@@ -36,12 +39,40 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   late final ScrollController _scrollController;
   bool _headerCollapsed = false;
+  bool _addressPromptShown = false;
 
   @override
   void initState() {
     super.initState();
     _scrollController = ScrollController();
     _scrollController.addListener(_handleScroll);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _promptForAddress());
+  }
+
+  Future<void> _promptForAddress() async {
+    if (!mounted || _addressPromptShown) return;
+
+    // The address provider loads asynchronously when authentication becomes
+    // available. Awaiting it here keeps the prompt from flashing before the
+    // saved address list has been checked.
+    await ref.read(addressBookProvider.notifier).load();
+    if (!mounted || _addressPromptShown) return;
+    if (ref.read(addressBookProvider).addresses.isNotEmpty) return;
+
+    _addressPromptShown = true;
+    AppLogger.action('address_prompt_shown', scope: 'location');
+    final addLocation = await AppDialog.confirm(
+      context,
+      icon: Icons.location_on_outlined,
+      title: 'Add your delivery location',
+      message: 'Add an address to see products and delivery times available near you.',
+      confirmLabel: 'Add location',
+      cancelLabel: 'Maybe later',
+    );
+    if (!addLocation || !mounted) return;
+
+    AppLogger.action('address_prompt_confirmed', scope: 'location');
+    await context.push(RoutePaths.locationPermission);
   }
 
   void _handleScroll() {
@@ -132,7 +163,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               expandedBlockTop: expandedBlockTop,
               collapsedBlockTop: collapsedBlockTop,
               blockHeight: blockHeight,
-              backdropColor: Colors.white,
+              backdropColor: context.colors.surface,
               banner: FullBackgroundVideoHeader(
                 banners: state.banners,
                 isLoading: state.isLoadingBanners,
@@ -280,11 +311,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         vertical: 6,
       ),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFFBEB),
+        color: context.semantic.brandSurfaceSoft,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
-            color: Colors.black12,
+            color: context.colors.shadow.withValues(alpha: 0.12),
             blurRadius: 4,
             offset: Offset(0, 2),
           ),
@@ -293,9 +324,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(
+          Icon(
             Icons.bolt_rounded,
-            color: Color(0xFFEAB308),
+            color: context.semantic.warning,
             size: 22,
           ),
           const SizedBox(width: 2),
@@ -308,7 +339,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 style: GoogleFonts.outfit(
                   fontSize: 12,
                   fontWeight: FontWeight.w800,
-                  color: const Color(0xFF0F172A),
+                  color: context.colors.onSurface,
                   height: 1.0,
                 ),
               ),
@@ -317,7 +348,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 style: GoogleFonts.inter(
                   fontSize: 9.5,
                   fontWeight: FontWeight.w600,
-                  color: const Color(0xFF475569),
+                  color: context.semantic.textSecondary,
                   height: 1.0,
                 ),
               ),

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../../core/theme/app_theme.dart';
 import '../../../../di/app_providers.dart';
 import '../../../../navigation/route_paths.dart';
 import '../../notifications/notifications_provider.dart';
@@ -37,10 +38,10 @@ class DeliveryHeader extends ConsumerWidget {
               color: Colors.black.withValues(alpha: 0.35),
               shape: BoxShape.circle,
             ),
-            child: const Icon(
+            child: Icon(
               Icons.location_on_rounded,
               size: 22,
-              color: Color(0xFFFFC700),
+              color: context.colors.primary,
             ),
           ),
           const SizedBox(width: 8),
@@ -163,10 +164,10 @@ class DeliveryHeader extends ConsumerWidget {
                           ),
                         ],
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.notifications_none_rounded,
                         size: 24,
-                        color: Color(0xFF0F172A),
+                        color: context.colors.onSurface,
                       ),
                     ),
                     // Red Notification Badge
@@ -180,7 +181,7 @@ class DeliveryHeader extends ConsumerWidget {
                           minHeight: 19,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFEF4444),
+                          color: context.semantic.danger,
                           shape: BoxShape.circle,
                           border: Border.all(color: Colors.white, width: 1.5),
                         ),
@@ -220,8 +221,8 @@ class DeliveryHeader extends ConsumerWidget {
                         offset: Offset(0, 2),
                       ),
                     ],
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFFDE047), Color(0xFFEAB308)],
+                    gradient: LinearGradient(
+                      colors: [context.semantic.brandSurfaceSoft, context.semantic.warning],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
@@ -253,11 +254,11 @@ class _DefaultAvatarIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: const Color(0xFFFDE047),
+      color: context.semantic.brandSurfaceSoft,
       padding: const EdgeInsets.all(4),
-      child: const Icon(
+      child: Icon(
         Icons.person_rounded,
-        color: Color(0xFF854D0E),
+        color: context.semantic.onBrandSurface,
         size: 28,
       ),
     );

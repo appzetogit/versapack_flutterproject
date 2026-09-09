@@ -161,8 +161,20 @@ class DioApiClient implements ApiClient {
         return data.containsKey('data') ? data['data'] : data;
       }
       return data;
-    } on DioException catch (e) {
+    } on DioException catch (e, stackTrace) {
+      AppLogger.error(
+        'API request failed: $method $path',
+        error: e,
+        stackTrace: stackTrace,
+      );
       throw ErrorMapper.fromDio(e);
+    } catch (e, stackTrace) {
+      AppLogger.error(
+        'API request failed: $method $path',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      rethrow;
     }
   }
 

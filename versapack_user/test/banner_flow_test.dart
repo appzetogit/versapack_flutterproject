@@ -19,6 +19,17 @@ void main() {
     expect(MediaUrl.resolve(''), '');
   });
 
+  test('server-local media URLs are rewritten for the device', () {
+    expect(
+      MediaUrl.resolve('http://localhost:5000/uploads/food/a.webp'),
+      'https://quick.appzeto.com/uploads/food/a.webp',
+    );
+    expect(
+      MediaUrl.resolve('http://127.0.0.1:5000/uploads/food/a.webp?x=1'),
+      'https://quick.appzeto.com/uploads/food/a.webp?x=1',
+    );
+  });
+
   test('the live home-promotion payload parses into usable banners', () {
     // Verbatim shape of GET /api/v1/food/hero-banners/home-promotion/public.
     final body = <String, dynamic>{

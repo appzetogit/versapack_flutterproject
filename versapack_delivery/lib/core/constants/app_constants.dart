@@ -16,12 +16,40 @@ class AppConstants {
   ///
   /// Overridable at build time so a staging build never needs a code edit:
   ///   flutter build apk --dart-define=API_HOST=https://api.example.com
-  static const String apiHost = String.fromEnvironment(
+  static const String _apiBaseUrlOverride = String.fromEnvironment(
+    'API_BASE_URL',
+  );
+
+  static const String _apiHostOverride = String.fromEnvironment(
     'API_HOST',
     defaultValue: 'https://versapack.in',
   );
 
-  static const String baseUrl = '$apiHost/api/v1';
+  /// Backend origin. API_BASE_URL is the common cross-app override; API_HOST
+  /// remains supported for existing delivery builds.
+  static String get apiHost {
+    final raw = _apiBaseUrlOverride.trim();
+    if (raw.isNotEmpty) {
+      final uri = Uri.tryParse(raw);
+      if (uri != null && uri.hasAuthority) {
+        return Uri(
+          scheme: uri.scheme,
+          host: uri.host,
+          port: uri.hasPort ? uri.port : null,
+        ).toString().replaceFirst(RegExp(r'/$'), '');
+      }
+    }
+    return _apiHostOverride.replaceFirst(RegExp(r'/+$'), '');
+  }
+
+  static String get baseUrl {
+    final raw = _apiBaseUrlOverride.trim();
+    if (raw.isNotEmpty) return raw.replaceFirst(RegExp(r'/+$'), '');
+    return '$apiHost/api/v1';
+  }
+
+  static bool get hasValidApiBaseUrl =>
+      Uri.tryParse(baseUrl)?.path.replaceAll(RegExp(r'/+$'), '') == '/api/v1';
 
   /// Turns a backend-relative upload path (`/uploads/...`) into a full URL,
   /// leaving absolute and data URLs untouched.

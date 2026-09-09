@@ -147,11 +147,11 @@ class SocketService {
       'orderId': orderId,
       'lat': lat,
       'lng': lng,
-      'userId': ?userId,
-      'restaurantId': ?restaurantId,
-      'heading': ?heading,
-      'speed': ?speed,
-      'accuracy': ?accuracy,
+      if (userId != null) 'userId': userId,
+      if (restaurantId != null) 'restaurantId': restaurantId,
+      if (heading != null) 'heading': heading,
+      if (speed != null) 'speed': speed,
+      if (accuracy != null) 'accuracy': accuracy,
     });
   }
 
@@ -163,7 +163,7 @@ class SocketService {
   }) {
     _socket?.emit('chat:typing', {
       'toRole': toRole,
-      'toId': ?toId,
+      if (toId != null) 'toId': toId,
       'conversationId': conversationId,
       'typing': typing,
     });

@@ -44,9 +44,24 @@ import '../ui/screens/wallet/wallet_screen.dart';
 import '../ui/screens/wishlist/wishlist_screen.dart';
 import '../ui/shell/app_shell.dart';
 import 'route_paths.dart';
+import '../core/utils/logger.dart';
 
 final _rootKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 final _shellKey = GlobalKey<NavigatorState>(debugLabel: 'shell');
+
+class _RouteObserver extends NavigatorObserver {
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    AppLogger.action('route_push', details: 'route=${route.settings.name ?? route.runtimeType}', scope: 'navigation');
+    super.didPush(route, previousRoute);
+  }
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    AppLogger.action('route_pop', details: 'route=${route.settings.name ?? route.runtimeType}', scope: 'navigation');
+    super.didPop(route, previousRoute);
+  }
+}
 
 /// The app's route table.
 ///
@@ -56,6 +71,7 @@ final _shellKey = GlobalKey<NavigatorState>(debugLabel: 'shell');
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     navigatorKey: _rootKey,
+    observers: [_RouteObserver()],
     initialLocation: RoutePaths.splash,
     routes: [
       GoRoute(

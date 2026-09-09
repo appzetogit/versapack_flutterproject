@@ -55,12 +55,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       return;
     }
 
-    // Signed in: skip the location step when an address already exists.
-    await ref.read(addressBookProvider.notifier).load();
-    if (!mounted) return;
-
-    final hasAddress = ref.read(addressBookProvider).addresses.isNotEmpty;
-    context.go(hasAddress ? RoutePaths.home : RoutePaths.locationPermission);
+    // Signed-in users always land on Home. Home owns the non-blocking prompt
+    // for users who still need to add a delivery location.
+    context.go(RoutePaths.home);
   }
 
   @override
