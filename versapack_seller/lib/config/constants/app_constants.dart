@@ -19,8 +19,13 @@ class AppConstants {
   /// Keep the version here and nowhere else — splitting it across the base and
   /// the call sites is how paths end up with a doubled or missing segment.
   static const String baseUrl = String.fromEnvironment(
-    'BASE_URL',
-    defaultValue: 'https://versapack.in/api/v1',
+    'API_BASE_URL',
+    // BASE_URL is retained as a compatibility alias for existing CI/release
+    // commands. New builds should use API_BASE_URL for all three apps.
+    defaultValue: String.fromEnvironment(
+      'BASE_URL',
+      defaultValue: 'https://versapack.in/api/v1',
+    ),
   );
 
   /// Socket.IO origin. Deployed behind the same host as the API; a local setup
@@ -30,6 +35,9 @@ class AppConstants {
     'SOCKET_URL',
     defaultValue: 'https://versapack.in',
   );
+
+  static bool get hasValidApiBaseUrl =>
+      Uri.tryParse(baseUrl)?.path.replaceAll(RegExp(r'/+$'), '') == '/api/v1';
 
   /// Google Maps key for the Dart side (Maps SDK, Places, Geocoding).
   ///
@@ -51,7 +59,7 @@ class AppConstants {
   /// console by Android package name + SHA-1, iOS bundle id, and the specific
   /// APIs it may call. An unrestricted key is billable by anyone who finds it.
   static const String googleMapsApiKey = String.fromEnvironment(
-    'GOOGLE_MAPS_API_KEY',
+    'AIzaSyArBbII2fgAuVaycfkEAm1GcuyvKPTSWyc',
     defaultValue: 'AIzaSyArBbII2fgAuVaycfkEAm1GcuyvKPTSWyc',
   );
 

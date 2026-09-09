@@ -9,7 +9,7 @@ import 'app_colors.dart';
 class ThemeSettings {
   const ThemeSettings({
     this.mode = ThemeMode.light,
-    this.flavor = AppThemeFlavor.green,
+    this.flavor = AppThemeFlavor.versapack,
   });
 
   final ThemeMode mode;

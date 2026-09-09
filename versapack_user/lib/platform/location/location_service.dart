@@ -1,4 +1,5 @@
 import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart' as native_geocoding;
 
 import '../../domain/repository/place_repository.dart';
 import '../permission/permission_service.dart';
@@ -131,7 +132,7 @@ class GeolocatorLocationService implements LocationService {
         longitude: longitude,
       );
       if (place == null) {
-        return DeviceLocation(latitude: latitude, longitude: longitude);
+        return _resolveWithNativeGeocoder(latitude, longitude);
       }
       return DeviceLocation(
         latitude: latitude,
@@ -146,8 +147,57 @@ class GeolocatorLocationService implements LocationService {
         country: place.country,
       );
     } on Exception {
-      // Geocoding is an enhancement: a failure must still leave the user with a
-      // usable pin they can label by hand.
+      // A native lookup below can still resolve the address when a Maps REST
+      // key is unavailable or restricted to the map SDK.
+    }
+
+    return _resolveWithNativeGeocoder(latitude, longitude);
+  }
+
+  Future<DeviceLocation> _resolveWithNativeGeocoder(
+    double latitude,
+    double longitude,
+  ) async {
+    try {
+      final placemarks = await native_geocoding.placemarkFromCoordinates(
+        latitude,
+        longitude,
+      );
+      if (placemarks.isEmpty) {
+        return DeviceLocation(latitude: latitude, longitude: longitude);
+      }
+
+      final place = placemarks.first;
+      final streetLine = [place.subThoroughfare, place.thoroughfare]
+          .whereType<String>()
+          .where((part) => part.trim().isNotEmpty)
+          .join(' ');
+      final addressParts = [
+        place.name,
+        streetLine,
+        place.subLocality,
+        place.locality,
+        place.administrativeArea,
+        place.postalCode,
+        place.country,
+      ].whereType<String>().where((part) => part.trim().isNotEmpty).toList();
+
+      return DeviceLocation(
+        latitude: latitude,
+        longitude: longitude,
+        label: place.subLocality?.trim().isNotEmpty == true
+            ? place.subLocality!.trim()
+            : place.locality?.trim() ?? '',
+        formattedAddress: addressParts.toSet().join(', '),
+        city: place.locality?.trim() ?? '',
+        state: place.administrativeArea?.trim() ?? '',
+        pincode: place.postalCode?.trim() ?? '',
+        streetLine: streetLine,
+        subLocality: place.subLocality?.trim() ?? '',
+        country: place.country?.trim() ?? '',
+      );
+    } catch (_) {
+      // Geocoding is an enhancement: keep a usable pin if both providers fail.
       return DeviceLocation(latitude: latitude, longitude: longitude);
     }
   }

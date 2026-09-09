@@ -18,8 +18,8 @@ class SupportRepository {
   }) => _post(ApiEndpoints.supportTickets, {
     'subject': subject,
     'description': description,
-    'category': ?category,
-    'orderId': ?orderId,
+    if (category != null) 'category': category,
+    if (orderId != null) 'orderId': orderId,
   });
 
   Future<Result<List<Map<String, dynamic>>, AppError>>
@@ -36,7 +36,7 @@ class SupportRepository {
   }) => _post(ApiEndpoints.emergencyRequests, {
     'orderId': orderId,
     'reason': reason,
-    'notes': ?notes,
+    if (notes != null) 'notes': notes,
   });
 
   Future<Result<List<Map<String, dynamic>>, AppError>>

@@ -12,7 +12,7 @@ class FeatureHighlightsRow extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 7),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.colors.surface,
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
@@ -25,57 +25,57 @@ class FeatureHighlightsRow extends StatelessWidget {
       child: Row(
         children: [
           // 1. 10 mins Fast Delivery
-          const Expanded(
+          Expanded(
             child: _FeatureItem(
               iconWidget: Icon(
                 Icons.two_wheeler_rounded,
                 size: 20,
-                color: Color(0xFFFFC107),
+                color: context.colors.primary,
               ),
               title: '10 mins',
               subtitle: 'Fast Delivery',
             ),
           ),
-          _divider(),
+          _divider(context),
           // 2. 100% Secure Payment
           Expanded(
             child: _FeatureItem(
               iconWidget: Container(
                 width: 22,
                 height: 22,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFFFC107),
+                decoration: BoxDecoration(
+                  color: context.colors.primary,
                   shape: BoxShape.circle,
                 ),
                 alignment: Alignment.center,
-                child: const Icon(
+                child: Icon(
                   Icons.check_rounded,
                   size: 15,
-                  color: Colors.white,
+                  color: context.colors.onPrimary,
                 ),
               ),
               title: '100%',
               subtitle: 'Secure Payment',
             ),
           ),
-          _divider(),
+          _divider(context),
           // 3. Best Prices On All Products
           Expanded(
             child: _FeatureItem(
               iconWidget: Container(
                 width: 22,
                 height: 22,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFFFC107),
+                decoration: BoxDecoration(
+                  color: context.colors.primary,
                   shape: BoxShape.circle,
                 ),
                 alignment: Alignment.center,
-                child: const Text(
+                child: Text(
                   '%',
                   style: TextStyle(
                     fontWeight: FontWeight.w900,
                     fontSize: 12,
-                    color: Color(0xFF1F2937),
+                    color: context.colors.onPrimary,
                   ),
                 ),
               ),
@@ -88,11 +88,11 @@ class FeatureHighlightsRow extends StatelessWidget {
     );
   }
 
-  Widget _divider() {
+  Widget _divider(BuildContext context) {
     return Container(
       height: 24,
       width: 1,
-      color: const Color(0xFFF3F4F6),
+      color: context.semantic.surfaceAlt,
       margin: const EdgeInsets.symmetric(horizontal: 2),
     );
   }
@@ -131,7 +131,7 @@ class _FeatureItem extends StatelessWidget {
                 style: context.text.labelSmall!.copyWith(
                   fontWeight: FontWeight.w900,
                   fontSize: 11.5,
-                  color: const Color(0xFF1F2937),
+                  color: context.colors.onSurface,
                   height: 1.1,
                 ),
               ),
@@ -142,7 +142,7 @@ class _FeatureItem extends StatelessWidget {
                 style: context.text.labelSmall!.copyWith(
                   fontWeight: FontWeight.w500,
                   fontSize: 9,
-                  color: const Color(0xFF6B7280),
+                  color: context.semantic.textSecondary,
                   height: 1.1,
                 ),
               ),

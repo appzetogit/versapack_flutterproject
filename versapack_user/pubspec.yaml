@@ -1,5 +1,5 @@
 name: quick_commerce_user
-description: "Appzeto Quick — premium quick-commerce user app."
+description: "Versapack — premium quick-commerce user app."
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -22,6 +22,7 @@ dependencies:
 
   # Images & Video / loading
   cached_network_image: ^3.4.1
+  flutter_cache_manager: ^3.4.1
   shimmer: ^3.0.0
   video_player: ^2.9.2
 
@@ -50,6 +51,8 @@ dependencies:
   # Maps & location
   google_maps_flutter: ^2.9.0
   geolocator: ^13.0.2
+  # Uses the phone's native geocoder when the Maps REST lookup is unavailable.
+  geocoding: 3.0.0
 
   # Payments. Checkout is opened by the app; the order and the signature check
   # both live on the backend (`POST /food/orders` → `POST /food/orders/verify-payment`).

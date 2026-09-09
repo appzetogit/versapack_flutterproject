@@ -7,6 +7,7 @@ import '../common/widgets/feedback/app_dialog.dart';
 
 import '../../core/constants/app_durations.dart';
 import '../../core/utils/app_haptics.dart';
+import '../../core/utils/logger.dart';
 import '../../core/theme/app_radii.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_theme.dart';
@@ -71,6 +72,7 @@ class AppShell extends ConsumerWidget {
 
   /// Home is the only place the app may be closed from, and never silently.
   Future<void> _confirmExit(BuildContext context) async {
+    AppLogger.action('back', details: 'confirm_exit');
     final shouldExit = await AppDialog.confirm(
       context,
       icon: Icons.exit_to_app_rounded,
@@ -80,6 +82,7 @@ class AppShell extends ConsumerWidget {
       cancelLabel: 'Cancel',
     );
     if (!shouldExit) return;
+    AppLogger.action('exit_app', details: 'confirmed');
 
     // `SystemNavigator.pop` backs out of the app the way the OS expects,
     // leaving it resumable from Recents. `exit(0)` would kill the process and
@@ -132,6 +135,7 @@ class AppShell extends ConsumerWidget {
   }
 
   void _go(int index) {
+    AppLogger.action('navigation_tab', details: 'branch=$index');
     // Only cue an actual tab change — re-tapping the current tab (which just
     // pops to its root) should not buzz.
     if (index != navigationShell.currentIndex) AppHaptics.selection();
@@ -157,8 +161,9 @@ class _NavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color =
-        selected ? const Color(0xFFFFC107) : const Color(0xFF6B7280);
+    final color = selected
+        ? context.colors.primary
+        : context.semantic.textSecondary;
 
     return Semantics(
       button: true,
@@ -177,7 +182,9 @@ class _NavItem extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: context.text.labelSmall!.copyWith(
-                color: selected ? const Color(0xFF1F2937) : const Color(0xFF6B7280),
+                color: selected
+                    ? context.colors.primary
+                    : context.semantic.textSecondary,
                 fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
                 fontSize: 10.5,
               ),
@@ -219,12 +226,15 @@ class _CentreBadge extends StatelessWidget {
                       height: 54,
                       width: 54,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFFC107),
+                        color: context.colors.primary,
                         shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 4),
+                        border: Border.all(
+                          color: context.colors.surface,
+                          width: 4,
+                        ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.14),
+                            color: context.colors.shadow.withValues(alpha: 0.14),
                             blurRadius: 10,
                             offset: const Offset(0, 4),
                           ),
@@ -237,7 +247,7 @@ class _CentreBadge extends StatelessWidget {
                           Text(
                             '10',
                             style: context.text.bodySmall!.copyWith(
-                              color: const Color(0xFF1F2937),
+                              color: context.colors.onPrimary,
                               fontWeight: FontWeight.w900,
                               fontSize: 13,
                               height: 0.95,
@@ -246,7 +256,7 @@ class _CentreBadge extends StatelessWidget {
                           Text(
                             'mins',
                             style: context.text.labelSmall!.copyWith(
-                              color: const Color(0xFF1F2937),
+                              color: context.colors.onPrimary,
                               fontWeight: FontWeight.w800,
                               fontSize: 8.5,
                               height: 0.95,
@@ -273,7 +283,7 @@ class _CentreBadge extends StatelessWidget {
                             ),
                             constraints: const BoxConstraints(minWidth: 18),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFEF4444),
+                              color: context.semantic.danger,
                               borderRadius: AppRadii.rPill,
                               border: Border.all(
                                 color: context.colors.surface,
@@ -302,7 +312,7 @@ class _CentreBadge extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: context.text.labelSmall!.copyWith(
-                    color: const Color(0xFF1F2937),
+                    color: context.colors.onSurface,
                     fontWeight: FontWeight.w600,
                     fontSize: 10.5,
                   ),

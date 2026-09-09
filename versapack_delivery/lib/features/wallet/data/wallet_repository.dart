@@ -64,8 +64,8 @@ class WalletRepository {
     ApiEndpoints.tripHistory,
     query: {
       'period': period,
-      'date': ?date,
-      'status': ?status,
+      if (date != null) 'date': date,
+      if (status != null) 'status': status,
       'limit': limit,
     },
   );

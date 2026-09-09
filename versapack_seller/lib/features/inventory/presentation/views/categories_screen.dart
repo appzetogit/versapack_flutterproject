@@ -311,11 +311,11 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
                 ),
                 children: [
                   TextSpan(
-                    text: 'app',
+                    text: 'Versa',
                     style: TextStyle(color: context.textPrimary),
                   ),
                   TextSpan(
-                    text: 'zeto',
+                    text: 'pack',
                     style: TextStyle(color: Color(0xFF0F9D58)),
                   ),
                 ],

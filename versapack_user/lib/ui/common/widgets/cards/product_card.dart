@@ -156,6 +156,7 @@ class _ProductCardState extends ConsumerState<ProductCard> {
               height: double.infinity,
               width: double.infinity,
               desaturated: outOfStock,
+              debugLabel: 'productId=${_product.id} productName=${_product.name}',
             ),
           ),
         ),

@@ -118,14 +118,14 @@ class CategoriesScreen extends ConsumerWidget {
           children: [
             // Golden Header Gradient with DeliveryHeader + SearchBar
             Container(
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    Color(0xFFFFB300),
-                    Color(0xFFFFC107),
-                    Color(0xFFFFD54F),
-                    Color(0xFFFFF8E1),
-                    Colors.white,
+                    context.colors.primary,
+                    context.colors.primary.withValues(alpha: 0.72),
+                    context.semantic.brandSurfaceSoft,
+                    context.colors.surface,
+                    context.colors.surface,
                   ],
                   stops: [0.0, 0.4, 0.7, 0.9, 1.0],
                   begin: Alignment.topCenter,
@@ -198,7 +198,7 @@ class CategoriesScreen extends ConsumerWidget {
                                 style: context.text.titleLarge!.copyWith(
                                   fontWeight: FontWeight.w900,
                                   fontSize: 18,
-                                  color: const Color(0xFF1F2937),
+                                  color: context.colors.onSurface,
                                 ),
                               ),
                             ),

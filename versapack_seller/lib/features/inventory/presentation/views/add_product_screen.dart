@@ -581,11 +581,11 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                 ),
                 children: [
                   TextSpan(
-                    text: 'app',
+                    text: 'Versa',
                     style: TextStyle(color: Color(0xFF181C2E)),
                   ),
                   TextSpan(
-                    text: 'zeto',
+                    text: 'pack',
                     style: TextStyle(color: Color(0xFF0F9D58)),
                   ),
                 ],

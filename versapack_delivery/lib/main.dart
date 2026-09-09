@@ -149,7 +149,7 @@ class _QuickCommerceDeliveryAppState extends ConsumerState<QuickCommerceDelivery
               value: isDarkMode ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
               child: Stack(
                 children: [
-                  ?routedChild,
+                  if (routedChild != null) routedChild,
                 Consumer(
                   builder: (context, ref, _) {
                     final ordersState = ref.watch(ordersControllerProvider);

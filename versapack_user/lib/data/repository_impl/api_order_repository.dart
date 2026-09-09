@@ -173,7 +173,9 @@ class ApiOrderRepository implements OrderRepository {
   Future<Order> cancel(String orderId, {String? reason}) async {
     final json = await _client.patch(
       ApiPaths.orderCancel(orderId),
-      body: {'reason': ?reason?.nullIfEmpty},
+      body: {
+        if (reason?.nullIfEmpty != null) 'reason': reason!.nullIfEmpty,
+      },
       requiresAuth: true,
     );
     return _single(json);
@@ -190,7 +192,7 @@ class ApiOrderRepository implements OrderRepository {
       ApiPaths.orderRatings(orderId),
       body: {
         'restaurantRating': sellerRating,
-        'deliveryPartnerRating': ?riderRating,
+        if (riderRating != null) 'deliveryPartnerRating': riderRating,
         if (comment != null && comment.trim().isNotEmpty)
           'restaurantComment': comment.trim(),
       },

@@ -44,26 +44,25 @@ class _CategoryCardState extends State<CategoryCard> {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             // Soft Mint Pastel Rounded Image Plate (Matching Screenshot)
-            Container(
+            SizedBox(
+              width: widget.size,
               height: widget.size,
-              width: double.infinity,
-              padding: const EdgeInsets.all(7),
-              decoration: BoxDecoration(
-                color: const Color(0xFFEBF5F0), // Pastel soft mint green
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: const Color(0xFFE0ECE6),
-                  width: 0.8,
+              child: Container(
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: Colors.white,
+                    width: 0.8,
+                  ),
                 ),
-              ),
-              clipBehavior: Clip.antiAlias,
-              alignment: Alignment.center,
-              child: AppNetworkImage(
-                url: widget.category.imageUrl,
-                height: widget.size - 14,
-                width: double.infinity,
-                fit: BoxFit.contain,
-                fallbackIcon: Icons.shopping_basket_outlined,
+                clipBehavior: Clip.antiAlias,
+                alignment: Alignment.center,
+                child: AppNetworkImage(
+                  url: widget.category.imageUrl,
+                  height: widget.size - 14,
+                  width: widget.size - 14,
+                  fit: BoxFit.cover,
+                  fallbackIcon: Icons.shopping_basket_outlined,
+                ),
               ),
             ),
             const SizedBox(height: 6),
@@ -77,7 +76,7 @@ class _CategoryCardState extends State<CategoryCard> {
               style: context.text.labelSmall!.copyWith(
                 fontWeight: FontWeight.w800,
                 fontSize: 11.5,
-                color: const Color(0xFF1F2937),
+                color: context.colors.onSurface,
                 height: 1.15,
               ),
             ),

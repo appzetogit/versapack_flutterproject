@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_durations.dart';
 import '../../../../core/utils/app_haptics.dart';
+import '../../../../core/utils/logger.dart';
 import '../../../../core/theme/app_radii.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -18,6 +19,7 @@ class PrimaryButton extends StatefulWidget {
     this.expand = true,
     this.destructive = false,
     this.trailing,
+    this.fontSize,
   });
 
   final String label;
@@ -29,6 +31,7 @@ class PrimaryButton extends StatefulWidget {
 
   /// Optional right-aligned content, e.g. the cart total on a checkout bar.
   final Widget? trailing;
+  final double? fontSize;
 
   @override
   State<PrimaryButton> createState() => _PrimaryButtonState();
@@ -57,6 +60,7 @@ class _PrimaryButtonState extends State<PrimaryButton> {
                 // The main CTA is a committing action → medium, or heavy when
                 // it is the destructive variant. Flow outcomes (payment, order)
                 // fire their own success/error pulse separately.
+                AppLogger.action('tap', details: 'primary_button label="${widget.label}"');
                 widget.destructive ? AppHaptics.heavy() : AppHaptics.medium();
                 widget.onPressed!.call();
               }
@@ -112,7 +116,10 @@ class _PrimaryButtonState extends State<PrimaryButton> {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: context.text.labelLarge!
-                .copyWith(color: context.colors.onPrimary),
+                .copyWith(
+                  color: context.colors.onPrimary,
+                  fontSize: widget.fontSize,
+                ),
           ),
         ),
       ],

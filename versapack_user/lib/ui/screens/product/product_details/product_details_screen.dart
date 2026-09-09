@@ -133,7 +133,7 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
       ),
       body: CustomScrollView(
         slivers: [
-          // 1. Top Yellow Header with Appzeto Logo & Action Buttons
+          // 1. Top Yellow Header with Versapack Logo & Action Buttons
           _buildTopHeader(context, product, state),
 
           // 2. Product Image Gallery Section
@@ -207,7 +207,7 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
     );
   }
 
-  // 1. Top Yellow Header with Appzeto Logo & Action Buttons
+  // 1. Top Yellow Header with Versapack Logo & Action Buttons
   Widget _buildTopHeader(
     BuildContext context,
     Product product,
@@ -245,7 +245,7 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
             ),
           ),
           const SizedBox(width: 12),
-          // Center: Appzeto Logo & Groceries in 10 Mins
+          // Center: Versapack Logo & Groceries in 10 Mins
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
@@ -254,7 +254,7 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
                 text: TextSpan(
                   children: [
                     TextSpan(
-                      text: 'app',
+                      text: 'versa',
                       style: context.text.displaySmall!.copyWith(
                         fontWeight: FontWeight.w900,
                         color: const Color(0xFF1F2937),
@@ -264,7 +264,7 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
                       ),
                     ),
                     TextSpan(
-                      text: 'zeto',
+                      text: 'pack',
                       style: context.text.displaySmall!.copyWith(
                         fontWeight: FontWeight.w900,
                         color: const Color(0xFF16A34A),

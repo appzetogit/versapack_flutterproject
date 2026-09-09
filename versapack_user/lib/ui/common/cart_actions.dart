@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/utils/app_haptics.dart';
+import '../../core/utils/logger.dart';
 import '../../di/app_providers.dart';
 import '../../di/repository_providers.dart';
 import '../../domain/model/addon.dart';
@@ -34,11 +35,13 @@ abstract final class CartActions {
     /// Skips the add-on sheet — the details screen collects them in-page.
     bool askForAddons = true,
   }) async {
+    AppLogger.action('add_to_cart', details: 'product=${product.id} quantity=$quantity variants=${product.hasVariants}', scope: 'cart');
     var chosenVariant = variant;
     var chosenAddons = addons;
 
     if (product.hasVariants && chosenVariant == null) {
       chosenVariant = await VariantSheet.show(context, product: product);
+      AppLogger.action('variant_sheet_result', details: chosenVariant == null ? 'cancelled' : 'selected', scope: 'cart');
       if (chosenVariant == null || !context.mounted) return;
     }
 
@@ -52,6 +55,7 @@ abstract final class CartActions {
           productName: product.name,
           basePrice: chosenVariant?.price ?? product.price,
         );
+        AppLogger.action('addon_sheet_result', details: picked == null ? 'cancelled' : 'selected', scope: 'cart');
         if (picked == null || !context.mounted) return;
         chosenAddons = picked;
       }
@@ -78,6 +82,7 @@ abstract final class CartActions {
     GlobalKey? sourceKey,
     bool replaceSeller = false,
   }) async {
+    AppLogger.action('cart_commit', details: 'product=${product.id} quantity=$quantity', scope: 'cart');
     final outcome = await ref.read(cartProvider.notifier).add(
           product,
           variant: variant,
@@ -91,12 +96,14 @@ abstract final class CartActions {
 
     switch (outcome) {
       case CartUpdated():
+        AppLogger.action('cart_updated', details: 'product=${product.id}', scope: 'cart');
         if (sourceKey != null) {
           FlyToCart.run(context, sourceKey: sourceKey, imageUrl: product.imageUrl);
         }
         AppToast.success(context, '${product.name} added to cart');
 
       case SellerConflict(:final currentSellerName):
+        AppLogger.action('cart_seller_conflict', details: 'current_seller=$currentSellerName', scope: 'cart');
         final replace = await AppDialog.confirm(
           context,
           icon: Icons.storefront_outlined,
@@ -121,6 +128,7 @@ abstract final class CartActions {
         }
 
       case AddRejected(:final reason):
+        AppLogger.action('cart_add_rejected', details: reason, scope: 'cart');
         AppToast.error(context, reason);
 
       case NeedsVariantSelection():
@@ -147,6 +155,7 @@ abstract final class CartActions {
 
   /// Increments the first cart line for [product] (cards only ever show one).
   static Future<void> increment(WidgetRef ref, Product product) async {
+    AppLogger.action('cart_increment', details: 'product=${product.id}', scope: 'cart');
     final cart = ref.read(cartProvider).cart;
     final line = cart.items.where((i) => i.product.id == product.id).firstOrNull;
     if (line == null) return;
@@ -154,6 +163,7 @@ abstract final class CartActions {
   }
 
   static Future<void> decrement(WidgetRef ref, Product product) async {
+    AppLogger.action('cart_decrement', details: 'product=${product.id}', scope: 'cart');
     final cart = ref.read(cartProvider).cart;
     final line = cart.items.where((i) => i.product.id == product.id).firstOrNull;
     if (line == null) return;
@@ -165,6 +175,7 @@ abstract final class CartActions {
     WidgetRef ref,
     Product product,
   ) async {
+    AppLogger.action('wishlist_toggle', details: 'product=${product.id}', scope: 'wishlist');
     if (!ref.read(authProvider).isSignedIn) {
       AppToast.show(context, 'Sign in to save items to your wishlist');
       return;

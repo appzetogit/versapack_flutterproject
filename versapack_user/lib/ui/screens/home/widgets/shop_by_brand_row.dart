@@ -39,7 +39,7 @@ class ShopByBrandRow extends StatelessWidget {
                 style: context.text.titleLarge!.copyWith(
                   fontWeight: FontWeight.w900,
                   fontSize: 18,
-                  color: const Color(0xFF1F2937),
+                  color: context.colors.onSurface,
                 ),
               ),
               if (onSeeAll != null)
@@ -52,14 +52,14 @@ class ShopByBrandRow extends StatelessWidget {
                         style: context.text.labelSmall!.copyWith(
                           fontWeight: FontWeight.w800,
                           fontSize: 13,
-                          color: const Color(0xFF16A34A),
+                          color: context.semantic.success,
                         ),
                       ),
                       const SizedBox(width: 3),
-                      const Icon(
+                      Icon(
                         Icons.arrow_forward_rounded,
                         size: 14,
-                        color: Color(0xFF16A34A),
+                        color: context.semantic.success,
                       ),
                     ],
                   ),

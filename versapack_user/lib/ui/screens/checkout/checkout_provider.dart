@@ -25,6 +25,7 @@ class CheckoutController extends Notifier<CheckoutState> {
   }
 
   void setSlot(DeliverySlot slot) {
+    AppLogger.action('checkout_slot_changed', details: 'slot=${slot.id}', scope: 'checkout');
     state = state.copyWith(slot: slot);
     ref.read(cartProvider.notifier).priceNow();
   }
@@ -53,6 +54,7 @@ class CheckoutController extends Notifier<CheckoutState> {
 
   /// Creates the order server-side. Returns null when blocked or on failure.
   Future<PlacedOrder?> placeOrder({required String? name, required String? phone}) async {
+    AppLogger.action('place_order', details: 'payment=${state.paymentMethod.orderWireValue}', scope: 'checkout');
     final issues = currentIssues();
     if (issues.isNotEmpty) {
       state = state.copyWith(
@@ -91,6 +93,7 @@ class CheckoutController extends Notifier<CheckoutState> {
           }(),
       };
     } catch (e) {
+      AppLogger.error('place_order failed', error: e);
       state = state.copyWith(
         isPlacing: false,
         failure: ErrorMapper.toFailure(e),

@@ -13,15 +13,10 @@ abstract final class AppTheme {
   static ThemeData _build(AppThemeFlavor flavor, Brightness brightness) {
     final isDark = brightness == Brightness.dark;
 
-    // The brand colour is the yellow. Green is a *status* colour (success,
-    // veg, active) and reaches the UI through `semantic.success`, never through
-    // `colorScheme.primary` — having it as primary is what put green on the
-    // splash, the buttons, the progress indicators and the focus rings.
-    final primaryColor =
-        flavor == AppThemeFlavor.appzeto ? AppColors.appzetoYellow : flavor.seed;
-    final secondaryColor = flavor == AppThemeFlavor.appzeto
-        ? AppColors.appzetoGreen
-        : flavor.accent;
+    // Brand and status colors are kept separate. Widgets consume the active
+    // brand through ColorScheme/AppSemanticColors instead of defining it.
+    final primaryColor = flavor.seed;
+    final secondaryColor = flavor.accent;
 
     final scheme = ColorScheme.fromSeed(
       seedColor: primaryColor,

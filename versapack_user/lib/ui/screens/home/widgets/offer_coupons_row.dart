@@ -104,7 +104,7 @@ class _OfferCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const cardColor = Color(0xFFF6F4ED);
+    final cardColor = context.semantic.brandSurfaceSoft;
 
     return GestureDetector(
       onTap: onTap == null ? null : () => onTap!(coupon),
@@ -113,7 +113,7 @@ class _OfferCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: cardColor,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFFDE68A), width: 1),
+          border: Border.all(color: context.semantic.warning.withValues(alpha: 0.35), width: 1),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.04),
@@ -135,12 +135,12 @@ class _OfferCard extends StatelessWidget {
                   Container(
                     width: 24,
                     height: 24,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFFFC107),
+                    decoration: BoxDecoration(
+                      color: context.colors.primary,
                       shape: BoxShape.circle,
                     ),
                     alignment: Alignment.center,
-                    child: Icon(icon, size: 14, color: const Color(0xFF1F2937)),
+                    child: Icon(icon, size: 14, color: context.colors.onPrimary),
                   ),
                   const SizedBox(height: 3),
                   Text(
@@ -150,7 +150,7 @@ class _OfferCard extends StatelessWidget {
                     style: context.text.titleSmall!.copyWith(
                       fontWeight: FontWeight.w900,
                       fontSize: 12,
-                      color: const Color(0xFF1F2937),
+                      color: context.colors.onSurface,
                       height: 1.1,
                     ),
                   ),
@@ -161,7 +161,7 @@ class _OfferCard extends StatelessWidget {
                     style: context.text.bodySmall!.copyWith(
                       fontWeight: FontWeight.w500,
                       fontSize: 9.5,
-                      color: const Color(0xFF6B7280),
+                      color: context.semantic.textSecondary,
                       height: 1.1,
                     ),
                   ),
@@ -174,14 +174,14 @@ class _OfferCard extends StatelessWidget {
                         style: context.text.labelSmall!.copyWith(
                           fontWeight: FontWeight.w800,
                           fontSize: 10,
-                          color: const Color(0xFFD97706),
+                          color: context.semantic.warning,
                         ),
                       ),
                       const SizedBox(width: 2),
-                      const Icon(
+                      Icon(
                         Icons.arrow_forward_rounded,
                         size: 10,
-                        color: Color(0xFFD97706),
+                        color: context.semantic.warning,
                       ),
                     ],
                   ),

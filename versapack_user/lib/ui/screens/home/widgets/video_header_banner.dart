@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 
+import '../../../../core/theme/app_theme.dart';
 import '../../../../domain/model/banner.dart';
 import '../../../common/widgets/loaders/shimmer_box.dart';
 import '../../../common/widgets/misc/app_network_image.dart';
@@ -119,9 +120,9 @@ class _FullBackgroundVideoHeaderState
                         },
                       )
                     : Container(
-                        decoration: const BoxDecoration(
+                        decoration: BoxDecoration(
                           gradient: LinearGradient(
-                            colors: [Color(0xFFFFC700), Color(0xFFFFB300)],
+                            colors: [context.colors.primary, context.semantic.accent],
                             begin: Alignment.topCenter,
                             end: Alignment.bottomCenter,
                           ),
@@ -296,7 +297,7 @@ class __FullBackgroundVideoPlayerState
     }
 
     return Container(
-      color: const Color(0xFFFFC700),
+      color: context.colors.primary,
     );
   }
 }

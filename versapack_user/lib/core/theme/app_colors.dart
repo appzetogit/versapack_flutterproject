@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 /// evergreen ("Suvio Green") paired with a warm citrus accent, which reads as
 /// fresh + premium while staying high-contrast at small sizes.
 enum AppThemeFlavor {
-  appzeto('Versapack Orange', Color(0xFFFD9027), Color(0xFF16A34A)),
+  versapack('Versapack Orange', AppColors.versapackPrimary, Color(0xFF16A34A)),
   green('Suvio Green', Color(0xFF0E7C66), Color(0xFFFFB020)),
   indigo('Suvio Indigo', Color(0xFF4338CA), Color(0xFFFF7A59)),
   sunset('Suvio Sunset', Color(0xFFE0533D), Color(0xFF1F9C8A));
@@ -20,15 +20,16 @@ enum AppThemeFlavor {
   static AppThemeFlavor fromName(String? name) =>
       AppThemeFlavor.values.firstWhere(
         (f) => f.name == name,
-        orElse: () => AppThemeFlavor.appzeto,
+        orElse: () => AppThemeFlavor.versapack,
       );
 }
 
 abstract final class AppColors {
-  // Appzeto exact colors
-  static const appzetoYellow = Color(0xFFFD9027);
-  static const appzetoGreen = Color(0xFF16A34A);
-  static const appzetoDarkGreen = Color(0xFF16A34A);
+  // Versapack brand tokens
+  static const versapackPrimary = Color(0xFFFF7D41);
+  static const versapackYellow = versapackPrimary;
+  static const versapackGreen = Color(0xFF16A34A);
+  static const versapackDarkGreen = Color(0xFF16A34A);
   static const orangeBadge = Color(0xFFFF6B35);
 
   // Semantic, flavor-independent tokens.
@@ -62,8 +63,8 @@ abstract final class AppColors {
 
   static const discountGradient = [Color(0xFF1E88E5), Color(0xFF1565C0)];
 
-  // Appzeto brand surfaces matching home screen.
-  static const brandYellow = Color(0xFFFD9027);
+  // Versapack brand surfaces matching the home screen.
+  static const brandYellow = versapackPrimary;
   static const brandYellowSoft = Color(0xFFFFF1C5);
   static const brandYellowFaint = Color(0xFFFFF9E6);
   static const brandGreen = Color(0xFF16A34A);
@@ -121,13 +122,13 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
   final List<BoxShadow> floatingShadow;
 
   factory AppSemanticColors.light(AppThemeFlavor flavor) => AppSemanticColors(
-        accent: flavor == AppThemeFlavor.appzeto
-            ? AppColors.appzetoGreen
+        accent: flavor == AppThemeFlavor.versapack
+            ? AppColors.versapackGreen
             : flavor.accent,
-        brandSurface: flavor == AppThemeFlavor.appzeto
-            ? AppColors.appzetoYellow
+        brandSurface: flavor == AppThemeFlavor.versapack
+            ? AppColors.versapackYellow
             : flavor.accent,
-        brandSurfaceSoft: flavor == AppThemeFlavor.appzeto
+        brandSurfaceSoft: flavor == AppThemeFlavor.versapack
             ? AppColors.brandYellowSoft
             : flavor.accent.withValues(alpha: 0.16),
         onBrandSurface: AppColors.lightTextPrimary,
@@ -157,10 +158,10 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
 
   factory AppSemanticColors.dark(AppThemeFlavor flavor) => AppSemanticColors(
         accent: flavor.accent,
-        brandSurface: flavor == AppThemeFlavor.appzeto
+        brandSurface: flavor == AppThemeFlavor.versapack
             ? AppColors.brandYellowDark
             : AppColors.darkSurfaceAlt,
-        brandSurfaceSoft: flavor == AppThemeFlavor.appzeto
+        brandSurfaceSoft: flavor == AppThemeFlavor.versapack
             ? AppColors.brandYellowSoftDark
             : AppColors.darkSurfaceAlt,
         onBrandSurface: AppColors.darkTextPrimary,

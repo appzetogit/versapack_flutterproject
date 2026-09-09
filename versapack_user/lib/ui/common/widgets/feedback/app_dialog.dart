@@ -45,15 +45,19 @@ abstract final class AppDialog {
                   child: Text(
                     cancelLabel,
                     style: context.text.labelLarge!
-                        .copyWith(color: context.semantic.textSecondary),
+                        .copyWith(
+                          color: context.semantic.textSecondary,
+                          fontSize: 12,
+                        ),
                   ),
                 ),
               ),
               const SizedBox(width: AppSpacing.md),
               Expanded(
-                child: PrimaryButton(
-                  label: confirmLabel,
-                  destructive: destructive,
+                  child: PrimaryButton(
+                    label: confirmLabel,
+                    fontSize: 12,
+                    destructive: destructive,
                   onPressed: () => Navigator.of(context).pop(true),
                 ),
               ),

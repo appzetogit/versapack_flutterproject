@@ -53,15 +53,15 @@ class TopSellersRow extends StatelessWidget {
                 width: 22,
                 height: 22,
                 margin: const EdgeInsets.only(right: 8),
-                decoration: const BoxDecoration(
-                  color: Color(0xFFFFC107),
+                decoration: BoxDecoration(
+                  color: context.colors.primary,
                   shape: BoxShape.circle,
                 ),
                 alignment: Alignment.center,
-                child: const Icon(
+                child: Icon(
                   Icons.star_rounded,
                   size: 15,
-                  color: Colors.white,
+                  color: context.colors.onPrimary,
                 ),
               ),
               Expanded(
@@ -73,14 +73,14 @@ class TopSellersRow extends StatelessWidget {
                       style: context.text.titleMedium!.copyWith(
                         fontWeight: FontWeight.w900,
                         fontSize: 16.5,
-                        color: const Color(0xFF1F2937),
+                        color: context.colors.onSurface,
                       ),
                     ),
                     Text(
                       'Verified stores delivering near you',
                       style: context.text.bodySmall!.copyWith(
                         fontSize: 11,
-                        color: const Color(0xFF6B7280),
+                        color: context.semantic.textSecondary,
                       ),
                     ),
                   ],
@@ -96,14 +96,14 @@ class TopSellersRow extends StatelessWidget {
                         style: context.text.labelSmall!.copyWith(
                           fontWeight: FontWeight.w800,
                           fontSize: 12.5,
-                          color: const Color(0xFF16A34A),
+                          color: context.semantic.success,
                         ),
                       ),
                       const SizedBox(width: 2),
-                      const Icon(
+                      Icon(
                         Icons.arrow_forward_rounded,
                         size: 13,
-                        color: Color(0xFF16A34A),
+                        color: context.semantic.success,
                       ),
                     ],
                   ),
@@ -299,10 +299,10 @@ class _SellerCardState extends ConsumerState<_SellerCard> {
         width: widget.width,
         height: widget.height,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.colors.surface,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: const Color(0xFFE5E7EB),
+            color: context.semantic.border,
             width: 1.0,
           ),
           boxShadow: [
@@ -328,7 +328,7 @@ class _SellerCardState extends ConsumerState<_SellerCard> {
                   Container(
                     width: double.infinity,
                     height: 104,
-                    color: const Color(0xFFF9FAFB),
+                    color: context.semantic.surfaceAlt,
                     child: AnimatedSwitcher(
                       duration: const Duration(milliseconds: 350),
                       switchInCurve: Curves.easeIn,
@@ -353,11 +353,11 @@ class _SellerCardState extends ConsumerState<_SellerCard> {
                           : Container(
                               key: const ValueKey<String>('empty'),
                               alignment: Alignment.center,
-                              color: const Color(0xFFF9FAFB),
-                              child: const Icon(
+                              color: context.semantic.surfaceAlt,
+                              child: Icon(
                                 Icons.shopping_bag_outlined,
                                 size: 28,
-                                color: Color(0xFFD1D5DB),
+                                color: context.semantic.textSecondary,
                               ),
                             ),
                     ),
@@ -373,7 +373,7 @@ class _SellerCardState extends ConsumerState<_SellerCard> {
                         vertical: 2.5,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF16A34A),
+                        color: context.semantic.success,
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
@@ -420,8 +420,8 @@ class _SellerCardState extends ConsumerState<_SellerCard> {
                               : Icons.favorite_border_rounded,
                           size: 15,
                           color: _isWishlisted
-                              ? const Color(0xFFEF4444)
-                              : const Color(0xFF4B5563),
+                          ? context.semantic.danger
+                          : context.semantic.textSecondary,
                         ),
                       ),
                     ),
@@ -442,7 +442,7 @@ class _SellerCardState extends ConsumerState<_SellerCard> {
                     style: context.text.titleSmall!.copyWith(
                       fontWeight: FontWeight.w800,
                       fontSize: 11.5,
-                      color: const Color(0xFF0F172A),
+                      color: context.colors.onSurface,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -455,7 +455,7 @@ class _SellerCardState extends ConsumerState<_SellerCard> {
                           style: context.text.titleSmall!.copyWith(
                             fontWeight: FontWeight.w800,
                             fontSize: 11,
-                            color: const Color(0xFF16A34A),
+                            color: context.semantic.success,
                           ),
                         ),
                         if (currentProduct.packSize.trim().isNotEmpty) ...[
@@ -468,7 +468,7 @@ class _SellerCardState extends ConsumerState<_SellerCard> {
                               style: context.text.bodySmall!.copyWith(
                                 fontWeight: FontWeight.w500,
                                 fontSize: 9.5,
-                                color: const Color(0xFF6B7280),
+                                color: context.semantic.textSecondary,
                               ),
                             ),
                           ),
@@ -479,7 +479,7 @@ class _SellerCardState extends ConsumerState<_SellerCard> {
                           style: context.text.bodySmall!.copyWith(
                             fontWeight: FontWeight.w500,
                             fontSize: 9.5,
-                            color: const Color(0xFF6B7280),
+                            color: context.semantic.textSecondary,
                           ),
                         ),
                       ],
@@ -489,16 +489,16 @@ class _SellerCardState extends ConsumerState<_SellerCard> {
               ),
             ),
 
-            const Divider(
+            Divider(
               height: 1,
               thickness: 0.8,
-              color: Color(0xFFF3F4F6),
+              color: context.semantic.border,
             ),
 
             // 2. BOTTOM STORE FOOTER SECTION (Store Name, Logo, Delivery Time & Stats)
             Expanded(
               child: Container(
-                color: const Color(0xFFFAFAFA),
+                color: context.colors.surface,
                 padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -514,7 +514,7 @@ class _SellerCardState extends ConsumerState<_SellerCard> {
                             color: Colors.white,
                             shape: BoxShape.circle,
                             border: Border.all(
-                              color: const Color(0xFFE5E7EB),
+                              color: context.semantic.border,
                               width: 0.8,
                             ),
                           ),
@@ -527,10 +527,10 @@ class _SellerCardState extends ConsumerState<_SellerCard> {
                                   fit: BoxFit.cover,
                                   fallbackIcon: Icons.storefront_outlined,
                                 )
-                              : const Icon(
+                              : Icon(
                                   Icons.storefront_outlined,
                                   size: 11,
-                                  color: Color(0xFF4B5563),
+                                  color: context.semantic.textSecondary,
                                 ),
                         ),
                         const SizedBox(width: 4),
@@ -542,7 +542,7 @@ class _SellerCardState extends ConsumerState<_SellerCard> {
                             style: context.text.titleSmall!.copyWith(
                               fontWeight: FontWeight.w800,
                               fontSize: 10.5,
-                              color: const Color(0xFF374151),
+                              color: context.colors.onSurface,
                             ),
                           ),
                         ),
@@ -560,7 +560,7 @@ class _SellerCardState extends ConsumerState<_SellerCard> {
                               vertical: 1.5,
                             ),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFDCFCE7),
+                              color: context.semantic.successSoft,
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
@@ -568,17 +568,17 @@ class _SellerCardState extends ConsumerState<_SellerCard> {
                               style: context.text.labelSmall!.copyWith(
                                 fontWeight: FontWeight.w800,
                                 fontSize: 9,
-                                color: const Color(0xFF15803D),
+                                color: context.semantic.success,
                               ),
                             ),
                           ),
                           const SizedBox(width: 4),
                         ],
                         if (seller.hasRating) ...[
-                          const Icon(
+                          Icon(
                             Icons.star_rounded,
                             size: 11,
-                            color: Color(0xFFFFC107),
+                            color: context.semantic.warning,
                           ),
                           const SizedBox(width: 1),
                           Text(
@@ -586,7 +586,7 @@ class _SellerCardState extends ConsumerState<_SellerCard> {
                             style: context.text.titleSmall!.copyWith(
                               fontWeight: FontWeight.w800,
                               fontSize: 9.5,
-                              color: const Color(0xFF1F2937),
+                            color: context.colors.onSurface,
                             ),
                           ),
                         ],
@@ -596,7 +596,7 @@ class _SellerCardState extends ConsumerState<_SellerCard> {
                           style: context.text.bodySmall!.copyWith(
                             fontWeight: FontWeight.w500,
                             fontSize: 9,
-                            color: const Color(0xFF6B7280),
+                            color: context.semantic.textSecondary,
                           ),
                         ),
                       ],

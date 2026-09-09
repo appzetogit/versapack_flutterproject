@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_durations.dart';
+import '../../../../core/utils/logger.dart';
 import '../../../../core/theme/app_theme.dart';
 
 /// Circular icon button used in app bars, over images and on cards.
@@ -41,7 +42,12 @@ class _IconButtonCircleState extends State<IconButtonCircle> {
       onTapDown: (_) => setState(() => _pressed = true),
       onTapUp: (_) => setState(() => _pressed = false),
       onTapCancel: () => setState(() => _pressed = false),
-      onTap: widget.onPressed,
+      onTap: widget.onPressed == null
+          ? null
+          : () {
+              AppLogger.action('tap', details: 'icon_button tooltip="${widget.tooltip ?? 'unlabelled'}"');
+              widget.onPressed!.call();
+            },
       child: AnimatedScale(
         scale: _pressed ? 0.9 : 1,
         duration: AppDurations.instant,

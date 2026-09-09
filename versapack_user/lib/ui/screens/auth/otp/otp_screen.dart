@@ -6,7 +6,6 @@ import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_radii.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../../di/app_providers.dart';
 import '../../../../navigation/route_paths.dart';
 import '../../../common/widgets/buttons/primary_button.dart';
 import '../../../common/widgets/inputs/otp_input.dart';
@@ -34,12 +33,9 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
     final session = await ref.read(otpProvider(widget.phone).notifier).verify();
     if (session == null || !mounted) return;
 
-    // Straight to home when an address already exists, otherwise collect one.
-    await ref.read(addressBookProvider.notifier).load();
-    if (!mounted) return;
-
-    final hasAddress = ref.read(addressBookProvider).addresses.isNotEmpty;
-    context.go(hasAddress ? RoutePaths.home : RoutePaths.locationPermission);
+    // Login should never block on address setup. Home shows the location
+    // prompt after the authenticated shell is visible.
+    context.go(RoutePaths.home);
   }
 
   @override
